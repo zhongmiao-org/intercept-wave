@@ -17,7 +17,7 @@ import javax.swing.*
  * Mock接口编辑对话框
  */
 class MockApiDialog(
-    private val project: Project,
+    project: Project,
     private val existingApi: MockApiConfig?
 ) : DialogWrapper(project) {
 
