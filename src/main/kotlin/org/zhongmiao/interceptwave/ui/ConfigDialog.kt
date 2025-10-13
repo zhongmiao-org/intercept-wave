@@ -1,7 +1,5 @@
 package org.zhongmiao.interceptwave.ui
 
-import org.zhongmiao.interceptwave.model.MockApiConfig
-import org.zhongmiao.interceptwave.model.MockConfig
 import org.zhongmiao.interceptwave.services.ConfigService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project

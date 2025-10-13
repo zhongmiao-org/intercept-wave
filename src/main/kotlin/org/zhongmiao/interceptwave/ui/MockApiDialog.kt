@@ -47,19 +47,17 @@ class MockApiDialog(
             insets = Insets(5, 5, 5, 5)
         }
 
-        var row = 0
-
         // 启用状态
         gbc.gridx = 0
-        gbc.gridy = row
+        gbc.gridy = 0
         gbc.gridwidth = 2
         gbc.weightx = 0.0
         panel.add(enabledCheckBox, gbc)
-        row++
 
         gbc.gridwidth = 1
 
         // 接口路径
+        var row = 1
         gbc.gridx = 0
         gbc.gridy = row
         gbc.weightx = 0.0

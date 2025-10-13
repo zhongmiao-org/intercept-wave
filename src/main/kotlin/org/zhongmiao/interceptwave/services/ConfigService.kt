@@ -36,7 +36,7 @@ class ConfigService(private val project: Project) {
     /**
      * 加载配置
      */
-    fun loadConfig(): MockConfig {
+    private fun loadConfig(): MockConfig {
         return try {
             if (configFile.exists()) {
                 val content = configFile.readText()
