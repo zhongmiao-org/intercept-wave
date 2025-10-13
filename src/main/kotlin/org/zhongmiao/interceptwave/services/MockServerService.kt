@@ -10,7 +10,7 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
-import java.net.URL
+import java.net.URI
 import java.util.concurrent.Executors
 
 /**
@@ -79,7 +79,7 @@ class MockServerService(private val project: Project) {
      */
     private fun handleRequest(exchange: HttpExchange, config: MockConfig) {
         try {
-            var requestPath = exchange.requestURI.path
+            val requestPath = exchange.requestURI.path
             val method = exchange.requestMethod
 
             thisLogger().info("Received request: $method $requestPath")
@@ -128,15 +128,6 @@ class MockServerService(private val project: Project) {
         try {
             val mockApiCount = config.mockApis.size
             val enabledApiCount = config.mockApis.count { it.enabled }
-
-            val mockApiList = if (config.mockApis.isEmpty()) {
-                "暂无配置"
-            } else {
-                config.mockApis.joinToString("\n      ") { api ->
-                    val status = if (api.enabled) "✓" else "✗"
-                    "$status ${api.method.padEnd(6)} ${api.path}"
-                }
-            }
 
             val welcomeJson = """
                 {
@@ -242,7 +233,7 @@ class MockServerService(private val project: Project) {
 
             thisLogger().info("Forwarding request to: $targetUrl")
 
-            val connection = URL(targetUrl).openConnection() as HttpURLConnection
+            val connection = URI(targetUrl).toURL().openConnection() as HttpURLConnection
             connection.requestMethod = method
             connection.doInput = true
             connection.doOutput = method in listOf("POST", "PUT", "PATCH")

@@ -72,72 +72,10 @@ class ConfigService(private val project: Project) {
     fun getConfig(): MockConfig = currentConfig
 
     /**
-     * 更新配置
-     */
-    fun updateConfig(config: MockConfig) {
-        saveConfig(config)
-    }
-
-    /**
-     * 添加Mock接口配置
-     */
-    fun addMockApi(apiConfig: MockApiConfig) {
-        currentConfig.mockApis.add(apiConfig)
-        saveConfig(currentConfig)
-    }
-
-    /**
-     * 更新Mock接口配置
-     */
-    fun updateMockApi(index: Int, apiConfig: MockApiConfig) {
-        if (index in currentConfig.mockApis.indices) {
-            currentConfig.mockApis[index] = apiConfig
-            saveConfig(currentConfig)
-        }
-    }
-
-    /**
-     * 删除Mock接口配置
-     */
-    fun removeMockApi(index: Int) {
-        if (index in currentConfig.mockApis.indices) {
-            currentConfig.mockApis.removeAt(index)
-            saveConfig(currentConfig)
-        }
-    }
-
-    /**
      * 获取Mock接口配置
      */
+    @Suppress("unused")
     fun getMockApi(path: String): MockApiConfig? {
         return currentConfig.mockApis.find { it.path == path && it.enabled }
-    }
-
-    /**
-     * 保存Mock数据到独立文件
-     */
-    fun saveMockDataFile(apiPath: String, jsonData: String) {
-        try {
-            val fileName = apiPath.replace("/", "_").trim('_') + ".json"
-            val file = File(configDir, fileName)
-            file.writeText(jsonData)
-            thisLogger().info("Mock data saved to: ${file.absolutePath}")
-        } catch (e: Exception) {
-            thisLogger().error("Failed to save mock data file", e)
-        }
-    }
-
-    /**
-     * 加载Mock数据文件
-     */
-    fun loadMockDataFile(apiPath: String): String? {
-        return try {
-            val fileName = apiPath.replace("/", "_").trim('_') + ".json"
-            val file = File(configDir, fileName)
-            if (file.exists()) file.readText() else null
-        } catch (e: Exception) {
-            thisLogger().error("Failed to load mock data file", e)
-            null
-        }
     }
 }
