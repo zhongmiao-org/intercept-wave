@@ -2,6 +2,7 @@ package org.zhongmiao.interceptwave.ui
 
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBLabel
@@ -22,7 +23,7 @@ class MockApiDialog(
 ) : DialogWrapper(project) {
 
     private val pathField = JBTextField(existingApi?.path ?: "")
-    private val methodComboBox = JComboBox(arrayOf("ALL", "GET", "POST", "PUT", "DELETE", "PATCH"))
+    private val methodComboBox = ComboBox(arrayOf("ALL", "GET", "POST", "PUT", "DELETE", "PATCH"))
     private val statusCodeField = JBTextField(existingApi?.statusCode?.toString() ?: "200")
     private val delayField = JBTextField(existingApi?.delay?.toString() ?: "0")
     private val mockDataArea = JTextArea(existingApi?.mockData ?: "{}")
