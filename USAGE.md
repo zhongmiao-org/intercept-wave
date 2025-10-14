@@ -1,62 +1,23 @@
-# Intercept Wave
-
-![Build](https://github.com/zhongmiao-org/intercept-wave/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-
-<!-- Plugin description -->
-Intercept Wave 是一个强大的 IntelliJ IDEA 插件，为开发者提供本地 HTTP Mock 服务功能。它能够拦截特定接口并返回预设的 Mock 数据，同时将未配置的接口转发到原始服务器，完美支持前后端分离开发场景。
-
-**主要特性**：
-- 🎯 灵活的接口拦截与 Mock 数据配置
-- 🔀 智能代理：未配置接口自动转发到原始服务器
-- 🌐 自动处理 CORS 跨域问题
-- ⏱️ 支持网络延迟模拟
-- 🎨 可视化配置界面
-- 💾 配置持久化存储
-- 🔧 支持自定义响应头和状态码
-<!-- Plugin description end -->
+# Intercept Wave - Mock 服务使用指南
 
 ## 功能概述
 
-Intercept Wave 提供以下核心功能：
-
-- **接口拦截**: 拦截特定接口并返回配置的 Mock 数据
-- **代理转发**: 自动转发未配置的接口到原始服务器
-- **CORS 支持**: 自动添加 CORS 头，解决跨域问题
-- **请求保留**: 保留原始请求头和 User-Agent
-- **延迟模拟**: 模拟网络延迟，测试慢速网络环境
-- **状态码测试**: 配置不同状态码测试错误处理逻辑
-- **前缀过滤**: 支持配置前缀过滤，简化接口访问路径
-
-## 安装
-
-### 使用 IDE 内置插件系统
-
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "Intercept Wave"</kbd> > <kbd>Install</kbd>
-
-### 使用 JetBrains Marketplace
-
-访问 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) 并点击 <kbd>Install to ...</kbd> 按钮安装。
-
-或下载 [最新版本](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) 手动安装：
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
-
-### 手动安装
-
-从 [GitHub Releases](https://github.com/zhongmiao-org/intercept-wave/releases/latest) 下载最新版本，然后手动安装：
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+Intercept Wave 是一个 IntelliJ IDEA 插件，提供本地 HTTP Mock 服务功能，用于：
+- 拦截特定接口并返回配置的 Mock 数据
+- 转发未配置的接口到原始服务器（代理功能）
+- 自动添加 CORS 头，解决跨域问题
+- 保留原始请求头和 User-Agent
 
 ## 快速开始
 
-### 1. 启动 Mock 服务
+### 1. 启动插件
 
 1. 在 IntelliJ IDEA 中打开项目
-2. 点击左侧工具栏的 "Intercept Wave" 图标
+2. 点击右侧工具栏的 "Intercept Wave" 图标
 3. 在工具窗口中点击 "启动服务" 按钮
 4. 服务启动成功后，会显示访问地址（默认：http://localhost:8888）
 
-### 2. 配置 Mock 接口
+### 2. 配置 Mock 服务
 
 点击 "配置" 按钮，打开配置对话框：
 
@@ -64,9 +25,8 @@ Intercept Wave 提供以下核心功能：
 - **Mock端口**: 本地 Mock 服务监听的端口（默认：8888）
 - **拦截前缀**: 需要拦截的接口路径前缀（默认：/api）
 - **原始接口地址**: 原始服务器的基础 URL（例如：http://localhost:8080）
-- **过滤/取消前缀**: 启用后，访问 `localhost:8888/user/info` 会匹配 `/api/user/info`
 
-#### Mock 接口配置
+#### Mock接口配置
 1. 点击 "添加接口" 按钮
 2. 填写以下信息：
    - **接口路径**: 例如 `/api/user/info`
@@ -90,10 +50,10 @@ fetch('http://localhost:8888/api/user/info')
   .then(data => console.log(data));
 ```
 
-**配置**：
+配置：
 - 路径: `/api/user/info`
 - 方法: `GET`
-- Mock 数据:
+- Mock数据:
 ```json
 {
   "code": 0,
@@ -115,7 +75,8 @@ fetch('http://localhost:8888/api/posts')
   .then(data => console.log(data));
 ```
 
-如果配置了原始接口地址为 `http://api.example.com`，则实际请求：`http://api.example.com/api/posts`
+如果配置了原始接口地址为 `http://api.example.com`，则实际请求：
+`http://api.example.com/api/posts`
 
 ### 场景 3: 模拟网络延迟
 
@@ -131,7 +92,9 @@ fetch('http://localhost:8888/api/posts')
 
 ```
 .intercept-wave/
-└── config.json           # 全局配置和接口映射
+├── config.json           # 全局配置和接口映射
+├── api_user_info.json    # 可选：独立的 Mock 数据文件
+└── api_posts.json
 ```
 
 ### config.json 示例
@@ -141,7 +104,6 @@ fetch('http://localhost:8888/api/posts')
   "port": 8888,
   "interceptPrefix": "/api",
   "baseUrl": "http://localhost:8080",
-  "stripPrefix": false,
   "mockApis": [
     {
       "path": "/api/user/info",
@@ -188,34 +150,10 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 - User-Agent
 - 请求体（POST/PUT 等）
 
-## 欢迎页面
-
-访问 Mock 服务根路径（`http://localhost:8888/`）会返回服务状态和配置信息：
-
-```json
-{
-  "status": "running",
-  "message": "Intercept Wave Mock 服务运行中",
-  "server": {
-    "port": 8888,
-    "baseUrl": "http://localhost:8080",
-    "interceptPrefix": "/api"
-  },
-  "mockApis": {
-    "total": 3,
-    "enabled": 2
-  },
-  "apis": [
-    {"path": "/api/user/info", "method": "GET", "enabled": true},
-    {"path": "/api/posts", "method": "ALL", "enabled": true}
-  ]
-}
-```
-
 ## 注意事项
 
 1. **端口占用**: 确保配置的端口未被其他程序占用
-2. **配置修改**: 修改配置后，如果服务正在运行会自动停止
+2. **配置修改**: 修改配置后需要重启 Mock 服务
 3. **项目关闭**: 关闭项目时 Mock 服务会自动停止
 4. **安全性**: 此工具仅用于本地开发环境，不要在生产环境使用
 
@@ -243,7 +181,4 @@ A: 当前版本仅支持 HTTP，HTTPS 支持在计划中。
 
 ## 反馈与贡献
 
-如有问题或建议，欢迎提交 [Issue](https://github.com/zhongmiao-org/intercept-wave/issues) 或 [Pull Request](https://github.com/zhongmiao-org/intercept-wave/pulls)！
-
----
-Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
+如有问题或建议，欢迎提交 Issue 或 Pull Request！

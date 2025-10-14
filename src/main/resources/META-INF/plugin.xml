@@ -1,15 +1,21 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.github.ark65.interceptwave</id>
-    <name>intercept-wave</name>
-    <vendor>ark-65</vendor>
+    <id>org.zhongmiao.interceptwave</id>
+    <name>Intercept Wave</name>
+    <vendor>zhongmiao</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
-
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.ark65.interceptwave.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.ark65.interceptwave.startup.MyProjectActivity" />
+        <toolWindow
+            factoryClass="org.zhongmiao.interceptwave.toolWindow.InterceptWaveToolWindowFactory"
+            id="Intercept Wave"
+            anchor="right"
+            icon="/icons/interceptWave.svg"/>
     </extensions>
+
+    <projectListeners>
+        <listener class="org.zhongmiao.interceptwave.listeners.ProjectCloseListener"
+                  topic="com.intellij.openapi.project.ProjectManagerListener"/>
+    </projectListeners>
 </idea-plugin>

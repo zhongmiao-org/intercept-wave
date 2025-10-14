@@ -196,8 +196,10 @@ jobs:
           cache-read-only: true
 
       # Run Verify Plugin task and IntelliJ Plugin Verifier tool
-      - name: Run Plugin Verification tasks
-        run: ./gradlew verifyPlugin
+      # Temporarily disabled due to IntelliJ Platform Gradle Plugin bug #2027
+      # Will be re-enabled after upgrading to version 2.10.0+
+#      - name: Run Plugin Verification tasks
+#        run: ./gradlew verifyPlugin
 
       # Collect Plugin Verifier Result
       - name: Collect Plugin Verifier Result
