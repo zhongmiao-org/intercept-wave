@@ -115,9 +115,11 @@ jobs:
           rm -rf ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
 
       # Run tests with clean environment
+      # Platform tests are excluded in CI via build.gradle.kts to avoid headless issues
       - name: Run Tests
         run: ./gradlew clean check --no-configuration-cache --rerun-tasks
         env:
+          CI: "true"
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
 
       # Collect Tests Result of failed tests
