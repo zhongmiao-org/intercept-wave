@@ -105,11 +105,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
-          cache-read-only: true
+          cache-read-only: false
 
-      # Clean test sandbox to prevent index version conflicts
-      - name: Clean Test Sandbox
-        run: rm -rf build/idea-sandbox
+      # Clean test sandbox and caches to prevent index version conflicts
+      - name: Clean Test Sandbox and Caches
+        run: |
+          rm -rf build/idea-sandbox
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
+          rm -rf build/tmp
 
       # Run tests
       - name: Run Tests
