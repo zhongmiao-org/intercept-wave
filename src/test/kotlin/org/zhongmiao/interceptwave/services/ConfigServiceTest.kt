@@ -12,8 +12,12 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
-        configService = project.getService(ConfigService::class.java)
         configDir = File(project.basePath, ".intercept-wave")
+        // Clean up any existing config before each test
+        if (configDir.exists()) {
+            configDir.deleteRecursively()
+        }
+        configService = project.getService(ConfigService::class.java)
     }
 
     override fun tearDown() {
@@ -35,6 +39,7 @@ class ConfigServiceTest : BasePlatformTestCase() {
         assertEquals("/api", config.interceptPrefix)
         assertEquals("http://localhost:8080", config.baseUrl)
         assertFalse(config.stripPrefix)
+        assertEquals("", config.globalCookie)
         assertTrue(config.mockApis.isEmpty())
     }
 
