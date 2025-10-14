@@ -30,6 +30,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
     private val interceptPrefixField = JBTextField(config.interceptPrefix)
     private val baseUrlField = JBTextField(config.baseUrl)
     private val stripPrefixCheckbox = JCheckBox(message("config.global.stripprefix"), config.stripPrefix)
+    private val globalCookieField = JBTextField(config.globalCookie)
 
     private val tableModel = object : DefaultTableModel(
         arrayOf(
@@ -122,6 +123,18 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         gbc.gridwidth = 2
         stripPrefixCheckbox.toolTipText = message("config.global.stripprefix.tooltip", config.port, config.interceptPrefix)
         panel.add(stripPrefixCheckbox, gbc)
+
+        // 全局Cookie配置
+        gbc.gridx = 0
+        gbc.gridy = 4
+        gbc.gridwidth = 1
+        gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.global.cookie")), gbc)
+
+        gbc.gridx = 1
+        gbc.weightx = 1.0
+        globalCookieField.toolTipText = message("config.global.cookie.tooltip")
+        panel.add(globalCookieField, gbc)
 
         return panel
     }
@@ -248,6 +261,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
             config.interceptPrefix = interceptPrefixField.text
             config.baseUrl = baseUrlField.text
             config.stripPrefix = stripPrefixCheckbox.isSelected
+            config.globalCookie = globalCookieField.text.trim()
 
             // 从表格更新启用状态
             for (i in 0 until tableModel.rowCount) {
