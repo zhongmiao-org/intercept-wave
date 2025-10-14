@@ -23,9 +23,16 @@ class ConfigServiceTest : BasePlatformTestCase() {
             }
         } catch (e: Exception) {
             // Ignore deletion errors in setup
+            println("Failed to delete config directory ${e.message}")
         }
 
+        // Get the service - it will initialize with loadConfig()
         configService = project.getService(ConfigService::class.java)
+
+        // Force reload to ensure we get a fresh config after cleanup
+        // Since the config file was deleted, this should create default config
+        val defaultConfig = MockConfig()
+        configService.saveConfig(defaultConfig)
     }
 
     override fun tearDown() {
