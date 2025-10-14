@@ -1,5 +1,6 @@
 package org.zhongmiao.interceptwave.ui
 
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConfigService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -28,10 +29,16 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
     private val portField = JBTextField(config.port.toString())
     private val interceptPrefixField = JBTextField(config.interceptPrefix)
     private val baseUrlField = JBTextField(config.baseUrl)
-    private val stripPrefixCheckbox = JCheckBox("过滤/取消前缀", config.stripPrefix)
+    private val stripPrefixCheckbox = JCheckBox(message("config.global.stripprefix"), config.stripPrefix)
 
     private val tableModel = object : DefaultTableModel(
-        arrayOf("启用", "路径", "方法", "状态码", "延迟(ms)"),
+        arrayOf(
+            message("config.table.enabled"),
+            message("config.table.path"),
+            message("config.table.method"),
+            message("config.table.statuscode"),
+            message("config.table.delay")
+        ),
         0
     ) {
         override fun getColumnClass(column: Int): Class<*> {
@@ -45,7 +52,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
 
     init {
         init()
-        title = "Mock 服务配置"
+        title = message("config.dialog.title")
         loadMockApisToTable()
     }
 
@@ -69,7 +76,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
      */
     private fun createGlobalConfigPanel(): JPanel {
         val panel = JPanel(GridBagLayout())
-        panel.border = BorderFactory.createTitledBorder("全局配置")
+        panel.border = BorderFactory.createTitledBorder(message("config.global.title"))
 
         val gbc = GridBagConstraints().apply {
             fill = GridBagConstraints.HORIZONTAL
@@ -80,40 +87,40 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         gbc.gridx = 0
         gbc.gridy = 0
         gbc.weightx = 0.0
-        panel.add(JBLabel("Mock端口:"), gbc)
+        panel.add(JBLabel(message("config.global.port")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
-        portField.toolTipText = "Mock服务监听的本地端口"
+        portField.toolTipText = message("config.global.port.tooltip")
         panel.add(portField, gbc)
 
         // 拦截前缀配置
         gbc.gridx = 0
         gbc.gridy = 1
         gbc.weightx = 0.0
-        panel.add(JBLabel("拦截前缀:"), gbc)
+        panel.add(JBLabel(message("config.global.prefix")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
-        interceptPrefixField.toolTipText = "需要拦截的接口路径前缀，例如: /api"
+        interceptPrefixField.toolTipText = message("config.global.prefix.tooltip")
         panel.add(interceptPrefixField, gbc)
 
         // 原始接口地址配置
         gbc.gridx = 0
         gbc.gridy = 2
         gbc.weightx = 0.0
-        panel.add(JBLabel("原始接口地址:"), gbc)
+        panel.add(JBLabel(message("config.global.baseurl")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
-        baseUrlField.toolTipText = "原始接口的基础URL，例如: http://localhost:8080"
+        baseUrlField.toolTipText = message("config.global.baseurl.tooltip")
         panel.add(baseUrlField, gbc)
 
         // 过滤/取消前缀配置
         gbc.gridx = 0
         gbc.gridy = 3
         gbc.gridwidth = 2
-        stripPrefixCheckbox.toolTipText = "启用后，访问 localhost:${config.port}/*** 会匹配 ${config.interceptPrefix}/***"
+        stripPrefixCheckbox.toolTipText = message("config.global.stripprefix.tooltip", config.port, config.interceptPrefix)
         panel.add(stripPrefixCheckbox, gbc)
 
         return panel
@@ -124,7 +131,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
      */
     private fun createMockListPanel(): JPanel {
         val panel = JPanel(BorderLayout(10, 10))
-        panel.border = BorderFactory.createTitledBorder("Mock接口配置")
+        panel.border = BorderFactory.createTitledBorder(message("config.mock.title"))
 
         // 表格
         mockTable.fillsViewportHeight = true
@@ -135,13 +142,13 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         val buttonPanel = JPanel()
         buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
 
-        val addButton = JButton("添加接口")
+        val addButton = JButton(message("config.button.add"))
         addButton.addActionListener { addNewMockApi() }
 
-        val editButton = JButton("编辑")
+        val editButton = JButton(message("config.button.edit"))
         editButton.addActionListener { editSelectedMockApi() }
 
-        val deleteButton = JButton("删除")
+        val deleteButton = JButton(message("config.button.delete"))
         deleteButton.addActionListener { deleteSelectedMockApi() }
 
         buttonPanel.add(addButton)
@@ -201,8 +208,8 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         } else {
             JOptionPane.showMessageDialog(
                 mockTable,
-                "请先选择一个接口",
-                "提示",
+                message("config.message.select"),
+                message("config.message.info"),
                 JOptionPane.INFORMATION_MESSAGE
             )
         }
@@ -216,8 +223,8 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         if (selectedRow >= 0) {
             val result = JOptionPane.showConfirmDialog(
                 mockTable,
-                "确定要删除这个Mock接口吗？",
-                "确认删除",
+                message("config.message.confirm.delete"),
+                message("config.message.confirm.title"),
                 JOptionPane.YES_NO_OPTION
             )
             if (result == JOptionPane.YES_OPTION) {
@@ -227,8 +234,8 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         } else {
             JOptionPane.showMessageDialog(
                 mockTable,
-                "请先选择一个接口",
-                "提示",
+                message("config.message.select"),
+                message("config.message.info"),
                 JOptionPane.INFORMATION_MESSAGE
             )
         }
@@ -254,8 +261,8 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         } catch (e: Exception) {
             JOptionPane.showMessageDialog(
                 contentPane,
-                "保存配置失败: ${e.message}",
-                "错误",
+                message("config.message.error.save", e.message ?: ""),
+                message("config.message.error"),
                 JOptionPane.ERROR_MESSAGE
             )
         }
