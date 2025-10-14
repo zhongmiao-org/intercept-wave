@@ -5,16 +5,17 @@
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
 <!-- Plugin description -->
-Intercept Wave 是一个强大的 IntelliJ IDEA 插件，为开发者提供本地 HTTP Mock 服务功能。它能够拦截特定接口并返回预设的 Mock 数据，同时将未配置的接口转发到原始服务器，完美支持前后端分离开发场景。
+A powerful IntelliJ IDEA plugin that provides local HTTP Mock server functionality for developers. It intercepts specific APIs and returns preset mock data, while forwarding unconfigured requests to the original server, perfectly supporting frontend-backend separated development scenarios.
 
-**主要特性**：
-- 🎯 灵活的接口拦截与 Mock 数据配置
-- 🔀 智能代理：未配置接口自动转发到原始服务器
-- 🌐 自动处理 CORS 跨域问题
-- ⏱️ 支持网络延迟模拟
-- 🎨 可视化配置界面
-- 💾 配置持久化存储
-- 🔧 支持自定义响应头和状态码
+**Key Features**:
+- 🎯 Flexible API interception and mock data configuration
+- 🔀 Smart proxy: automatically forwards unconfigured APIs to original server
+- 🌐 Automatic CORS handling
+- ⏱️ Network delay simulation support
+- 🎨 Visual configuration interface
+- 💾 Persistent configuration storage
+- 🔧 Custom response headers and status codes support
+- 🍪 Global cookie configuration for authenticated APIs
 <!-- Plugin description end -->
 
 ## 功能概述
