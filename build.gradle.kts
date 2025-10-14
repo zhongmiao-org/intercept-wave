@@ -163,14 +163,14 @@ intellijPlatformTesting {
     runIde {
         register("runIdeForUiTests") {
             task {
-                jvmArgumentProviders += CommandLineArgumentProvider {
+                jvmArgumentProviders.add(CommandLineArgumentProvider {
                     listOf(
                         "-Drobot-server.port=8082",
                         "-Dide.mac.message.dialogs.as.sheets=false",
                         "-Djb.privacy.policy.text=<!--999.999-->",
                         "-Djb.consents.confirmation.enabled=false",
                     )
-                }
+                })
             }
 
             plugins {
