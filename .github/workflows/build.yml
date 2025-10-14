@@ -167,15 +167,14 @@ jobs:
           distribution: zulu
           java-version: 21
 
-      # Create kotlin-profile directory to prevent Kotlin Gradle plugin errors
-      - name: Create Kotlin Profile Directory
-        run: mkdir -p /data/cache/gradle/kotlin-profile
-
       # Run Qodana inspections
       - name: Qodana - Code Inspection
         uses: JetBrains/qodana-action@v2025.2.1
         with:
           cache-default-branch-only: true
+        env:
+          # Disable Kotlin compiler statistics to avoid missing directory errors
+          GRADLE_OPTS: "-Dkotlin.compiler.execution.strategy=in-process"
 
   # Run plugin structure verification along with IntelliJ Plugin Verifier
   verify:
