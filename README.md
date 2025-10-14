@@ -4,6 +4,8 @@
 [![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
+English | [简体中文](./README_zh.md)
+
 <!-- Plugin description -->
 A powerful IntelliJ IDEA plugin that provides local HTTP Mock server functionality for developers. It intercepts specific APIs and returns preset mock data, while forwarding unconfigured requests to the original server, perfectly supporting frontend-backend separated development scenarios.
 
@@ -18,124 +20,133 @@ A powerful IntelliJ IDEA plugin that provides local HTTP Mock server functionali
 - 🍪 Global cookie configuration for authenticated APIs
 <!-- Plugin description end -->
 
-## 功能概述
+## Features Overview
 
-Intercept Wave 提供以下核心功能：
+Intercept Wave provides the following core functionalities:
 
-- **接口拦截**: 拦截特定接口并返回配置的 Mock 数据
-- **代理转发**: 自动转发未配置的接口到原始服务器
-- **CORS 支持**: 自动添加 CORS 头，解决跨域问题
-- **请求保留**: 保留原始请求头和 User-Agent
-- **延迟模拟**: 模拟网络延迟，测试慢速网络环境
-- **状态码测试**: 配置不同状态码测试错误处理逻辑
-- **前缀过滤**: 支持配置前缀过滤，简化接口访问路径
+- **API Interception**: Intercept specific APIs and return configured mock data
+- **Proxy Forwarding**: Automatically forward unconfigured APIs to the original server
+- **CORS Support**: Automatically add CORS headers to resolve cross-origin issues
+- **Request Preservation**: Preserve original request headers and User-Agent
+- **Delay Simulation**: Simulate network delays for testing slow network environments
+- **Status Code Testing**: Configure different status codes to test error handling logic
+- **Prefix Filtering**: Support prefix filtering to simplify API access paths
+- **Global Cookie**: Configure global cookies for APIs requiring authentication
 
-## 安装
+## Installation
 
-### 使用 IDE 内置插件系统
+### Using IDE Built-in Plugin System
 
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "Intercept Wave"</kbd> > <kbd>Install</kbd>
 
-### 使用 JetBrains Marketplace
+### Using JetBrains Marketplace
 
-访问 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) 并点击 <kbd>Install to ...</kbd> 按钮安装。
+Visit [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) and click the <kbd>Install to ...</kbd> button.
 
-或下载 [最新版本](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) 手动安装：
+Or download the [latest release](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) and install it manually:
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
-### 手动安装
+### Manual Installation
 
-从 [GitHub Releases](https://github.com/zhongmiao-org/intercept-wave/releases/latest) 下载最新版本，然后手动安装：
+Download the latest release from [GitHub Releases](https://github.com/zhongmiao-org/intercept-wave/releases/latest) and install manually:
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
-## 快速开始
+## Quick Start
 
-### 1. 启动 Mock 服务
+### 1. Start Mock Server
 
-1. 在 IntelliJ IDEA 中打开项目
-2. 点击左侧工具栏的 "Intercept Wave" 图标
-3. 在工具窗口中点击 "启动服务" 按钮
-4. 服务启动成功后，会显示访问地址（默认：http://localhost:8888）
+1. Open your project in IntelliJ IDEA
+2. Click the "Intercept Wave" icon in the toolbar
+3. Click the "Start Server" button in the tool window
+4. Once started successfully, the access URL will be displayed (default: http://localhost:8888)
 
-### 2. 配置 Mock 接口
+### 2. Configure Mock APIs
 
-点击 "配置" 按钮，打开配置对话框：
+Click the "Configuration" button to open the configuration dialog:
 
-#### 全局配置
-- **Mock端口**: 本地 Mock 服务监听的端口（默认：8888）
-- **拦截前缀**: 需要拦截的接口路径前缀（默认：/api）
-- **原始接口地址**: 原始服务器的基础 URL（例如：http://localhost:8080）
-- **过滤/取消前缀**: 启用后，访问 `localhost:8888/user/info` 会匹配 `/api/user/info`
+#### Global Configuration
+- **Mock Port**: Port for the local mock server to listen on (default: 8888)
+- **Intercept Prefix**: API path prefix to intercept (default: /api)
+- **Base URL**: Base URL of the original server (e.g., http://localhost:8080)
+- **Strip Prefix**: When enabled, accessing `localhost:8888/user/info` will match `/api/user/info`
+- **Global Cookie**: Configure global cookie value for mock APIs (e.g., sessionId=abc123; userId=456)
 
-#### Mock 接口配置
-1. 点击 "添加接口" 按钮
-2. 填写以下信息：
-   - **接口路径**: 例如 `/api/user/info`
-   - **HTTP方法**: ALL、GET、POST、PUT、DELETE、PATCH
-   - **状态码**: HTTP 响应状态码（默认：200）
-   - **延迟(毫秒)**: 模拟网络延迟（默认：0）
-   - **Mock数据**: JSON 格式的响应数据
-   - **启用**: 是否启用此 Mock 配置
+#### Mock API Configuration
+1. Click "Add API" button
+2. Fill in the following information:
+   - **API Path**: e.g., `/api/user/info`
+   - **HTTP Method**: ALL, GET, POST, PUT, DELETE, PATCH
+   - **Status Code**: HTTP response status code (default: 200)
+   - **Delay (ms)**: Simulate network delay (default: 0)
+   - **Mock Data**: Response data in JSON format
+   - **Enabled**: Whether to enable this mock configuration
+   - **Use Global Cookie**: When enabled, includes the configured global cookie in response
 
-3. 点击 "格式化JSON" 按钮可以格式化 Mock 数据
-4. 点击 "OK" 保存配置
+3. Click "Format JSON" button to format mock data
+4. Click "OK" to save configuration
 
-## 使用场景
+## Use Cases
 
-### 场景 1: Mock 特定接口
+### Case 1: Mock Specific API
 
 ```javascript
-// 前端代码
+// Frontend code
 fetch('http://localhost:8888/api/user/info')
   .then(res => res.json())
   .then(data => console.log(data));
 ```
 
-**配置**：
-- 路径: `/api/user/info`
-- 方法: `GET`
-- Mock 数据:
+**Configuration**:
+- Path: `/api/user/info`
+- Method: `GET`
+- Mock Data:
 ```json
 {
   "code": 0,
   "data": {
     "id": 1,
-    "name": "张三",
-    "email": "zhangsan@example.com"
+    "name": "John Doe",
+    "email": "john@example.com"
   },
   "message": "success"
 }
 ```
 
-### 场景 2: 转发未配置的接口
+### Case 2: Forward Unconfigured APIs
 
 ```javascript
-// 这个接口没有配置 Mock，会自动转发到原始服务器
+// This API has no mock configuration, will be forwarded to original server
 fetch('http://localhost:8888/api/posts')
   .then(res => res.json())
   .then(data => console.log(data));
 ```
 
-如果配置了原始接口地址为 `http://api.example.com`，则实际请求：`http://api.example.com/api/posts`
+If the base URL is configured as `http://api.example.com`, the actual request will be: `http://api.example.com/api/posts`
 
-### 场景 3: 模拟网络延迟
+### Case 3: Simulate Authenticated APIs
 
-在 Mock 配置中设置延迟时间（例如：1000ms），模拟慢速网络环境。
+1. Set cookie in global configuration: `sessionId=abc123; userId=456`
+2. Check "Use Global Cookie" in mock API configuration
+3. Mock API response will automatically include `Set-Cookie` response header
 
-### 场景 4: 测试不同的响应状态码
+### Case 4: Simulate Network Delay
 
-配置不同的状态码（404、500等）来测试前端的错误处理逻辑。
+Set delay time in mock configuration (e.g., 1000ms) to simulate slow network environment.
 
-## 配置文件
+### Case 5: Test Different Response Status Codes
 
-所有配置保存在项目根目录的 `.intercept-wave` 文件夹中：
+Configure different status codes (404, 500, etc.) to test frontend error handling logic.
+
+## Configuration File
+
+All configurations are saved in the `.intercept-wave` folder in the project root directory:
 
 ```
 .intercept-wave/
-└── config.json           # 全局配置和接口映射
+└── config.json           # Global configuration and API mappings
 ```
 
-### config.json 示例
+### config.json Example
 
 ```json
 {
@@ -143,60 +154,58 @@ fetch('http://localhost:8888/api/posts')
   "interceptPrefix": "/api",
   "baseUrl": "http://localhost:8080",
   "stripPrefix": false,
+  "globalCookie": "sessionId=abc123; userId=456",
   "mockApis": [
     {
       "path": "/api/user/info",
       "enabled": true,
-      "mockData": "{\"code\":0,\"data\":{\"name\":\"张三\"}}",
+      "mockData": "{\"code\":0,\"data\":{\"name\":\"John\"}}",
       "method": "GET",
       "statusCode": 200,
-      "headers": {},
+      "useCookie": true,
       "delay": 0
     }
   ]
 }
 ```
 
-## 高级功能
+## Advanced Features
 
-### 自定义响应头
+### Global Cookie Configuration
 
-在 Mock 接口配置中可以添加自定义响应头：
+Set cookie value in global configuration, multiple cookies separated by semicolons:
 
-```json
-{
-  "path": "/api/custom",
-  "headers": {
-    "X-Custom-Header": "value",
-    "Cache-Control": "no-cache"
-  }
-}
+```
+sessionId=abc123; userId=456; token=xyz789
 ```
 
-### CORS 支持
+Then check "Use Global Cookie" for mock APIs that need cookies, and the response will automatically include `Set-Cookie` header.
 
-Mock 服务器自动添加以下 CORS 头：
+### CORS Support
+
+Mock server automatically adds the following CORS headers:
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
-### 代理模式
+### Proxy Mode
 
-未配置 Mock 的接口会自动转发到原始服务器，并保留：
-- 原始请求头
+Unconfigured mock APIs will be automatically forwarded to the original server, preserving:
+- Original request headers
 - User-Agent
-- 请求体（POST/PUT 等）
+- Request body (for POST/PUT, etc.)
+- Cookies (if any)
 
-## 欢迎页面
+## Welcome Page
 
-访问 Mock 服务根路径（`http://localhost:8888/`）会返回服务状态和配置信息：
+Accessing the mock server root path (`http://localhost:8888/`) returns server status and configuration information:
 
 ```json
 {
   "status": "running",
-  "message": "Intercept Wave Mock 服务运行中",
+  "message": "Intercept Wave Mock Server is running",
   "server": {
     "port": 8888,
     "baseUrl": "http://localhost:8080",
@@ -213,38 +222,43 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 }
 ```
 
-## 注意事项
+## Important Notes
 
-1. **端口占用**: 确保配置的端口未被其他程序占用
-2. **配置修改**: 修改配置后，如果服务正在运行会自动停止
-3. **项目关闭**: 关闭项目时 Mock 服务会自动停止
-4. **安全性**: 此工具仅用于本地开发环境，不要在生产环境使用
+1. **Port Occupation**: Ensure the configured port is not occupied by other programs
+2. **Configuration Changes**: If the server is running when configuration is modified, it will automatically stop
+3. **Project Closure**: Mock server will automatically stop when the project is closed
+4. **Security**: This tool is only for local development environment, do not use in production
 
-## 常见问题
+## FAQ
 
-### Q: 服务启动失败怎么办？
-A: 检查端口是否被占用，可以修改配置中的端口号。
+### Q: What to do if the server fails to start?
+A: Check if the port is occupied, you can change the port number in the configuration.
 
-### Q: 接口没有被 Mock？
-A: 确认接口路径完全匹配，且 Mock 配置已启用。
+### Q: Why is my API not being mocked?
+A: Make sure the API path matches exactly and the mock configuration is enabled.
 
-### Q: 如何查看请求日志？
-A: 打开 IDEA 的 Event Log 或 Console，可以看到请求日志。
+### Q: How to view request logs?
+A: Open IDEA's Event Log or Console to see request logs.
 
-### Q: 支持 HTTPS 吗？
-A: 当前版本仅支持 HTTP，HTTPS 支持在计划中。
+### Q: Does it support HTTPS?
+A: The current version only supports HTTP, HTTPS support is planned.
 
-## 开发计划
+### Q: How does global cookie work?
+A: Set cookie value in global configuration, then check "Use Global Cookie" in mock API configuration. The response will include the cookie via `Set-Cookie` response header.
 
-- [ ] 支持 HTTPS
-- [ ] 支持 WebSocket Mock
-- [ ] 请求日志查看器
-- [ ] 导入/导出配置
-- [ ] Mock 数据模板库
+## Development Roadmap
 
-## 反馈与贡献
+- [ ] HTTPS support
+- [ ] WebSocket mock support
+- [ ] Request log viewer
+- [ ] Import/export configuration
+- [ ] Mock data template library
+- [ ] Custom request headers support
 
-如有问题或建议，欢迎提交 [Issue](https://github.com/zhongmiao-org/intercept-wave/issues) 或 [Pull Request](https://github.com/zhongmiao-org/intercept-wave/pulls)！
+## Feedback & Contribution
 
----
-Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
+If you have any questions or suggestions, feel free to submit an [Issue](https://github.com/zhongmiao-org/intercept-wave/issues) or [Pull Request](https://github.com/zhongmiao-org/intercept-wave/pulls)!
+
+## License
+
+This project is based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
