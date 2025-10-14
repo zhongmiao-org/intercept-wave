@@ -1,8 +1,8 @@
 # Intercept Wave
 
 ![Build](https://github.com/zhongmiao-org/intercept-wave/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
+[![Version](https://img.shields.io/jetbrains/plugin/v/28704.svg)](https://plugins.jetbrains.com/plugin/28704-intercept-wave)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/28704.svg)](https://plugins.jetbrains.com/plugin/28704-intercept-wave)
 
 [English](./README.md) | 简体中文
 
@@ -41,9 +41,9 @@ Intercept Wave 提供以下核心功能：
 
 ### 使用 JetBrains Marketplace
 
-访问 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) 并点击 <kbd>Install to ...</kbd> 按钮安装。
+访问 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/28704-intercept-wave) 并点击 <kbd>Install to ...</kbd> 按钮安装。
 
-或下载 [最新版本](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) 手动安装：
+或下载 [最新版本](https://plugins.jetbrains.com/plugin/28704-intercept-wave/versions) 手动安装：
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ### 手动安装

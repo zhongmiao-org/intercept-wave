@@ -107,16 +107,18 @@ jobs:
         with:
           cache-read-only: false
 
-      # Clean test sandbox and caches to prevent index version conflicts
-      - name: Clean Test Sandbox and Caches
+      # Clean all caches to prevent index version conflicts
+      - name: Clean Test Environment
         run: |
           rm -rf build/idea-sandbox
-          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
           rm -rf build/tmp
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
 
-      # Run tests
+      # Run tests with clean environment
       - name: Run Tests
-        run: ./gradlew --no-configuration-cache check
+        run: ./gradlew clean check --no-configuration-cache --rerun-tasks
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
 
       # Collect Tests Result of failed tests
       - name: Collect Tests Result

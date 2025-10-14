@@ -1,8 +1,8 @@
 # Intercept Wave
 
 ![Build](https://github.com/zhongmiao-org/intercept-wave/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
+[![Version](https://img.shields.io/jetbrains/plugin/v/28704.svg)](https://plugins.jetbrains.com/plugin/28704-intercept-wave)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/28704.svg)](https://plugins.jetbrains.com/plugin/28704-intercept-wave)
 
 English | [简体中文](./README_zh.md)
 
@@ -41,9 +41,9 @@ Intercept Wave provides the following core functionalities:
 
 ### Using JetBrains Marketplace
 
-Visit [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) and click the <kbd>Install to ...</kbd> button.
+Visit [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/28704-intercept-wave) and click the <kbd>Install to ...</kbd> button.
 
-Or download the [latest release](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) and install it manually:
+Or download the [latest release](https://plugins.jetbrains.com/plugin/28704-intercept-wave/versions) and install it manually:
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ### Manual Installation
