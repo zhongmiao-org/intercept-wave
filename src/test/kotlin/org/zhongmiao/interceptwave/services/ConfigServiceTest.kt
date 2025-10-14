@@ -12,11 +12,19 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
+        // Initialize configDir first
         configDir = File(project.basePath, ".intercept-wave")
-        // Clean up any existing config before each test
-        if (configDir.exists()) {
-            configDir.deleteRecursively()
+
+        // Force clean up any existing config before each test
+        // This must happen before getting the service
+        try {
+            if (configDir.exists()) {
+                configDir.deleteRecursively()
+            }
+        } catch (e: Exception) {
+            // Ignore deletion errors in setup
         }
+
         configService = project.getService(ConfigService::class.java)
     }
 
