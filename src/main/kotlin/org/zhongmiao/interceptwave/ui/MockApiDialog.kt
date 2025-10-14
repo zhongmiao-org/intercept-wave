@@ -27,6 +27,7 @@ class MockApiDialog(
     private val methodComboBox = ComboBox(arrayOf("ALL", "GET", "POST", "PUT", "DELETE", "PATCH"))
     private val statusCodeField = JBTextField(existingApi?.statusCode?.toString() ?: "200")
     private val delayField = JBTextField(existingApi?.delay?.toString() ?: "0")
+    private val useCookieCheckBox = JCheckBox(message("mockapi.usecookie"), existingApi?.useCookie ?: false)
     private val mockDataArea = JTextArea(existingApi?.mockData ?: "{}")
     private val enabledCheckBox = JCheckBox(message("mockapi.enabled"), existingApi?.enabled ?: true)
 
@@ -104,6 +105,21 @@ class MockApiDialog(
         delayField.toolTipText = message("mockapi.delay.tooltip")
         panel.add(delayField, gbc)
         row++
+
+        // 使用全局Cookie
+        gbc.gridx = 0
+        gbc.gridy = row
+        gbc.gridwidth = 2
+        gbc.weightx = 0.0
+        gbc.weighty = 0.0
+        gbc.fill = GridBagConstraints.NONE
+        gbc.anchor = GridBagConstraints.WEST
+        useCookieCheckBox.toolTipText = message("mockapi.usecookie.tooltip")
+        panel.add(useCookieCheckBox, gbc)
+        row++
+
+        gbc.gridwidth = 1
+        gbc.fill = GridBagConstraints.BOTH
 
         // Mock数据
         gbc.gridx = 0
@@ -215,6 +231,7 @@ class MockApiDialog(
             mockData = mockDataArea.text.trim(),
             method = methodComboBox.selectedItem as String,
             statusCode = statusCodeField.text.toIntOrNull() ?: 200,
+            useCookie = useCookieCheckBox.isSelected,
             delay = delayField.text.toLongOrNull() ?: 0
         )
     }

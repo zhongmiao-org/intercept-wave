@@ -110,7 +110,7 @@ class MockServerService(private val project: Project) {
 
             if (mockApi != null && mockApi.enabled) {
                 // 使用Mock数据响应
-                handleMockResponse(exchange, mockApi)
+                handleMockResponse(exchange, mockApi, config)
             } else {
                 // 转发到原始接口
                 forwardToOriginalServer(exchange, config)
@@ -181,16 +181,16 @@ class MockServerService(private val project: Project) {
     /**
      * 处理Mock响应
      */
-    private fun handleMockResponse(exchange: HttpExchange, mockApi: MockApiConfig) {
+    private fun handleMockResponse(exchange: HttpExchange, mockApi: MockApiConfig, config: MockConfig) {
         try {
             // 模拟延迟
             if (mockApi.delay > 0) {
                 Thread.sleep(mockApi.delay)
             }
 
-            // 设置响应头
-            mockApi.headers.forEach { (key, value) ->
-                exchange.responseHeaders.add(key, value)
+            // 如果启用了全局Cookie且Cookie不为空，添加Set-Cookie响应头
+            if (mockApi.useCookie && config.globalCookie.isNotEmpty()) {
+                exchange.responseHeaders.add("Set-Cookie", config.globalCookie)
             }
 
             // 设置默认Content-Type为JSON

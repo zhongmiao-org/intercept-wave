@@ -12,8 +12,27 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
-        configService = project.getService(ConfigService::class.java)
+        // Initialize configDir first
         configDir = File(project.basePath, ".intercept-wave")
+
+        // Force clean up any existing config before each test
+        // This must happen before getting the service
+        try {
+            if (configDir.exists()) {
+                configDir.deleteRecursively()
+            }
+        } catch (e: Exception) {
+            // Ignore deletion errors in setup
+            println("Failed to delete config directory ${e.message}")
+        }
+
+        // Get the service - it will initialize with loadConfig()
+        configService = project.getService(ConfigService::class.java)
+
+        // Force reload to ensure we get a fresh config after cleanup
+        // Since the config file was deleted, this should create default config
+        val defaultConfig = MockConfig()
+        configService.saveConfig(defaultConfig)
     }
 
     override fun tearDown() {
@@ -35,6 +54,7 @@ class ConfigServiceTest : BasePlatformTestCase() {
         assertEquals("/api", config.interceptPrefix)
         assertEquals("http://localhost:8080", config.baseUrl)
         assertFalse(config.stripPrefix)
+        assertEquals("", config.globalCookie)
         assertTrue(config.mockApis.isEmpty())
     }
 

@@ -21,6 +21,9 @@ data class MockConfig(
     // 当为false时，需要访问 localhost:8888/api/*** 才能匹配
     var stripPrefix: Boolean = false,
 
+    // 全局Cookie，例如: sessionId=abc123; userId=456
+    var globalCookie: String = "",
+
     // Mock接口配置列表
     var mockApis: MutableList<MockApiConfig> = mutableListOf()
 )
@@ -45,8 +48,8 @@ data class MockApiConfig(
     // 响应状态码
     var statusCode: Int = 200,
 
-    // 自定义响应头
-    var headers: Map<String, String> = emptyMap(),
+    // 是否使用全局Cookie
+    var useCookie: Boolean = false,
 
     // 延迟时间（毫秒）
     var delay: Long = 0

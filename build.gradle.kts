@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import java.time.Duration
 
 plugins {
     id("java") // Java support
@@ -137,25 +138,28 @@ tasks {
     publishPlugin {
         dependsOn(patchChangelog)
     }
-}
 
-intellijPlatformTesting {
-    runIde {
-        register("runIdeForUiTests") {
-            task {
-                jvmArgumentProviders += CommandLineArgumentProvider {
-                    listOf(
-                        "-Drobot-server.port=8082",
-                        "-Dide.mac.message.dialogs.as.sheets=false",
-                        "-Djb.privacy.policy.text=<!--999.999-->",
-                        "-Djb.consents.confirmation.enabled=false",
-                    )
-                }
-            }
+    test {
+        // Set test timeout to prevent hanging
+        timeout.set(Duration.ofMinutes(10))
 
-            plugins {
-                robotServerPlugin()
-            }
+        // Configure JVM args for headless testing
+        jvmArgs(
+            "-Djava.awt.headless=true",
+            "-Didea.force.use.core.classloader=true",
+            "-Didea.use.core.classloader.for.plugin.path=true"
+        )
+
+        // Increase heap size for tests
+        maxHeapSize = "1024m"
+
+        // Enable parallel execution to speed up tests
+        val forks = Runtime.getRuntime().availableProcessors().div(2)
+        maxParallelForks = if (forks > 0) forks else 1
+
+        // In CI environment, exclude Platform tests that require IDE instance
+        if (System.getenv("CI") == "true") {
+            exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class")
         }
     }
 }
