@@ -107,6 +107,10 @@ jobs:
         with:
           cache-read-only: true
 
+      # Clean test sandbox to prevent index version conflicts
+      - name: Clean Test Sandbox
+        run: rm -rf build/idea-sandbox
+
       # Run tests
       - name: Run Tests
         run: ./gradlew --no-configuration-cache check
@@ -157,6 +161,10 @@ jobs:
         with:
           distribution: zulu
           java-version: 21
+
+      # Create kotlin-profile directory to prevent Kotlin Gradle plugin errors
+      - name: Create Kotlin Profile Directory
+        run: mkdir -p /data/cache/gradle/kotlin-profile
 
       # Run Qodana inspections
       - name: Qodana - Code Inspection
