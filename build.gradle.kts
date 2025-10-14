@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import java.time.Duration
 
 plugins {
     id("java") // Java support
@@ -136,6 +137,24 @@ tasks {
 
     publishPlugin {
         dependsOn(patchChangelog)
+    }
+
+    test {
+        // Set test timeout to prevent hanging
+        timeout.set(Duration.ofMinutes(10))
+
+        // Configure JVM args for headless testing
+        jvmArgs(
+            "-Djava.awt.headless=true",
+            "-Didea.force.use.core.classloader=true",
+            "-Didea.use.core.classloader.for.plugin.path=true"
+        )
+
+        // Increase heap size for tests
+        maxHeapSize = "1024m"
+
+        // Enable parallel execution to speed up tests
+        maxParallelForks = Runtime.getRuntime().availableProcessors().div(2).takeIf { it > 0 } ?: 1
     }
 }
 
