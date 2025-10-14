@@ -1,5 +1,6 @@
 package org.zhongmiao.interceptwave.ui
 
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -27,11 +28,11 @@ class MockApiDialog(
     private val statusCodeField = JBTextField(existingApi?.statusCode?.toString() ?: "200")
     private val delayField = JBTextField(existingApi?.delay?.toString() ?: "0")
     private val mockDataArea = JTextArea(existingApi?.mockData ?: "{}")
-    private val enabledCheckBox = JCheckBox("启用", existingApi?.enabled ?: true)
+    private val enabledCheckBox = JCheckBox(message("mockapi.enabled"), existingApi?.enabled ?: true)
 
     init {
         init()
-        title = if (existingApi == null) "添加Mock接口" else "编辑Mock接口"
+        title = if (existingApi == null) message("mockapi.dialog.title.add") else message("mockapi.dialog.title.edit")
 
         existingApi?.let {
             methodComboBox.selectedItem = it.method
@@ -61,11 +62,11 @@ class MockApiDialog(
         gbc.gridx = 0
         gbc.gridy = row
         gbc.weightx = 0.0
-        panel.add(JBLabel("接口路径:"), gbc)
+        panel.add(JBLabel(message("mockapi.path")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
-        pathField.toolTipText = "例如: /api/user/info"
+        pathField.toolTipText = message("mockapi.path.tooltip")
         panel.add(pathField, gbc)
         row++
 
@@ -73,7 +74,7 @@ class MockApiDialog(
         gbc.gridx = 0
         gbc.gridy = row
         gbc.weightx = 0.0
-        panel.add(JBLabel("HTTP方法:"), gbc)
+        panel.add(JBLabel(message("mockapi.method")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
@@ -84,11 +85,11 @@ class MockApiDialog(
         gbc.gridx = 0
         gbc.gridy = row
         gbc.weightx = 0.0
-        panel.add(JBLabel("状态码:"), gbc)
+        panel.add(JBLabel(message("mockapi.statuscode")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
-        statusCodeField.toolTipText = "HTTP响应状态码，例如: 200, 404, 500"
+        statusCodeField.toolTipText = message("mockapi.statuscode.tooltip")
         panel.add(statusCodeField, gbc)
         row++
 
@@ -96,11 +97,11 @@ class MockApiDialog(
         gbc.gridx = 0
         gbc.gridy = row
         gbc.weightx = 0.0
-        panel.add(JBLabel("延迟(毫秒):"), gbc)
+        panel.add(JBLabel(message("mockapi.delay")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
-        delayField.toolTipText = "模拟网络延迟，单位：毫秒"
+        delayField.toolTipText = message("mockapi.delay.tooltip")
         panel.add(delayField, gbc)
         row++
 
@@ -109,7 +110,7 @@ class MockApiDialog(
         gbc.gridy = row
         gbc.weightx = 0.0
         gbc.anchor = GridBagConstraints.NORTHWEST
-        panel.add(JBLabel("Mock数据 (JSON):"), gbc)
+        panel.add(JBLabel(message("mockapi.mockdata")), gbc)
 
         gbc.gridx = 1
         gbc.weightx = 1.0
@@ -129,7 +130,7 @@ class MockApiDialog(
         gbc.weighty = 0.0
         gbc.fill = GridBagConstraints.NONE
         gbc.anchor = GridBagConstraints.EAST
-        val formatButton = JButton("格式化JSON")
+        val formatButton = JButton(message("mockapi.button.format"))
         formatButton.addActionListener {
             try {
                 val formatted = formatJson(mockDataArea.text)
@@ -137,8 +138,8 @@ class MockApiDialog(
             } catch (e: Exception) {
                 JOptionPane.showMessageDialog(
                     panel,
-                    "JSON格式错误: ${e.message}",
-                    "错误",
+                    message("mockapi.message.json.error", e.message ?: ""),
+                    message("config.message.error"),
                     JOptionPane.ERROR_MESSAGE
                 )
             }
@@ -220,19 +221,19 @@ class MockApiDialog(
 
     override fun doValidate(): ValidationInfo? {
         if (pathField.text.isBlank()) {
-            return ValidationInfo("接口路径不能为空", pathField)
+            return ValidationInfo(message("mockapi.validation.path.empty"), pathField)
         }
         if (!pathField.text.startsWith("/")) {
-            return ValidationInfo("接口路径必须以/开头", pathField)
+            return ValidationInfo(message("mockapi.validation.path.slash"), pathField)
         }
         if (statusCodeField.text.toIntOrNull() == null) {
-            return ValidationInfo("状态码必须是有效的数字", statusCodeField)
+            return ValidationInfo(message("mockapi.validation.statuscode.invalid"), statusCodeField)
         }
         if (delayField.text.toLongOrNull() == null) {
-            return ValidationInfo("延迟必须是有效的数字", delayField)
+            return ValidationInfo(message("mockapi.validation.delay.invalid"), delayField)
         }
         if (mockDataArea.text.isBlank()) {
-            return ValidationInfo("Mock数据不能为空", mockDataArea)
+            return ValidationInfo(message("mockapi.validation.mockdata.empty"), mockDataArea)
         }
         return null
     }

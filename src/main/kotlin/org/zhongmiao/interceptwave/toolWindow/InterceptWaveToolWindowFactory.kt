@@ -1,5 +1,6 @@
 package org.zhongmiao.interceptwave.toolWindow
 
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.MockServerService
 import org.zhongmiao.interceptwave.ui.ConfigDialog
@@ -32,11 +33,11 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
         private val mockServerService = project.service<MockServerService>()
         private val configService = project.service<ConfigService>()
 
-        private val statusLabel = JBLabel("状态: 未启动")
+        private val statusLabel = JBLabel(message("toolwindow.status.stopped"))
         private val serverUrlLabel = JBLabel("")
-        private val startButton = JButton("启动服务")
-        private val stopButton = JButton("停止服务")
-        private val configButton = JButton("配置")
+        private val startButton = JButton(message("toolwindow.button.start"))
+        private val stopButton = JButton(message("toolwindow.button.stop"))
+        private val configButton = JButton(message("toolwindow.button.config"))
         private val configInfoArea = JTextArea()
 
         init {
@@ -48,7 +49,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
             panel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
 
             // 标题
-            val titleLabel = JBLabel("Intercept Wave - Mock 服务")
+            val titleLabel = JBLabel(message("toolwindow.title"))
             titleLabel.font = titleLabel.font.deriveFont(16f)
             panel.add(titleLabel, BorderLayout.NORTH)
 
@@ -115,7 +116,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
          */
         private fun createConfigInfoPanel(): JComponent {
             val panel = JPanel(BorderLayout())
-            panel.border = BorderFactory.createTitledBorder("当前配置")
+            panel.border = BorderFactory.createTitledBorder(message("toolwindow.config.title"))
 
             configInfoArea.isEditable = false
             configInfoArea.lineWrap = true
@@ -135,13 +136,13 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
         private fun updateConfigInfo() {
             val config = configService.getConfig()
             val info = buildString {
-                appendLine("Mock端口: ${config.port}")
-                appendLine("拦截前缀: ${config.interceptPrefix}")
-                appendLine("原始接口: ${config.baseUrl}")
-                appendLine("过滤前缀: ${if (config.stripPrefix) "是" else "否"}")
-                appendLine("\nMock接口列表:")
+                appendLine("${message("config.global.port")} ${config.port}")
+                appendLine("${message("config.global.prefix")} ${config.interceptPrefix}")
+                appendLine("${message("config.global.baseurl")} ${config.baseUrl}")
+                appendLine("${message("config.global.stripprefix")}: ${if (config.stripPrefix) "✓" else "✗"}")
+                appendLine("\n${message("config.mock.title")}:")
                 if (config.mockApis.isEmpty()) {
-                    appendLine("  (暂无配置)")
+                    appendLine("  (No configuration)")
                 } else {
                     config.mockApis.forEachIndexed { index, api ->
                         val status = if (api.enabled) "✓" else "✗"
@@ -163,15 +164,15 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
                     updateUI()
                     JOptionPane.showMessageDialog(
                         null,
-                        "Mock服务启动成功！\n访问地址: ${mockServerService.getServerUrl()}",
-                        "成功",
+                        message("message.start.success", mockServerService.getServerUrl() ?: ""),
+                        message("config.message.info"),
                         JOptionPane.INFORMATION_MESSAGE
                     )
                 } else {
                     JOptionPane.showMessageDialog(
                         null,
-                        "Mock服务启动失败，请检查端口是否被占用",
-                        "错误",
+                        message("message.start.failed"),
+                        message("config.message.error"),
                         JOptionPane.ERROR_MESSAGE
                     )
                 }
@@ -179,8 +180,8 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
                 thisLogger().error("Failed to start mock server", e)
                 JOptionPane.showMessageDialog(
                     null,
-                    "Mock服务启动失败: ${e.message}",
-                    "错误",
+                    message("message.start.error", e.message ?: ""),
+                    message("config.message.error"),
                     JOptionPane.ERROR_MESSAGE
                 )
             }
@@ -195,16 +196,16 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
                 updateUI()
                 JOptionPane.showMessageDialog(
                     null,
-                    "Mock服务已停止",
-                    "提示",
+                    message("message.stop.success"),
+                    message("config.message.info"),
                     JOptionPane.INFORMATION_MESSAGE
                 )
             } catch (e: Exception) {
                 thisLogger().error("Failed to stop mock server", e)
                 JOptionPane.showMessageDialog(
                     null,
-                    "停止Mock服务失败: ${e.message}",
-                    "错误",
+                    message("message.stop.error", e.message ?: ""),
+                    message("config.message.error"),
                     JOptionPane.ERROR_MESSAGE
                 )
             }
@@ -242,11 +243,11 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
             stopButton.isEnabled = isRunning
 
             if (isRunning) {
-                statusLabel.text = "状态: 运行中"
+                statusLabel.text = message("toolwindow.status.running")
                 statusLabel.foreground = java.awt.Color(0, 128, 0)
-                serverUrlLabel.text = "访问地址: ${mockServerService.getServerUrl()}"
+                serverUrlLabel.text = message("toolwindow.access.url", mockServerService.getServerUrl() ?: "")
             } else {
-                statusLabel.text = "状态: 未启动"
+                statusLabel.text = message("toolwindow.status.stopped")
                 statusLabel.foreground = java.awt.Color(128, 128, 128)
                 serverUrlLabel.text = ""
             }
