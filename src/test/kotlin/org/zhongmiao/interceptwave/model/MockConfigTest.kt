@@ -72,7 +72,7 @@ class MockConfigTest {
         assertEquals(8888, config.port)
         assertEquals("/api", config.interceptPrefix)
         assertEquals("http://localhost:8080", config.baseUrl)
-        assertFalse(config.stripPrefix)
+        assertTrue(config.stripPrefix)
         assertTrue(config.mockApis.isEmpty())
     }
 
