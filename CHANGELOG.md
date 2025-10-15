@@ -2,8 +2,6 @@
 
 # intercept-wave Changelog
 
-## [Unreleased]
-
 ## [1.0.2]
 ### Added
 - 更新文档，更加精准介绍插件

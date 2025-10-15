@@ -6,19 +6,31 @@ import org.zhongmiao.interceptwave.services.MockServerService
 import org.zhongmiao.interceptwave.ui.ConfigDialog
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.Insets
 import javax.swing.*
 
-class InterceptWaveToolWindowFactory : ToolWindowFactory {
+class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
+
+    override fun init(toolWindow: ToolWindow) {
+        // 配置工具窗口的位置和图标
+        toolWindow.stripeTitle = "Intercept Wave"
+        toolWindow.setIcon(com.intellij.openapi.util.IconLoader.getIcon(
+            "/icons/interceptWave.svg",
+            InterceptWaveToolWindowFactory::class.java
+        ))
+    }
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val toolWindowPanel = InterceptWaveToolWindow(project)
@@ -57,7 +69,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
             val centerPanel = JPanel(GridBagLayout())
             val gbc = GridBagConstraints().apply {
                 fill = GridBagConstraints.HORIZONTAL
-                insets = Insets(5, 5, 5, 5)
+                insets = JBUI.insets(5)
             }
 
             // 状态信息
@@ -68,7 +80,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
             centerPanel.add(statusLabel, gbc)
 
             gbc.gridy = 1
-            serverUrlLabel.foreground = java.awt.Color(0, 102, 204)
+            serverUrlLabel.foreground = JBColor(0x0066CC, 0x5394EC)
             centerPanel.add(serverUrlLabel, gbc)
 
             // 按钮面板
@@ -95,7 +107,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
             buttonPanel.add(configButton)
 
             gbc.gridy = 2
-            gbc.insets = Insets(20, 5, 5, 5)
+            gbc.insets = JBUI.insets(20, 5, 5, 5)
             centerPanel.add(buttonPanel, gbc)
 
             // 配置信息面板
@@ -103,7 +115,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
             gbc.gridy = 3
             gbc.weighty = 1.0
             gbc.fill = GridBagConstraints.BOTH
-            gbc.insets = Insets(20, 5, 5, 5)
+            gbc.insets = JBUI.insets(20, 5, 5, 5)
             centerPanel.add(configInfoPanel, gbc)
 
             panel.add(centerPanel, BorderLayout.CENTER)
@@ -124,7 +136,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
 
             updateConfigInfo()
 
-            val scrollPane = JScrollPane(configInfoArea)
+            val scrollPane = JBScrollPane(configInfoArea)
             panel.add(scrollPane, BorderLayout.CENTER)
 
             return panel
@@ -144,7 +156,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
                 if (config.mockApis.isEmpty()) {
                     appendLine("  (No configuration)")
                 } else {
-                    config.mockApis.forEachIndexed { index, api ->
+                    config.mockApis.forEach { api ->
                         val status = if (api.enabled) "✓" else "✗"
                         appendLine("  $status ${api.method} ${api.path}")
                     }
@@ -244,11 +256,11 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory {
 
             if (isRunning) {
                 statusLabel.text = message("toolwindow.status.running")
-                statusLabel.foreground = java.awt.Color(0, 128, 0)
+                statusLabel.foreground = JBColor(0x008000, 0x6A8759)
                 serverUrlLabel.text = message("toolwindow.access.url", mockServerService.getServerUrl() ?: "")
             } else {
                 statusLabel.text = message("toolwindow.status.stopped")
-                statusLabel.foreground = java.awt.Color(128, 128, 128)
+                statusLabel.foreground = JBColor.GRAY
                 serverUrlLabel.text = ""
             }
         }
