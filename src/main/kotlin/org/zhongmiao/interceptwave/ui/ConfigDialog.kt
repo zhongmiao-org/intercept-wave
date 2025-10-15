@@ -121,7 +121,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         gbc.gridx = 0
         gbc.gridy = 3
         gbc.gridwidth = 2
-        stripPrefixCheckbox.toolTipText = message("config.global.stripprefix.tooltip", config.port, config.interceptPrefix)
+        stripPrefixCheckbox.toolTipText = message("config.global.stripprefix.tooltip", config.port.toString(), config.interceptPrefix)
         panel.add(stripPrefixCheckbox, gbc)
 
         // 全局Cookie配置
