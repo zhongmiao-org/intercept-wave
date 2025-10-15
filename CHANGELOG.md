@@ -5,6 +5,10 @@
 ## [1.0.2]
 ### Added
 - 更新文档，更加精准介绍插件
+- 改进 UI 兼容性
+    - 使用 `JBColor` 代替 `java.awt.Color`，支持亮色和暗色主题
+    - 使用 `JBUI.insets()` 代替原生 `Insets`，支持 HiDPI 显示器
+    - 使用 `JBScrollPane` 代替原生 `JScrollPane`
 
 ### Fixed
 - 修复 `stripPrefix` 路径匹配逻辑
@@ -14,6 +18,15 @@
     - 更新相关注释和文档，清晰说明配置方式
 - 修复配置对话框 tooltip 中端口号被格式化的问题
     - 将端口号转换为字符串传递给 `message()` 函数，避免被本地化格式化为 `8,888`
+- 解决所有 IntelliJ Platform 兼容性警告
+    - 移除了对已废弃 API 的使用（`ToolWindowFactory.isApplicable()`, `isDoNotActivateOnStart()`）
+    - 移除了对实验性 API 的使用（`ToolWindowFactory.manage()`）
+    - 移除了对内部 API 的使用（`getAnchor()`, `getIcon()`）
+    - 使用新的 `init()` 方法配置工具窗口属性
+    - 添加 `DumbAware` 接口提高兼容性
+- 修复 CI 构建中的 Kotlin 统计收集错误
+    - 禁用 Kotlin 编译统计功能，避免 CI 环境中目录缺失导致的错误
+    - 添加 `kotlin.build.report.enabled = false` 配置
 
 
 
