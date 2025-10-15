@@ -16,10 +16,17 @@ data class MockConfig(
     // 原始接口的基础URL
     var baseUrl: String = "http://localhost:8080",
 
-    // 是否过滤/取消前缀（默认false，不过滤）
-    // 当为true时，访问 localhost:8888/*** 会匹配 /api/***
-    // 当为false时，需要访问 localhost:8888/api/*** 才能匹配
-    var stripPrefix: Boolean = false,
+    // 是否在匹配时去掉前缀（默认true，推荐）
+    // mockApis中的path配置为相对路径（不含interceptPrefix）
+    //
+    // 当stripPrefix=true时（推荐）：
+    //   - 请求 /api/user -> 去掉 /api -> /user -> 匹配 mockApis中的path="/user"
+    //   - mockApis配置简洁，只需写 "/user" 即可
+    //
+    // 当stripPrefix=false时：
+    //   - 请求 /api/user -> /api/user -> 需要 mockApis中的path="/api/user" 才能匹配
+    //   - 需要在每个path配置中都写完整路径
+    var stripPrefix: Boolean = true,
 
     // 全局Cookie，例如: sessionId=abc123; userId=456
     var globalCookie: String = "",
@@ -33,7 +40,9 @@ data class MockConfig(
  */
 @Serializable
 data class MockApiConfig(
-    // 接口路径，例如: /api/b
+    // 接口路径
+    // 注意：如果stripPrefix=true（推荐），这里配置相对路径，例如: /user
+    // 如果stripPrefix=false，这里需要配置完整路径，例如: /api/user
     var path: String,
 
     // 是否启用Mock（如果不启用则转发到原始接口）

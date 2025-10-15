@@ -29,7 +29,7 @@ class InterceptWaveBundleTest {
     fun `test message with multiple parameters`() {
         val port = 8888
         val prefix = "/api"
-        val message = InterceptWaveBundle.message("config.global.stripprefix.tooltip", port, prefix)
+        val message = InterceptWaveBundle.message("config.global.stripprefix.tooltip", port.toString(), prefix)
         assertNotNull(message)
         assertTrue(message.isNotEmpty())
         // Message should reference localhost or port or prefix
@@ -155,7 +155,7 @@ class InterceptWaveBundleTest {
         InterceptWaveBundle.message("config.global.port.tooltip")
         InterceptWaveBundle.message("config.global.prefix.tooltip")
         InterceptWaveBundle.message("config.global.baseurl.tooltip")
-        InterceptWaveBundle.message("config.global.stripprefix.tooltip", 8888, "/api")
+        InterceptWaveBundle.message("config.global.stripprefix.tooltip", "8888", "/api")
     }
 
     @Test

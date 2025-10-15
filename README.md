@@ -7,17 +7,32 @@
 English | [简体中文](./README_zh.md)
 
 <!-- Plugin description -->
-A powerful IntelliJ IDEA plugin that provides local HTTP Mock server functionality for developers. It intercepts specific APIs and returns preset mock data, while forwarding unconfigured requests to the original server, perfectly supporting frontend-backend separated development scenarios.
+A powerful IntelliJ IDEA plugin that combines the proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It intelligently intercepts HTTP requests, either returning custom mock data or acting as a proxy server to forward real requests to the original server with full HTTP headers.
 
-**Key Features**:
-- 🎯 Flexible API interception and mock data configuration
-- 🔀 Smart proxy: automatically forwards unconfigured APIs to original server
+### Core Capabilities
+
+**Smart Interception & Proxy**:
+- 🎯 Configure intercept prefix (e.g., `/api`) to precisely target specific request paths
+- 🔄 **With Mock Config**: Returns preset mock data for offline development
+- 🌐 **Without Mock Config**: Acts as a proxy server, forwarding requests with complete HTTP headers to get real data
+- 🔀 Smart path matching with prefix stripping support
+
+**Developer-Friendly Features**:
+- 👥 **Target Users**: Frontend Engineers, QA Engineers, Full-Stack Developers
+- 🎨 Visual configuration UI, no manual config file editing needed
+- 💾 Persistent configuration with project-level isolation
 - 🌐 Automatic CORS handling
 - ⏱️ Network delay simulation support
-- 🎨 Visual configuration interface
-- 💾 Persistent configuration storage
-- 🔧 Custom response headers and status codes support
-- 🍪 Global cookie configuration for authenticated APIs
+- 🔧 Custom response status codes and headers
+- 🍪 Global cookie support for authenticated APIs
+
+### Typical Use Cases
+
+1. **Independent Frontend Development**: Continue development with mock data when backend APIs are not ready
+2. **API Testing**: Quickly switch between different response data to test edge cases
+3. **Local Debugging**: Use mock for some APIs while proxying others to test servers
+4. **Network Simulation**: Simulate slow networks or API timeout scenarios
+5. **Cross-Origin Development**: Automatically add CORS headers to solve frontend development CORS issues
 <!-- Plugin description end -->
 
 ## Features Overview

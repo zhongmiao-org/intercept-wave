@@ -90,12 +90,18 @@ class MockServerService(private val project: Project) {
                 return
             }
 
-            // 如果启用了stripPrefix，则为请求路径添加前缀以匹配Mock配置
-            // 例如：stripPrefix=true, interceptPrefix="/api"
-            // 请求 /user/info 将被转换为 /api/user/info 来匹配
+            // 路径匹配逻辑：
+            // 1. mockApis中的path是相对路径（不包含interceptPrefix）
+            // 2. 如果stripPrefix=true，则去掉请求路径的interceptPrefix前缀后再匹配
+            // 3. 如果stripPrefix=false，则直接用完整路径匹配
+            //
+            // 例如：interceptPrefix="/api", mockApis[0].path="/user"
+            // - stripPrefix=true:  请求 /api/user -> 去掉 /api -> /user -> 匹配成功
+            // - stripPrefix=false: 请求 /api/user -> /api/user -> 需要配置path="/api/user"才能匹配
             val matchPath = if (config.stripPrefix && config.interceptPrefix.isNotEmpty()) {
-                if (!requestPath.startsWith(config.interceptPrefix)) {
-                    config.interceptPrefix + requestPath
+                // 去掉前缀进行匹配
+                if (requestPath.startsWith(config.interceptPrefix)) {
+                    requestPath.removePrefix(config.interceptPrefix).ifEmpty { "/" }
                 } else {
                     requestPath
                 }
@@ -103,7 +109,7 @@ class MockServerService(private val project: Project) {
                 requestPath
             }
 
-            thisLogger().info("Match path: $matchPath (stripPrefix=${config.stripPrefix})")
+            thisLogger().info("Match path: $matchPath (stripPrefix=${config.stripPrefix}, original=$requestPath)")
 
             // 检查是否有匹配的Mock配置
             val mockApi = findMatchingMockApi(matchPath, method, config)

@@ -294,4 +294,152 @@ class MockServerServiceTest : BasePlatformTestCase() {
         mockServerService.stop()
         assertNull(mockServerService.getServerUrl())
     }
+
+    fun `test stripPrefix true matches relative paths`() {
+        val mockData = "{\"user\": \"test\"}"
+        val config = MockConfig(
+            port = 18899,
+            interceptPrefix = "/api",
+            stripPrefix = true,  // 启用前缀去除
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/user",  // 相对路径，不包含 /api
+                    mockData = mockData,
+                    method = "GET",
+                    enabled = true
+                )
+            )
+        )
+        configService.saveConfig(config)
+
+        mockServerService.start()
+
+        try {
+            // 请求 /api/user 应该匹配到 path="/user"
+            val url = URI("http://localhost:18899/api/user").toURL()
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+
+            assertEquals(200, connection.responseCode)
+            val response = connection.inputStream.bufferedReader().readText()
+            assertEquals(mockData, response)
+        } finally {
+            mockServerService.stop()
+        }
+    }
+
+    fun `test stripPrefix false matches full paths`() {
+        val mockData = "{\"product\": \"test\"}"
+        val config = MockConfig(
+            port = 18900,
+            interceptPrefix = "/api",
+            stripPrefix = false,  // 不去除前缀
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/api/product",  // 完整路径，包含 /api
+                    mockData = mockData,
+                    method = "GET",
+                    enabled = true
+                )
+            )
+        )
+        configService.saveConfig(config)
+
+        mockServerService.start()
+
+        try {
+            // 请求 /api/product 应该匹配到 path="/api/product"
+            val url = URI("http://localhost:18900/api/product").toURL()
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+
+            assertEquals(200, connection.responseCode)
+            val response = connection.inputStream.bufferedReader().readText()
+            assertEquals(mockData, response)
+        } finally {
+            mockServerService.stop()
+        }
+    }
+
+    fun `test stripPrefix true does not match without prefix`() {
+        val config = MockConfig(
+            port = 18901,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/api/order",  // 错误配置：stripPrefix=true 但 path 包含了完整路径
+                    mockData = "{\"order\": 1}",
+                    enabled = true
+                )
+            )
+        )
+        configService.saveConfig(config)
+
+        mockServerService.start()
+
+        try {
+            // 请求 /api/order，去掉前缀后是 /order，不会匹配到 path="/api/order"
+            val url = URI("http://localhost:18901/api/order").toURL()
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+
+            // 应该不返回 mock 数据（因为不匹配）
+            val response = if (connection.responseCode < 400) {
+                connection.inputStream.bufferedReader().readText()
+            } else {
+                connection.errorStream.bufferedReader().readText()
+            }
+            assertFalse(response.contains("{\"order\": 1}"))
+        } finally {
+            mockServerService.stop()
+        }
+    }
+
+    fun `test stripPrefix true with multiple paths`() {
+        val config = MockConfig(
+            port = 18902,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/user",
+                    mockData = "{\"type\": \"user\"}",
+                    enabled = true
+                ),
+                MockApiConfig(
+                    path = "/product",
+                    mockData = "{\"type\": \"product\"}",
+                    enabled = true
+                ),
+                MockApiConfig(
+                    path = "/order",
+                    mockData = "{\"type\": \"order\"}",
+                    enabled = true
+                )
+            )
+        )
+        configService.saveConfig(config)
+
+        mockServerService.start()
+
+        try {
+            // 测试第一个路径
+            val url1 = URI("http://localhost:18902/api/user").toURL()
+            val conn1 = url1.openConnection() as HttpURLConnection
+            assertEquals("{\"type\": \"user\"}", conn1.inputStream.bufferedReader().readText())
+
+            // 测试第二个路径
+            val url2 = URI("http://localhost:18902/api/product").toURL()
+            val conn2 = url2.openConnection() as HttpURLConnection
+            assertEquals("{\"type\": \"product\"}", conn2.inputStream.bufferedReader().readText())
+
+            // 测试第三个路径
+            val url3 = URI("http://localhost:18902/api/order").toURL()
+            val conn3 = url3.openConnection() as HttpURLConnection
+            assertEquals("{\"type\": \"order\"}", conn3.inputStream.bufferedReader().readText())
+        } finally {
+            mockServerService.stop()
+        }
+    }
 }
