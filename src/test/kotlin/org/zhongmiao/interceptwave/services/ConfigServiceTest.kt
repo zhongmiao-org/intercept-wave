@@ -256,4 +256,72 @@ class ConfigServiceTest : BasePlatformTestCase() {
         assertEquals("/api/special/!@#$%", loadedConfig.mockApis[0].path)
         assertTrue(loadedConfig.mockApis[0].mockData.contains("特殊字符"))
     }
+
+    fun `test config auto-complete missing fields`() {
+        // 手动创建一个缺少部分字段的配置文件
+        val incompleteConfigJson = """
+            {
+                "baseUrl": "http://192.168.180.135:30332",
+                "mockApis": [
+                    {
+                        "path": "/user",
+                        "mockData": "{\n  name: \"a\",\n  age: 12\n}",
+                        "method": "GET"
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        val configFile = File(configDir, "config.json")
+        configDir.mkdirs()
+        configFile.writeText(incompleteConfigJson)
+
+        // 重新加载配置服务，触发自动补全
+        val newService = ConfigService(project)
+        val loadedConfig = newService.getConfig()
+
+        // 验证缺失的字段已经被补全为默认值
+        assertEquals(8888, loadedConfig.port)
+        assertEquals("/api", loadedConfig.interceptPrefix)
+        assertEquals("http://192.168.180.135:30332", loadedConfig.baseUrl)
+        assertFalse(loadedConfig.stripPrefix)
+        assertEquals("", loadedConfig.globalCookie)
+        assertEquals(1, loadedConfig.mockApis.size)
+
+        // 验证配置文件已经被更新
+        val updatedContent = configFile.readText()
+        println("Updated config content: $updatedContent")
+        assertTrue("Config should contain 'port' field", updatedContent.contains("port"))
+        assertTrue("Config should contain 'interceptPrefix' field", updatedContent.contains("interceptPrefix"))
+        assertTrue("Config should contain 'stripPrefix' field", updatedContent.contains("stripPrefix"))
+        assertTrue("Config should contain 'globalCookie' field", updatedContent.contains("globalCookie"))
+    }
+
+    fun `test config with all fields present is not rewritten`() {
+        // 创建一个完整的配置
+        val completeConfig = MockConfig(
+            port = 9000,
+            interceptPrefix = "/v1",
+            baseUrl = "http://example.com",
+            stripPrefix = true,
+            globalCookie = "session=abc",
+            mockApis = mutableListOf()
+        )
+
+        configService.saveConfig(completeConfig)
+
+        val configFile = File(configDir, "config.json")
+        val originalContent = configFile.readText()
+
+        // 等待一小段时间确保时间戳会变化（如果文件被修改）
+        Thread.sleep(10)
+
+        // 重新加载配置
+        val newService = ConfigService(project)
+        newService.getConfig()
+
+        // 验证文件内容没有变化（因为所有字段都存在）
+        val newContent = configFile.readText()
+        assertEquals(originalContent, newContent)
+    }
 }

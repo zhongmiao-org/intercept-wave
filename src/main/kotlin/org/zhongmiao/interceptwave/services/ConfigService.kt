@@ -7,6 +7,8 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 
 /**
@@ -19,6 +21,7 @@ class ConfigService(private val project: Project) {
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
+        encodeDefaults = true  // 确保即使是默认值也会被序列化
     }
 
     private val configDir: File
@@ -40,7 +43,19 @@ class ConfigService(private val project: Project) {
         return try {
             if (configFile.exists()) {
                 val content = configFile.readText()
-                json.decodeFromString(MockConfig.serializer(), content)
+                // 先解析为JsonObject检查缺失的字段
+                val jsonObject = json.parseToJsonElement(content).jsonObject
+                val hasMissingFields = checkMissingFields(jsonObject)
+
+                // 解码为配置对象（缺失字段会自动使用默认值）
+                val loadedConfig = json.decodeFromString(MockConfig.serializer(), content)
+
+                // 如果有缺失字段，保存完整配置回文件
+                if (hasMissingFields) {
+                    saveConfig(loadedConfig)
+                    thisLogger().info("Config file updated with missing fields")
+                }
+                loadedConfig
             } else {
                 MockConfig().also { saveConfig(it) }
             }
@@ -50,6 +65,21 @@ class ConfigService(private val project: Project) {
         }.also {
             currentConfig = it
         }
+    }
+
+    /**
+     * 检查配置文件是否缺少必要的字段
+     */
+    private fun checkMissingFields(jsonObject: JsonObject): Boolean {
+        val requiredFields = setOf("port", "interceptPrefix", "baseUrl", "stripPrefix", "globalCookie", "mockApis")
+        val existingFields = jsonObject.keys
+        val missingFields = requiredFields - existingFields
+
+        if (missingFields.isNotEmpty()) {
+            thisLogger().info("Missing config fields detected: $missingFields")
+            return true
+        }
+        return false
     }
 
     /**
