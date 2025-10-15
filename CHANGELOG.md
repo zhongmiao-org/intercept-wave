@@ -10,7 +10,7 @@
     - 插件启动时自动检测并补全配置文件中缺失的字段
     - 保留用户已有配置，仅添加缺失的默认配置项
     - 支持从旧版本配置平滑升级到新版本
-    -
+
 ### Fixed
 - 修复请求转发时 `ERR_INVALID_CHUNKED_ENCODING` 错误
     - 解决了转发响应时 `Transfer-Encoding: chunked` 与 `Content-Length` 冲突的问题
