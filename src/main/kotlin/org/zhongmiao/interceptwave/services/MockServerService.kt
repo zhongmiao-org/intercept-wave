@@ -259,9 +259,10 @@ class MockServerService(private val project: Project) {
             val responseCode = connection.responseCode
             val responseStream = if (responseCode < 400) connection.inputStream else connection.errorStream
 
-            // 复制响应头
+            // 复制响应头（排除可能导致冲突的头）
             connection.headerFields.forEach { (key, values) ->
-                if (key != null) {
+                if (key != null && !key.equals("Transfer-Encoding", ignoreCase = true) &&
+                    !key.equals("Content-Length", ignoreCase = true)) {
                     values.forEach { value ->
                         exchange.responseHeaders.add(key, value)
                     }
