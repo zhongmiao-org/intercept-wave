@@ -4,6 +4,8 @@
 
 > [中文更新日志](./CHANGELOG_zh.md) | [Chinese Changelog](./CHANGELOG_zh.md)
 
+## [Unreleased]
+
 ## [1.0.3]
 ### Changed
 - Updated plugin name to "Intercept Wave"
@@ -13,6 +15,18 @@
 
 ### Added
 - Added MIT License file
+- Added real-time request log viewer in IDEA's Run tool window
+    - Automatically displays in Run tool window when server starts
+    - Color-coded log messages (info, success, warning, error, debug)
+    - Request/response logging with timestamps
+    - Mock response vs. proxy forwarding indicators
+    - Server startup/shutdown notifications
+    - Integrated with IDEA's native Run tool window (not embedded in plugin window)
+
+### Improved
+- Removed dialog popups for server start/stop operations
+    - Server status notifications now appear in Run tool window logs only
+    - Provides cleaner, less intrusive user experience
 
 ### Note
 - Some Plugin Verifier warnings (deprecated/experimental/internal API) originate from the `ToolWindowFactory` interface itself

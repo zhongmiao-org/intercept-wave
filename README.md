@@ -253,7 +253,7 @@ A: Check if the port is occupied, you can change the port number in the configur
 A: Make sure the API path matches exactly and the mock configuration is enabled.
 
 ### Q: How to view request logs?
-A: Open IDEA's Event Log or Console to see request logs.
+A: When you start the mock server, a "Intercept Wave Mock Server" tab will automatically appear in the Run tool window at the bottom of IDEA, showing real-time color-coded logs for all requests, including timestamps, request methods, paths, and whether the response was mocked or proxied.
 
 ### Q: Does it support HTTPS?
 A: The current version only supports HTTP, HTTPS support is planned.
@@ -265,7 +265,7 @@ A: Set cookie value in global configuration, then check "Use Global Cookie" in m
 
 - [ ] HTTPS support
 - [ ] WebSocket mock support
-- [ ] Request log viewer
+- [x] Request log viewer (available in Run tool window)
 - [ ] Import/export configuration
 - [ ] Mock data template library
 - [ ] Custom request headers support

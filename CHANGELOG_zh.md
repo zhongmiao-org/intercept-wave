@@ -4,6 +4,8 @@
 
 > [English Changelog](./CHANGELOG.md) | [英文更新日志](./CHANGELOG.md)
 
+## [Unreleased]
+
 ## [1.0.3]
 ### 变更
 - 将插件名称更新为 "Intercept Wave"
@@ -13,6 +15,18 @@
 
 ### 新增
 - 添加 MIT 许可证文件
+- 添加 IDEA Run 工具窗口中的实时请求日志查看器
+    - 服务启动时自动在 Run 工具窗口显示
+    - 彩色日志消息（info、success、warning、error、debug）
+    - 带时间戳的请求/响应日志
+    - Mock 响应 vs. 代理转发指示器
+    - 服务器启动/停止通知
+    - 集成到 IDEA 原生 Run 工具窗口（而非嵌入插件窗口）
+
+### 改进
+- 移除服务启动/停止的弹窗提示
+    - 服务状态通知现在仅在 Run 工具窗口日志中显示
+    - 提供更清爽、无干扰的用户体验
 
 ### 说明
 - Plugin Verifier 的某些警告（deprecated/experimental/internal API）来自 `ToolWindowFactory` 接口本身
