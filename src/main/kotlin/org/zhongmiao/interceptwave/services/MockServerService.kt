@@ -23,6 +23,7 @@ class MockServerService(private val project: Project) {
     private var server: HttpServer? = null
     private var isRunning = false
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
+    private val consoleService: ConsoleService by lazy { project.service<ConsoleService>() }
 
     /**
      * 启动Mock服务器
@@ -30,11 +31,25 @@ class MockServerService(private val project: Project) {
     fun start(): Boolean {
         if (isRunning) {
             thisLogger().warn("Mock server is already running")
+            consoleService.printWarning("Mock server is already running")
             return false
         }
 
         return try {
             val config = configService.getConfig()
+
+            // 显示Console并清空
+            consoleService.showConsole()
+            consoleService.clear()
+
+            // 打印启动信息
+            consoleService.printSeparator()
+            consoleService.printInfo("Starting Intercept Wave Mock Server...")
+            consoleService.printInfo("Port: ${config.port}")
+            consoleService.printInfo("Intercept Prefix: ${config.interceptPrefix}")
+            consoleService.printInfo("Base URL: ${config.baseUrl}")
+            consoleService.printInfo("Strip Prefix: ${config.stripPrefix}")
+
             server = HttpServer.create(InetSocketAddress(config.port), 0).apply {
                 createContext("/") { exchange ->
                     handleRequest(exchange, config)
@@ -43,10 +58,19 @@ class MockServerService(private val project: Project) {
                 start()
             }
             isRunning = true
+
+            val serverUrl = "http://localhost:${config.port}"
             thisLogger().info("Mock server started on port ${config.port}")
+
+            consoleService.printSuccess("Mock server started successfully!")
+            consoleService.printSuccess("Server URL: $serverUrl")
+            consoleService.printInfo("Mock APIs: ${config.mockApis.count { it.enabled }}/${config.mockApis.size} enabled")
+            consoleService.printSeparator()
+
             true
         } catch (e: Exception) {
             thisLogger().error("Failed to start mock server", e)
+            consoleService.printError("Failed to start mock server: ${e.message}")
             false
         }
     }
@@ -59,6 +83,10 @@ class MockServerService(private val project: Project) {
         server = null
         isRunning = false
         thisLogger().info("Mock server stopped")
+
+        consoleService.printSeparator()
+        consoleService.printWarning("Mock server stopped")
+        consoleService.printSeparator()
     }
 
     /**
@@ -83,10 +111,12 @@ class MockServerService(private val project: Project) {
             val method = exchange.requestMethod
 
             thisLogger().info("Received request: $method $requestPath")
+            consoleService.printInfo("➤ $method $requestPath")
 
             // 处理根路径访问，返回欢迎页面
             if (requestPath == "/" || requestPath.isEmpty()) {
                 handleWelcomePage(exchange, config)
+                consoleService.printDebug("  → Welcome page served")
                 return
             }
 
@@ -110,6 +140,7 @@ class MockServerService(private val project: Project) {
             }
 
             thisLogger().info("Match path: $matchPath (stripPrefix=${config.stripPrefix}, original=$requestPath)")
+            consoleService.printDebug("  Match path: $matchPath")
 
             // 检查是否有匹配的Mock配置
             val mockApi = findMatchingMockApi(matchPath, method, config)
@@ -123,6 +154,7 @@ class MockServerService(private val project: Project) {
             }
         } catch (e: Exception) {
             thisLogger().error("Error handling request", e)
+            consoleService.printError("Error handling request: ${e.message}")
             sendErrorResponse(exchange, 500, "Internal Server Error: ${e.message}")
         }
     }
@@ -222,6 +254,7 @@ class MockServerService(private val project: Project) {
             exchange.responseBody.use { it.write(responseBytes) }
 
             thisLogger().info("Responded with mock data for: ${mockApi.path}")
+            consoleService.printSuccess("  ← ${mockApi.statusCode} Mock response${if (mockApi.delay > 0) " (${mockApi.delay}ms delay)" else ""}")
         } catch (e: Exception) {
             thisLogger().error("Error sending mock response", e)
             sendErrorResponse(exchange, 500, "Error sending mock response")
@@ -238,6 +271,7 @@ class MockServerService(private val project: Project) {
             val method = exchange.requestMethod
 
             thisLogger().info("Forwarding request to: $targetUrl")
+            consoleService.printDebug("  → Forwarding to: $targetUrl")
 
             val connection = URI(targetUrl).toURL().openConnection() as HttpURLConnection
             connection.requestMethod = method
@@ -286,8 +320,10 @@ class MockServerService(private val project: Project) {
             exchange.responseBody.use { it.write(responseBytes) }
 
             thisLogger().info("Forwarded response from original server: $responseCode")
+            consoleService.printSuccess("  ← $responseCode Proxied from origin")
         } catch (e: Exception) {
             thisLogger().error("Error forwarding request", e)
+            consoleService.printError("  ✗ Proxy error: ${e.message}")
             sendErrorResponse(exchange, 502, "Bad Gateway: Unable to reach original server")
         }
     }

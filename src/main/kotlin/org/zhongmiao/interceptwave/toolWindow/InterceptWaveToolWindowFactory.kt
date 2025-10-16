@@ -165,28 +165,14 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
                 if (success) {
                     thisLogger().info("Mock server started successfully")
                     updateUI()
-                    JOptionPane.showMessageDialog(
-                        null,
-                        message("message.start.success", mockServerService.getServerUrl() ?: ""),
-                        message("config.message.info"),
-                        JOptionPane.INFORMATION_MESSAGE
-                    )
+                    // Log messages are now shown in Run tool window
                 } else {
-                    JOptionPane.showMessageDialog(
-                        null,
-                        message("message.start.failed"),
-                        message("config.message.error"),
-                        JOptionPane.ERROR_MESSAGE
-                    )
+                    thisLogger().warn("Failed to start mock server")
+                    // Error is already logged in Run tool window
                 }
             } catch (e: Exception) {
                 thisLogger().error("Failed to start mock server", e)
-                JOptionPane.showMessageDialog(
-                    null,
-                    message("message.start.error", e.message ?: ""),
-                    message("config.message.error"),
-                    JOptionPane.ERROR_MESSAGE
-                )
+                // Error is already logged in Run tool window
             }
         }
 
@@ -197,20 +183,10 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
             try {
                 mockServerService.stop()
                 updateUI()
-                JOptionPane.showMessageDialog(
-                    null,
-                    message("message.stop.success"),
-                    message("config.message.info"),
-                    JOptionPane.INFORMATION_MESSAGE
-                )
+                // Log message is now shown in Run tool window
             } catch (e: Exception) {
                 thisLogger().error("Failed to stop mock server", e)
-                JOptionPane.showMessageDialog(
-                    null,
-                    message("message.stop.error", e.message ?: ""),
-                    message("config.message.error"),
-                    JOptionPane.ERROR_MESSAGE
-                )
+                // Error is already logged in Run tool window
             }
         }
 
