@@ -1,8 +1,8 @@
 # Intercept Wave
 
 ![Build](https://github.com/zhongmiao-org/intercept-wave/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/28704.svg)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/28704.svg)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+[![Version](https://img.shields.io/jetbrains/plugin/v/28728.svg)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/28728.svg)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
 
 [English](./README.md) | 简体中文
 
