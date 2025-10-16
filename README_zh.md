@@ -1,10 +1,16 @@
-# Intercept Wave
+<div align="center">
+  <img src="src/main/resources/META-INF/pluginIcon.svg" alt="Intercept Wave Logo" width="128" height="128">
 
-![Build](https://github.com/zhongmiao-org/intercept-wave/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/28728.svg)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/28728.svg)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+  # Intercept Wave for IntelliJ IDEA
 
-[English](./README.md) | 简体中文
+  [![Build](https://github.com/zhongmiao-org/intercept-wave/workflows/Build/badge.svg)](https://github.com/zhongmiao-org/intercept-wave/actions)
+  [![Version](https://img.shields.io/jetbrains/plugin/v/28728.svg?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+  [![Downloads](https://img.shields.io/jetbrains/plugin/d/28728.svg?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+  [![Rating](https://img.shields.io/jetbrains/plugin/r/rating/28728?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+  [![License](https://img.shields.io/github/license/zhongmiao-org/intercept-wave?style=flat-square)](https://github.com/zhongmiao-org/intercept-wave/blob/main/LICENSE)
+
+  [English](./README.md) | 简体中文
+</div>
 
 ## 插件简介
 
