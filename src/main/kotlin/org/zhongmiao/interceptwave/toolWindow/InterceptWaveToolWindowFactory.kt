@@ -23,15 +23,6 @@ import javax.swing.*
 
 class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
 
-    override fun init(toolWindow: ToolWindow) {
-        // 配置工具窗口的位置和图标
-        toolWindow.stripeTitle = "Intercept Wave"
-        toolWindow.setIcon(com.intellij.openapi.util.IconLoader.getIcon(
-            "/icons/interceptWave.svg",
-            InterceptWaveToolWindowFactory::class.java
-        ))
-    }
-
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val toolWindowPanel = InterceptWaveToolWindow(project)
         val content = ContentFactory.getInstance().createContent(toolWindowPanel.getContent(), null, false)

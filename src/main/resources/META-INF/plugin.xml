@@ -9,7 +9,10 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
             factoryClass="org.zhongmiao.interceptwave.toolWindow.InterceptWaveToolWindowFactory"
-            id="Intercept Wave"/>
+            id="Intercept Wave"
+            icon="/icons/interceptWave.svg"
+            anchor="right"
+            doNotActivateOnStart="false"/>
     </extensions>
 
     <projectListeners>
