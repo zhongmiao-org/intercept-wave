@@ -6,6 +6,138 @@
 
 ## [Unreleased]
 
+## [2.0.0] - TBD
+
+### 🎉 Major Features
+
+#### Multi-Service Proxy Support
+- ✨ **Tab-based UI**: Organize multiple proxy configurations in separate tabs
+- 🚀 **Multiple Proxy Groups**: Configure and manage multiple services simultaneously
+- 🎯 **Individual Port Management**: Each proxy group can run on its own port
+- ⚙️ **Per-Group Settings**: Customize port, intercept prefix, base URL, and more for each service
+- 🔄 **Easy Switching**: Quickly switch between different proxy configurations via tabs
+- 🏗️ **Microservices Ready**: Perfect for microservices architecture development (e.g., user service on port 8888, order service on port 8889)
+- 🌍 **Multi-Environment**: Support different environment configurations (dev, test, staging, production)
+
+#### Enhanced User Interface
+- 📑 **Tab System**: Visual tabs showing all configured proxy groups in Tool Window
+- ➕ **Quick Add**: Click "+" tab to add new proxy groups instantly
+- ✏️ **Config Dialog**: Full-featured dialog for editing all proxy groups
+- 🗑️ **Group Management**: Delete groups (except the last one) directly from dialog
+- 🔘 **Enable/Disable Toggle**: Control which groups are active via checkbox
+- ⬅️➡️ **Tab Reordering**: Move tabs left/right to organize your services
+
+#### Configuration Migration
+- 🔄 **Automatic Migration**: Old v1.0 configs automatically upgrade to v2.0 on plugin upgrade
+- 💾 **Backup Created**: Old configuration backed up as `config.json.backup`
+- 📦 **Preserved Data**: All existing mock APIs and settings retained during migration
+- 🆔 **UUID-based Groups**: Each proxy group gets a unique identifier for reliable management
+- 📢 **User Notification**: Success notification displayed after migration completes
+
+### ✨ Added
+
+#### New Data Models
+- 📋 **RootConfig**: New root configuration structure with version and proxyGroups
+- 🎯 **ProxyConfig**: Individual proxy group configuration with UUID, name, enabled status
+- 🔗 **Backward Compatible**: Old MockConfig kept for compatibility (marked @Deprecated)
+
+#### ConfigService Enhancements
+- 📂 `getAllProxyGroups()`: Get all configuration groups
+- ✅ `getEnabledProxyGroups()`: Get enabled configuration groups
+- 🔍 `getProxyGroup(id)`: Get specific group by UUID
+- ➕ `addProxyGroup(config)`: Add new configuration group
+- 🔄 `updateProxyGroup(id, config)`: Update existing group
+- 🗑️ `deleteProxyGroup(id)`: Delete configuration group
+- 🔘 `toggleProxyGroup(id, enabled)`: Enable/disable group
+- ⬆️⬇️ `moveProxyGroup(fromIndex, toIndex)`: Reorder groups
+- 🏭 `createDefaultProxyConfig()`: Factory method for new configs
+
+#### MockServerService Enhancements
+- ▶️ `startServer(configId)`: Start a specific configuration group's server
+- ⏹️ `stopServer(configId)`: Stop a specific configuration group's server
+- ▶️▶️ `startAllServers()`: Start all enabled configuration groups
+- ⏹️⏹️ `stopAllServers()`: Stop all running servers
+- ℹ️ `getServerStatus(configId)`: Get server running status
+- 🔗 `getServerUrl(configId)`: Get server access URL
+- 📊 `getRunningServers()`: Get all running server instances
+
+#### UI Components
+- 🪟 **ConfigDialog**: Tab-based configuration dialog with multi-group support
+- 📱 **ProxyConfigPanel**: Individual panel for each group's settings
+- 🛠️ **Tool Window**: Tab-based interface for service control and status
+- 🎨 **ProxyGroupTabPanel**: Display panel for each service's status and actions
+
+#### Additional Features
+- 🔒 **Port Conflict Detection**: Check port availability before starting server
+- 🚫 **Duplicate Port Prevention**: Prevent multiple services on same port
+- 🌐 **Multi-language Names**: Support Chinese/English configuration group names
+- 📝 **Enhanced Logging**: Console logs include configuration group names (`[User Service] ➤ GET /api/user`)
+
+### 🔄 Changed
+
+#### Configuration Format
+- 📄 **File Structure**: Configuration format upgraded from v1.0 to v2.0
+  - **New format**: `{ "version": "2.0", "proxyGroups": [...] }`
+  - **Old format**: `{ "port": 8888, "interceptPrefix": "/api", ... }`
+- 📁 **Nested Structure**: Single config now becomes array of configs in `proxyGroups`
+
+#### Server Behavior
+- 📊 **Console Logs**: Now include configuration group names for better identification
+  - Example: `[User Service] ➤ GET /api/user/info`
+- 🏠 **Welcome Page**: Server welcome page displays configuration group information
+- 🚀 **Independent Servers**: Each group runs as separate HTTP server instance
+
+#### UI/UX Improvements
+- 🎨 **Modern Layout**: Complete UI redesign with tabbed interface
+- 🔀 **Multi-server Control**: Separate start/stop controls for each service
+- 📍 **Status Indicators**: Visual indicators for running/stopped services
+- 🎯 **Better Organization**: Logical grouping of related configurations
+
+### 🐛 Fixed
+- 🔧 **Port Detection**: Fixed false positive port conflict detection using ServerSocket
+- 🔄 **Dialog Close**: Fixed configuration dialog not closing after saving
+- 🎯 **Change Listeners**: Removed duplicate tab change listeners to prevent dialog reopening
+- 🧹 **Resource Cleanup**: Proper cleanup of old listeners when rebuilding tabs
+
+### 🛡️ Backward Compatibility
+
+#### Automatic Migration
+- 🔄 **Seamless Upgrade**: Old v1.0 configs automatically upgrade to v2.0 format
+- 💾 **Safety Backup**: Old configuration backed up as `config.json.backup`
+- 🎯 **Default Name**: Migrated config becomes "默认配置" (Default Config)
+- 📢 **User Feedback**: Success notification shown after migration
+- ✅ **No Data Loss**: All mock APIs and settings preserved
+
+#### Deprecated APIs
+Legacy API methods marked `@Deprecated` but still functional for backward compatibility:
+- ⚠️ `ConfigService.getConfig()` → use `getRootConfig()` instead
+- ⚠️ `ConfigService.saveConfig()` → use `saveRootConfig()` instead
+- ⚠️ `MockServerService.start()` → use `startAllServers()` instead
+- ⚠️ `MockServerService.stop()` → use `stopAllServers()` instead
+- ⚠️ `MockServerService.isRunning()` → use `getServerStatus(configId)` instead
+- ⚠️ `MockServerService.getServerUrl()` → use `getServerUrl(configId)` instead
+
+### 🔧 Technical Details
+
+#### Architecture
+- 🗺️ **ConcurrentHashMap**: Thread-safe multi-server instance management
+- 🧵 **Independent Threads**: Each server has its own `HttpServer` and thread pool
+- 🆔 **UUID Identification**: Configuration groups identified by UUID for stability
+- 🔍 **Smart Detection**: Intelligent port conflict detection before startup
+- 🧹 **Resource Management**: Proper lifecycle management for server instances
+
+#### Data Flow
+- 📊 **State Management**: Centralized state tracking for all server instances
+- 🔄 **Reactive Updates**: UI updates automatically when server state changes
+- 💾 **Persistence**: Configuration changes immediately saved to disk
+- 🔐 **Data Integrity**: Validation ensures configuration consistency
+
+### 📝 Notes
+- ✅ **Complete Implementation**: UI Layer, configuration dialog, and tool window all updated
+- 🚫 **No Breaking Changes**: Zero breaking changes for end users - automatic migration handles everything
+- 🎯 **Production Ready**: Thoroughly tested with multiple concurrent servers
+- 📚 **Documentation**: Comprehensive CHANGELOG with migration guide
+
 ## [1.0.3]
 ### Changed
 - Updated plugin name to "Intercept Wave"

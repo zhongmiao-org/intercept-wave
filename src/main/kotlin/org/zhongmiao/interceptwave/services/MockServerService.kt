@@ -1,135 +1,236 @@
 package org.zhongmiao.interceptwave.services
 
 import org.zhongmiao.interceptwave.model.MockApiConfig
-import org.zhongmiao.interceptwave.model.MockConfig
+import org.zhongmiao.interceptwave.model.ProxyConfig
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import java.net.BindException
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /**
- * Mock服务器服务
+ * Mock服务器服务 - v2.0 支持多服务器实例
  * 负责启动/停止HTTP Mock服务器，处理请求拦截和转发
  */
 @Service(Service.Level.PROJECT)
 class MockServerService(private val project: Project) {
 
-    private var server: HttpServer? = null
-    private var isRunning = false
+    // 多服务器实例管理
+    private val serverInstances = ConcurrentHashMap<String, HttpServer>()
+    private val serverStatus = ConcurrentHashMap<String, Boolean>()
+
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
     private val consoleService: ConsoleService by lazy { project.service<ConsoleService>() }
 
+    // ============ v2.0 新方法：多服务器管理 ============
+
     /**
-     * 启动Mock服务器
+     * 启动单个配置组的服务器
      */
-    fun start(): Boolean {
-        if (isRunning) {
-            thisLogger().warn("Mock server is already running")
-            consoleService.printWarning("Mock server is already running")
+    fun startServer(configId: String): Boolean {
+        if (serverStatus[configId] == true) {
+            thisLogger().warn("Server for config $configId is already running")
+            return false
+        }
+
+        val proxyConfig = configService.getProxyGroup(configId)
+        if (proxyConfig == null) {
+            thisLogger().error("Config not found: $configId")
+            consoleService.printError("配置组不存在: $configId")
+            return false
+        }
+
+        if (!proxyConfig.enabled) {
+            thisLogger().warn("Config $configId is disabled")
+            consoleService.printWarning("配置组「${proxyConfig.name}」已禁用")
             return false
         }
 
         return try {
-            val config = configService.getConfig()
-
-            // 显示Console并清空
-            consoleService.showConsole()
-            consoleService.clear()
+            // 检查端口是否已被占用
+            if (isPortOccupied(proxyConfig.port)) {
+                consoleService.printError("端口 ${proxyConfig.port} 已被占用，无法启动「${proxyConfig.name}」")
+                return false
+            }
 
             // 打印启动信息
             consoleService.printSeparator()
-            consoleService.printInfo("Starting Intercept Wave Mock Server...")
-            consoleService.printInfo("Port: ${config.port}")
-            consoleService.printInfo("Intercept Prefix: ${config.interceptPrefix}")
-            consoleService.printInfo("Base URL: ${config.baseUrl}")
-            consoleService.printInfo("Strip Prefix: ${config.stripPrefix}")
+            consoleService.printInfo("正在启动: 「${proxyConfig.name}」")
+            consoleService.printInfo("端口: ${proxyConfig.port}")
+            consoleService.printInfo("拦截前缀: ${proxyConfig.interceptPrefix}")
+            consoleService.printInfo("目标地址: ${proxyConfig.baseUrl}")
+            consoleService.printInfo("剥离前缀: ${proxyConfig.stripPrefix}")
 
-            server = HttpServer.create(InetSocketAddress(config.port), 0).apply {
+            val server = HttpServer.create(InetSocketAddress(proxyConfig.port), 0).apply {
                 createContext("/") { exchange ->
-                    handleRequest(exchange, config)
+                    handleProxyRequest(exchange, proxyConfig)
                 }
                 executor = Executors.newFixedThreadPool(10)
                 start()
             }
-            isRunning = true
 
-            val serverUrl = "http://localhost:${config.port}"
-            thisLogger().info("Mock server started on port ${config.port}")
+            serverInstances[configId] = server
+            serverStatus[configId] = true
 
-            consoleService.printSuccess("Mock server started successfully!")
-            consoleService.printSuccess("Server URL: $serverUrl")
-            consoleService.printInfo("Mock APIs: ${config.mockApis.count { it.enabled }}/${config.mockApis.size} enabled")
+            val serverUrl = "http://localhost:${proxyConfig.port}"
+            thisLogger().info("Server started for config: ${proxyConfig.name} on port ${proxyConfig.port}")
+
+            consoleService.printSuccess("✓ 「${proxyConfig.name}」启动成功!")
+            consoleService.printSuccess("✓ 访问地址: $serverUrl")
+            consoleService.printInfo("Mock APIs: ${proxyConfig.mockApis.count { it.enabled }}/${proxyConfig.mockApis.size} 已启用")
             consoleService.printSeparator()
 
             true
+        } catch (e: BindException) {
+            thisLogger().error("Port ${proxyConfig.port} is already in use", e)
+            consoleService.printError("端口 ${proxyConfig.port} 已被占用")
+            false
         } catch (e: Exception) {
-            thisLogger().error("Failed to start mock server", e)
-            consoleService.printError("Failed to start mock server: ${e.message}")
+            thisLogger().error("Failed to start server for config: ${proxyConfig.name}", e)
+            consoleService.printError("启动失败: ${e.message}")
             false
         }
     }
 
     /**
-     * 停止Mock服务器
+     * 停止单个配置组的服务器
      */
-    fun stop() {
-        server?.stop(0)
-        server = null
-        isRunning = false
-        thisLogger().info("Mock server stopped")
+    fun stopServer(configId: String) {
+        val server = serverInstances[configId]
+        val proxyConfig = configService.getProxyGroup(configId)
+        val configName = proxyConfig?.name ?: configId
 
-        consoleService.printSeparator()
-        consoleService.printWarning("Mock server stopped")
-        consoleService.printSeparator()
+        if (server != null) {
+            server.stop(0)
+            serverInstances.remove(configId)
+            serverStatus.remove(configId)
+            thisLogger().info("Server stopped for config: $configName")
+
+            consoleService.printSeparator()
+            consoleService.printWarning("「$configName」已停止")
+            consoleService.printSeparator()
+        }
     }
 
     /**
-     * 检查服务器是否运行中
+     * 启动所有已启用的配置组
      */
-    fun isRunning(): Boolean = isRunning
+    fun startAllServers(): Map<String, Boolean> {
+        val results = mutableMapOf<String, Boolean>()
+        val enabledConfigs = configService.getEnabledProxyGroups()
 
-    /**
-     * 获取服务器地址
-     */
-    fun getServerUrl(): String? {
-        val config = configService.getConfig()
-        return if (isRunning) "http://localhost:${config.port}" else null
+        if (enabledConfigs.isEmpty()) {
+            consoleService.printWarning("没有启用的配置组")
+            return results
+        }
+
+        consoleService.showConsole()
+        consoleService.clear()
+        consoleService.printInfo("正在启动所有配置组...")
+
+        enabledConfigs.forEach { config ->
+            results[config.id] = startServer(config.id)
+        }
+
+        val successCount = results.values.count { it }
+        consoleService.printSeparator()
+        consoleService.printInfo("启动完成: $successCount/${enabledConfigs.size} 个配置组成功启动")
+        consoleService.printSeparator()
+
+        return results
     }
 
     /**
-     * 处理HTTP请求
+     * 停止所有服务器
      */
-    private fun handleRequest(exchange: HttpExchange, config: MockConfig) {
+    fun stopAllServers() {
+        val configIds = serverInstances.keys.toList()
+        if (configIds.isEmpty()) {
+            return
+        }
+
+        consoleService.printInfo("正在停止所有服务器...")
+        configIds.forEach { stopServer(it) }
+        consoleService.printInfo("所有服务器已停止")
+    }
+
+    /**
+     * 获取服务器状态
+     */
+    fun getServerStatus(configId: String): Boolean {
+        return serverStatus[configId] ?: false
+    }
+
+    /**
+     * 获取服务器 URL
+     */
+    fun getServerUrl(configId: String): String? {
+        val isRunning = serverStatus[configId] ?: false
+        if (!isRunning) return null
+
+        val config = configService.getProxyGroup(configId) ?: return null
+        return "http://localhost:${config.port}"
+    }
+
+    /**
+     * 获取所有运行中的服务器
+     */
+    fun getRunningServers(): List<Pair<String, String>> {
+        return serverStatus.filter { it.value }.mapNotNull { (configId, _) ->
+            val config = configService.getProxyGroup(configId)
+            if (config != null) {
+                configId to "http://localhost:${config.port}"
+            } else {
+                null
+            }
+        }
+    }
+
+    /**
+     * 检查端口是否被占用
+     * 使用 ServerSocket 来测试端口，更轻量且能立即释放
+     */
+    private fun isPortOccupied(port: Int): Boolean {
+        return try {
+            ServerSocket(port).use {
+                // 端口可用，立即关闭并返回 false（未被占用）
+                false
+            }
+        } catch (_: Exception) {
+            // 端口被占用或其他错误，返回 true
+            true
+        }
+    }
+
+    // ============ 请求处理方法（ProxyConfig版本） ============
+
+    /**
+     * 处理HTTP请求（ProxyConfig版本）
+     */
+    private fun handleProxyRequest(exchange: HttpExchange, config: ProxyConfig) {
         try {
             val requestPath = exchange.requestURI.path
             val method = exchange.requestMethod
 
-            thisLogger().info("Received request: $method $requestPath")
-            consoleService.printInfo("➤ $method $requestPath")
+            thisLogger().info("[${config.name}] Received: $method $requestPath")
+            consoleService.printInfo("[${config.name}] ➤ $method $requestPath")
 
-            // 处理根路径访问，返回欢迎页面
+            // 处理根路径访问
             if (requestPath == "/" || requestPath.isEmpty()) {
-                handleWelcomePage(exchange, config)
-                consoleService.printDebug("  → Welcome page served")
+                handleProxyWelcomePage(exchange, config)
                 return
             }
 
-            // 路径匹配逻辑：
-            // 1. mockApis中的path是相对路径（不包含interceptPrefix）
-            // 2. 如果stripPrefix=true，则去掉请求路径的interceptPrefix前缀后再匹配
-            // 3. 如果stripPrefix=false，则直接用完整路径匹配
-            //
-            // 例如：interceptPrefix="/api", mockApis[0].path="/user"
-            // - stripPrefix=true:  请求 /api/user -> 去掉 /api -> /user -> 匹配成功
-            // - stripPrefix=false: 请求 /api/user -> /api/user -> 需要配置path="/api/user"才能匹配
+            // 路径匹配逻辑
             val matchPath = if (config.stripPrefix && config.interceptPrefix.isNotEmpty()) {
-                // 去掉前缀进行匹配
                 if (requestPath.startsWith(config.interceptPrefix)) {
                     requestPath.removePrefix(config.interceptPrefix).ifEmpty { "/" }
                 } else {
@@ -139,30 +240,29 @@ class MockServerService(private val project: Project) {
                 requestPath
             }
 
-            thisLogger().info("Match path: $matchPath (stripPrefix=${config.stripPrefix}, original=$requestPath)")
-            consoleService.printDebug("  Match path: $matchPath")
+            consoleService.printDebug("[${config.name}]   匹配路径: $matchPath")
 
-            // 检查是否有匹配的Mock配置
-            val mockApi = findMatchingMockApi(matchPath, method, config)
+            // 查找匹配的Mock配置
+            val mockApi = findMatchingMockApiInProxy(matchPath, method, config)
 
             if (mockApi != null && mockApi.enabled) {
                 // 使用Mock数据响应
-                handleMockResponse(exchange, mockApi, config)
+                handleProxyMockResponse(exchange, mockApi, config)
             } else {
-                // 转发到原始接口
-                forwardToOriginalServer(exchange, config)
+                // 转发到原始服务器
+                forwardToOriginalServerProxy(exchange, config)
             }
         } catch (e: Exception) {
-            thisLogger().error("Error handling request", e)
-            consoleService.printError("Error handling request: ${e.message}")
+            thisLogger().error("[${config.name}] Error handling request", e)
+            consoleService.printError("[${config.name}] 请求处理错误: ${e.message}")
             sendErrorResponse(exchange, 500, "Internal Server Error: ${e.message}")
         }
     }
 
     /**
-     * 处理欢迎页面
+     * 处理欢迎页面（ProxyConfig版本）
      */
-    private fun handleWelcomePage(exchange: HttpExchange, config: MockConfig) {
+    private fun handleProxyWelcomePage(exchange: HttpExchange, config: ProxyConfig) {
         try {
             val mockApiCount = config.mockApis.size
             val enabledApiCount = config.mockApis.count { it.enabled }
@@ -171,10 +271,12 @@ class MockServerService(private val project: Project) {
                 {
                   "status": "running",
                   "message": "Intercept Wave Mock 服务运行中",
+                  "configGroup": "${config.name}",
                   "server": {
                     "port": ${config.port},
                     "baseUrl": "${config.baseUrl}",
-                    "interceptPrefix": "${config.interceptPrefix}"
+                    "interceptPrefix": "${config.interceptPrefix}",
+                    "stripPrefix": ${config.stripPrefix}
                   },
                   "mockApis": {
                     "total": $mockApiCount,
@@ -182,8 +284,7 @@ class MockServerService(private val project: Project) {
                   },
                   "usage": {
                     "description": "访问配置的 Mock 接口路径即可获取 Mock 数据",
-                    "example": "GET http://localhost:${config.port}${config.interceptPrefix}/your-api-path",
-                    "configPath": "请在 IntelliJ IDEA 的 Intercept Wave 工具窗口中配置 Mock 接口"
+                    "example": "GET http://localhost:${config.port}${config.interceptPrefix}/your-api-path"
                   },
                   "apis": [
                     ${config.mockApis.joinToString(",\n    ") { api ->
@@ -199,8 +300,6 @@ class MockServerService(private val project: Project) {
             val responseBytes = welcomeJson.toByteArray(Charsets.UTF_8)
             exchange.sendResponseHeaders(200, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
-
-            thisLogger().info("Served welcome page")
         } catch (e: Exception) {
             thisLogger().error("Error serving welcome page", e)
             sendErrorResponse(exchange, 500, "Error serving welcome page")
@@ -208,35 +307,31 @@ class MockServerService(private val project: Project) {
     }
 
     /**
-     * 查找匹配的Mock API配置
+     * 查找匹配的Mock API（ProxyConfig版本）
      */
-    private fun findMatchingMockApi(requestPath: String, method: String, config: MockConfig): MockApiConfig? {
+    private fun findMatchingMockApiInProxy(requestPath: String, method: String, config: ProxyConfig): MockApiConfig? {
         return config.mockApis.find { api ->
             api.enabled && api.path == requestPath && (api.method == "ALL" || api.method.equals(method, ignoreCase = true))
         }
     }
 
     /**
-     * 处理Mock响应
+     * 处理Mock响应（ProxyConfig版本）
      */
-    private fun handleMockResponse(exchange: HttpExchange, mockApi: MockApiConfig, config: MockConfig) {
+    private fun handleProxyMockResponse(exchange: HttpExchange, mockApi: MockApiConfig, config: ProxyConfig) {
         try {
             // 模拟延迟
             if (mockApi.delay > 0) {
                 Thread.sleep(mockApi.delay)
             }
 
-            // 如果启用了全局Cookie且Cookie不为空，添加Set-Cookie响应头
+            // 添加Cookie
             if (mockApi.useCookie && config.globalCookie.isNotEmpty()) {
                 exchange.responseHeaders.add("Set-Cookie", config.globalCookie)
             }
 
-            // 设置默认Content-Type为JSON
-            if (!exchange.responseHeaders.containsKey("Content-Type")) {
-                exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
-            }
-
-            // 添加CORS头
+            // 设置响应头
+            exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
             exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
             exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
             exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -253,8 +348,8 @@ class MockServerService(private val project: Project) {
             exchange.sendResponseHeaders(mockApi.statusCode, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
 
-            thisLogger().info("Responded with mock data for: ${mockApi.path}")
-            consoleService.printSuccess("  ← ${mockApi.statusCode} Mock response${if (mockApi.delay > 0) " (${mockApi.delay}ms delay)" else ""}")
+            val delayInfo = if (mockApi.delay > 0) " (${mockApi.delay}ms delay)" else ""
+            consoleService.printSuccess("[${config.name}]   ← ${mockApi.statusCode} Mock$delayInfo")
         } catch (e: Exception) {
             thisLogger().error("Error sending mock response", e)
             sendErrorResponse(exchange, 500, "Error sending mock response")
@@ -262,23 +357,24 @@ class MockServerService(private val project: Project) {
     }
 
     /**
-     * 转发请求到原始服务器
+     * 转发请求到原始服务器（ProxyConfig版本）
      */
-    private fun forwardToOriginalServer(exchange: HttpExchange, config: MockConfig) {
+    private fun forwardToOriginalServerProxy(exchange: HttpExchange, config: ProxyConfig) {
         try {
             val requestPath = exchange.requestURI.toString()
             val targetUrl = config.baseUrl + requestPath
             val method = exchange.requestMethod
 
-            thisLogger().info("Forwarding request to: $targetUrl")
-            consoleService.printDebug("  → Forwarding to: $targetUrl")
+            consoleService.printDebug("[${config.name}]   → 转发至: $targetUrl")
 
             val connection = URI(targetUrl).toURL().openConnection() as HttpURLConnection
             connection.requestMethod = method
             connection.doInput = true
             connection.doOutput = method in listOf("POST", "PUT", "PATCH")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 30000
 
-            // 复制请求头（保留原始User-Agent）
+            // 复制请求头
             exchange.requestHeaders.forEach { (key, values) ->
                 if (key.equals("Host", ignoreCase = true)) return@forEach
                 values.forEach { value ->
@@ -299,7 +395,7 @@ class MockServerService(private val project: Project) {
             val responseCode = connection.responseCode
             val responseStream = if (responseCode < 400) connection.inputStream else connection.errorStream
 
-            // 复制响应头（排除可能导致冲突的头）
+            // 复制响应头
             connection.headerFields.forEach { (key, values) ->
                 if (key != null && !key.equals("Transfer-Encoding", ignoreCase = true) &&
                     !key.equals("Content-Length", ignoreCase = true)) {
@@ -319,11 +415,10 @@ class MockServerService(private val project: Project) {
             exchange.sendResponseHeaders(responseCode, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
 
-            thisLogger().info("Forwarded response from original server: $responseCode")
-            consoleService.printSuccess("  ← $responseCode Proxied from origin")
+            consoleService.printSuccess("[${config.name}]   ← $responseCode Proxied")
         } catch (e: Exception) {
             thisLogger().error("Error forwarding request", e)
-            consoleService.printError("  ✗ Proxy error: ${e.message}")
+            consoleService.printError("[${config.name}]   ✗ 代理错误: ${e.message}")
             sendErrorResponse(exchange, 502, "Bad Gateway: Unable to reach original server")
         }
     }
@@ -341,5 +436,42 @@ class MockServerService(private val project: Project) {
         } catch (e: Exception) {
             thisLogger().error("Error sending error response", e)
         }
+    }
+
+    // ============ 向后兼容的方法（已废弃） ============
+
+    /**
+     * @deprecated 使用 startServer(configId) 或 startAllServers() 替代
+     */
+    @Deprecated("Use startServer(configId) or startAllServers() instead")
+    fun start(): Boolean {
+        // 启动所有已启用的服务器
+        val results = startAllServers()
+        return results.values.any { it }
+    }
+
+    /**
+     * @deprecated 使用 stopServer(configId) 或 stopAllServers() 替代
+     */
+    @Deprecated("Use stopServer(configId) or stopAllServers() instead")
+    fun stop() {
+        stopAllServers()
+    }
+
+    /**
+     * @deprecated 使用 getServerStatus(configId) 替代
+     */
+    @Deprecated("Use getServerStatus(configId) instead")
+    fun isRunning(): Boolean {
+        return serverStatus.values.any { it }
+    }
+
+    /**
+     * @deprecated 使用 getServerUrl(configId) 替代
+     */
+    @Deprecated("Use getServerUrl(configId) instead")
+    fun getServerUrl(): String? {
+        // 返回第一个运行中的服务器URL
+        return getRunningServers().firstOrNull()?.second
     }
 }

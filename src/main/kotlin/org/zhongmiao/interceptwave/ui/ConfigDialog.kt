@@ -1,36 +1,264 @@
 package org.zhongmiao.interceptwave.ui
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.services.ConfigService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.table.JBTable
+import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.Insets
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 
 /**
- * 配置对话框
- * 用于配置Mock服务的全局设置和Mock接口
+ * 配置对话框 - v2.0 多配置组支持
+ * 用于配置多个代理配置组，每个配置组有独立的设置和Mock接口
  */
 class ConfigDialog(private val project: Project) : DialogWrapper(project) {
 
     private val configService = project.service<ConfigService>()
-    private val config = configService.getConfig()
+    private val rootConfig = configService.getRootConfig()
 
-    private val portField = JBTextField(config.port.toString())
-    private val interceptPrefixField = JBTextField(config.interceptPrefix)
-    private val baseUrlField = JBTextField(config.baseUrl)
-    private val stripPrefixCheckbox = JCheckBox(message("config.global.stripprefix"), config.stripPrefix)
-    private val globalCookieField = JBTextField(config.globalCookie)
+    // 当前编辑的配置组列表（工作副本）
+    private val proxyGroups = rootConfig.proxyGroups.toMutableList()
+
+    // 标签页面板
+    private val tabbedPane = JBTabbedPane()
+
+    // 存储每个标签页的UI组件
+    private val tabPanels = mutableMapOf<Int, ProxyConfigPanel>()
+
+    init {
+        init()
+        title = message("config.dialog.title")
+
+        // 如果没有配置组，创建一个默认的
+        if (proxyGroups.isEmpty()) {
+            proxyGroups.add(configService.createDefaultProxyConfig(0, "默认配置"))
+        }
+
+        setupTabbedPane()
+    }
+
+    override fun createCenterPanel(): JComponent {
+        val panel = JPanel(BorderLayout(10, 10))
+        panel.preferredSize = Dimension(900, 650)
+
+        // 添加标签页
+        panel.add(tabbedPane, BorderLayout.CENTER)
+
+        // 底部按钮面板
+        val bottomPanel = createBottomButtonPanel()
+        panel.add(bottomPanel, BorderLayout.SOUTH)
+
+        return panel
+    }
+
+    /**
+     * 设置标签页
+     */
+    private fun setupTabbedPane() {
+        tabbedPane.removeAll()
+        tabPanels.clear()
+
+        proxyGroups.forEachIndexed { index, config ->
+            val configPanel = ProxyConfigPanel(project, config)
+            tabPanels[index] = configPanel
+
+            // 创建标签，显示配置组名称和端口
+            val tabTitle = "${config.name} (:${config.port})"
+            tabbedPane.addTab(tabTitle, configPanel.getPanel())
+        }
+
+        // 如果有标签，默认选中第一个
+        if (tabbedPane.tabCount > 0) {
+            tabbedPane.selectedIndex = 0
+        }
+    }
+
+    /**
+     * 创建底部按钮面板
+     */
+    private fun createBottomButtonPanel(): JPanel {
+        val panel = JPanel()
+        panel.layout = BoxLayout(panel, BoxLayout.X_AXIS)
+
+        val addButton = JButton(message("config.group.add"))
+        addButton.addActionListener { addNewProxyGroup() }
+
+        val deleteButton = JButton(message("config.group.delete"))
+        deleteButton.addActionListener { deleteCurrentProxyGroup() }
+
+        val moveLeftButton = JButton(message("config.group.move.left"))
+        moveLeftButton.addActionListener { moveCurrentTab(-1) }
+
+        val moveRightButton = JButton(message("config.group.move.right"))
+        moveRightButton.addActionListener { moveCurrentTab(1) }
+
+        panel.add(addButton)
+        panel.add(Box.createHorizontalStrut(10))
+        panel.add(deleteButton)
+        panel.add(Box.createHorizontalGlue())
+        panel.add(moveLeftButton)
+        panel.add(Box.createHorizontalStrut(5))
+        panel.add(moveRightButton)
+
+        return panel
+    }
+
+    /**
+     * 添加新配置组
+     */
+    private fun addNewProxyGroup() {
+        val newConfig = configService.createDefaultProxyConfig(
+            proxyGroups.size,
+            "配置组 ${proxyGroups.size + 1}"
+        )
+
+        proxyGroups.add(newConfig)
+        setupTabbedPane()
+
+        // 选中新添加的标签
+        tabbedPane.selectedIndex = tabbedPane.tabCount - 1
+    }
+
+    /**
+     * 删除当前配置组
+     */
+    private fun deleteCurrentProxyGroup() {
+        val currentIndex = tabbedPane.selectedIndex
+
+        if (currentIndex < 0) {
+            JOptionPane.showMessageDialog(
+                contentPane,
+                message("config.group.select.first"),
+                message("config.message.info"),
+                JOptionPane.INFORMATION_MESSAGE
+            )
+            return
+        }
+
+        if (proxyGroups.size <= 1) {
+            JOptionPane.showMessageDialog(
+                contentPane,
+                message("config.group.delete.atleastone"),
+                message("config.message.info"),
+                JOptionPane.WARNING_MESSAGE
+            )
+            return
+        }
+
+        val config = proxyGroups[currentIndex]
+        val result = JOptionPane.showConfirmDialog(
+            contentPane,
+            message("config.group.delete.confirm", config.name),
+            message("config.group.delete.confirm.title"),
+            JOptionPane.YES_NO_OPTION
+        )
+
+        if (result == JOptionPane.YES_OPTION) {
+            proxyGroups.removeAt(currentIndex)
+            setupTabbedPane()
+
+            // 选中前一个标签
+            if (currentIndex > 0) {
+                tabbedPane.selectedIndex = currentIndex - 1
+            }
+        }
+    }
+
+    /**
+     * 移动当前标签
+     * @param direction -1 左移, 1 右移
+     */
+    private fun moveCurrentTab(direction: Int) {
+        val currentIndex = tabbedPane.selectedIndex
+
+        if (currentIndex < 0) return
+
+        val newIndex = currentIndex + direction
+
+        if (newIndex < 0 || newIndex >= proxyGroups.size) {
+            return
+        }
+
+        // 交换配置组位置
+        val temp = proxyGroups[currentIndex]
+        proxyGroups[currentIndex] = proxyGroups[newIndex]
+        proxyGroups[newIndex] = temp
+
+        setupTabbedPane()
+        tabbedPane.selectedIndex = newIndex
+    }
+
+    override fun doOKAction() {
+        try {
+            // 验证端口号
+            var hasError = false
+            tabPanels.forEach { (_, panel) ->
+                if (!panel.validateInput()) {
+                    hasError = true
+                }
+            }
+
+            if (hasError) {
+                JOptionPane.showMessageDialog(
+                    contentPane,
+                    message("config.validation.input.error"),
+                    message("config.validation.input.error.title"),
+                    JOptionPane.WARNING_MESSAGE
+                )
+                return
+            }
+
+            // 从各个面板收集配置
+            tabPanels.forEach { (index, panel) ->
+                panel.applyChanges(proxyGroups[index])
+            }
+
+            // 保存到 RootConfig
+            rootConfig.proxyGroups.clear()
+            rootConfig.proxyGroups.addAll(proxyGroups)
+            configService.saveRootConfig(rootConfig)
+
+            // 调用父类方法关闭对话框
+            super.doOKAction()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            JOptionPane.showMessageDialog(
+                contentPane,
+                message("config.save.error", e.message ?: "Unknown error"),
+                message("config.save.error.title"),
+                JOptionPane.ERROR_MESSAGE
+            )
+            // 不要调用 super.doOKAction()，让对话框保持打开状态
+        }
+    }
+}
+
+/**
+ * 单个代理配置组的面板
+ */
+class ProxyConfigPanel(
+    private val project: Project,
+    private val initialConfig: ProxyConfig
+) {
+    private val nameField = JBTextField(initialConfig.name)
+    private val portField = JBTextField(initialConfig.port.toString())
+    private val interceptPrefixField = JBTextField(initialConfig.interceptPrefix)
+    private val baseUrlField = JBTextField(initialConfig.baseUrl)
+    private val stripPrefixCheckbox = JCheckBox(message("config.group.stripprefix"), initialConfig.stripPrefix)
+    private val globalCookieField = JBTextField(initialConfig.globalCookie)
+    private val enabledCheckbox = JCheckBox(message("config.group.enabled"), initialConfig.enabled)
 
     private val tableModel = object : DefaultTableModel(
         arrayOf(
@@ -45,108 +273,104 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         override fun getColumnClass(column: Int): Class<*> {
             return if (column == 0) java.lang.Boolean::class.java else String::class.java
         }
-
         override fun isCellEditable(row: Int, column: Int): Boolean = true
     }
 
     private val mockTable = JBTable(tableModel)
 
     init {
-        init()
-        title = message("config.dialog.title")
         loadMockApisToTable()
     }
 
-    override fun createCenterPanel(): JComponent {
-        val panel = JPanel(BorderLayout(10, 10))
-        panel.preferredSize = Dimension(800, 600)
+    fun getPanel(): JPanel {
+        val mainPanel = JPanel(BorderLayout(10, 10))
 
-        // 全局配置面板
+        // 上部：全局配置
         val globalPanel = createGlobalConfigPanel()
-        panel.add(globalPanel, BorderLayout.NORTH)
+        mainPanel.add(globalPanel, BorderLayout.NORTH)
 
-        // Mock接口列表面板
+        // 中部：Mock API 列表
         val mockListPanel = createMockListPanel()
-        panel.add(mockListPanel, BorderLayout.CENTER)
+        mainPanel.add(mockListPanel, BorderLayout.CENTER)
 
-        return panel
+        return mainPanel
     }
 
-    /**
-     * 创建全局配置面板
-     */
     private fun createGlobalConfigPanel(): JPanel {
         val panel = JPanel(GridBagLayout())
-        panel.border = BorderFactory.createTitledBorder(message("config.global.title"))
+        panel.border = BorderFactory.createTitledBorder(message("config.group.settings"))
 
         val gbc = GridBagConstraints().apply {
             fill = GridBagConstraints.HORIZONTAL
-            insets = Insets(5, 5, 5, 5)
+            insets = JBUI.insets(5)
         }
 
-        // 端口配置
-        gbc.gridx = 0
-        gbc.gridy = 0
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.global.port")), gbc)
+        var row = 0
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        portField.toolTipText = message("config.global.port.tooltip")
+        // 配置组名称
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.group.name") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        nameField.toolTipText = message("config.group.name.tooltip")
+        panel.add(nameField, gbc)
+
+        row++
+
+        // 端口
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.group.port") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        portField.toolTipText = message("config.group.port.tooltip")
         panel.add(portField, gbc)
 
-        // 拦截前缀配置
-        gbc.gridx = 0
-        gbc.gridy = 1
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.global.prefix")), gbc)
+        row++
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        interceptPrefixField.toolTipText = message("config.global.prefix.tooltip")
+        // 拦截前缀
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.group.prefix") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
         panel.add(interceptPrefixField, gbc)
 
-        // 原始接口地址配置
-        gbc.gridx = 0
-        gbc.gridy = 2
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.global.baseurl")), gbc)
+        row++
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        baseUrlField.toolTipText = message("config.global.baseurl.tooltip")
+        // 目标地址
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.group.baseurl") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         panel.add(baseUrlField, gbc)
 
-        // 过滤/取消前缀配置
-        gbc.gridx = 0
-        gbc.gridy = 3
-        gbc.gridwidth = 2
-        stripPrefixCheckbox.toolTipText = message("config.global.stripprefix.tooltip", config.port.toString(), config.interceptPrefix)
+        row++
+
+        // 剥离前缀
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
+        stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
         panel.add(stripPrefixCheckbox, gbc)
 
-        // 全局Cookie配置
-        gbc.gridx = 0
-        gbc.gridy = 4
-        gbc.gridwidth = 1
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.global.cookie")), gbc)
+        row++
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        globalCookieField.toolTipText = message("config.global.cookie.tooltip")
+        // 全局Cookie
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.group.cookie") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        globalCookieField.toolTipText = message("config.group.cookie.tooltip")
         panel.add(globalCookieField, gbc)
+
+        row++
+
+        // 启用配置组
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
+        enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
+        panel.add(enabledCheckbox, gbc)
 
         return panel
     }
 
-    /**
-     * 创建Mock接口列表面板
-     */
     private fun createMockListPanel(): JPanel {
         val panel = JPanel(BorderLayout(10, 10))
-        panel.border = BorderFactory.createTitledBorder(message("config.mock.title"))
+        panel.border = BorderFactory.createTitledBorder(message("config.group.mocklist"))
 
-        // 表格
         mockTable.fillsViewportHeight = true
         val scrollPane = JBScrollPane(mockTable)
         panel.add(scrollPane, BorderLayout.CENTER)
@@ -155,13 +379,13 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         val buttonPanel = JPanel()
         buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
 
-        val addButton = JButton(message("config.button.add"))
+        val addButton = JButton(message("mockapi.add.button"))
         addButton.addActionListener { addNewMockApi() }
 
-        val editButton = JButton(message("config.button.edit"))
+        val editButton = JButton(message("mockapi.edit.button"))
         editButton.addActionListener { editSelectedMockApi() }
 
-        val deleteButton = JButton(message("config.button.delete"))
+        val deleteButton = JButton(message("mockapi.delete.button"))
         deleteButton.addActionListener { deleteSelectedMockApi() }
 
         buttonPanel.add(addButton)
@@ -175,14 +399,11 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         return panel
     }
 
-    /**
-     * 加载Mock接口配置到表格
-     */
     private fun loadMockApisToTable() {
         tableModel.rowCount = 0
-        config.mockApis.forEach { api ->
+        initialConfig.mockApis.forEach { api ->
             tableModel.addRow(
-                arrayOf(
+                arrayOf<Any>(
                     api.enabled,
                     api.path,
                     api.method,
@@ -193,92 +414,92 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         }
     }
 
-    /**
-     * 添加新的Mock接口
-     */
     private fun addNewMockApi() {
         val dialog = MockApiDialog(project, null)
         if (dialog.showAndGet()) {
             val newApi = dialog.getMockApiConfig()
-            config.mockApis.add(newApi)
+            initialConfig.mockApis.add(newApi)
             loadMockApisToTable()
         }
     }
 
-    /**
-     * 编辑选中的Mock接口
-     */
     private fun editSelectedMockApi() {
         val selectedRow = mockTable.selectedRow
         if (selectedRow >= 0) {
-            val api = config.mockApis[selectedRow]
+            val api = initialConfig.mockApis[selectedRow]
             val dialog = MockApiDialog(project, api)
             if (dialog.showAndGet()) {
                 val updatedApi = dialog.getMockApiConfig()
-                config.mockApis[selectedRow] = updatedApi
+                initialConfig.mockApis[selectedRow] = updatedApi
                 loadMockApisToTable()
             }
         } else {
             JOptionPane.showMessageDialog(
                 mockTable,
-                message("config.message.select"),
+                message("mockapi.select.first.edit"),
                 message("config.message.info"),
                 JOptionPane.INFORMATION_MESSAGE
             )
         }
     }
 
-    /**
-     * 删除选中的Mock接口
-     */
     private fun deleteSelectedMockApi() {
         val selectedRow = mockTable.selectedRow
         if (selectedRow >= 0) {
             val result = JOptionPane.showConfirmDialog(
                 mockTable,
-                message("config.message.confirm.delete"),
+                message("mockapi.delete.confirm"),
                 message("config.message.confirm.title"),
                 JOptionPane.YES_NO_OPTION
             )
             if (result == JOptionPane.YES_OPTION) {
-                config.mockApis.removeAt(selectedRow)
+                initialConfig.mockApis.removeAt(selectedRow)
                 loadMockApisToTable()
             }
         } else {
             JOptionPane.showMessageDialog(
                 mockTable,
-                message("config.message.select"),
+                message("mockapi.select.first.delete"),
                 message("config.message.info"),
                 JOptionPane.INFORMATION_MESSAGE
             )
         }
     }
 
-    override fun doOKAction() {
-        try {
-            // 更新全局配置
-            config.port = portField.text.toIntOrNull() ?: 8888
-            config.interceptPrefix = interceptPrefixField.text
-            config.baseUrl = baseUrlField.text
-            config.stripPrefix = stripPrefixCheckbox.isSelected
-            config.globalCookie = globalCookieField.text.trim()
+    /**
+     * 验证输入
+     */
+    fun validateInput(): Boolean {
+        val port = portField.text.toIntOrNull()
+        if (port == null || port < 1 || port > 65535) {
+            JOptionPane.showMessageDialog(
+                null,
+                message("config.validation.port.invalid"),
+                message("config.validation.input.error.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
+            return false
+        }
+        return true
+    }
 
-            // 从表格更新启用状态
-            for (i in 0 until tableModel.rowCount) {
+    /**
+     * 将UI的修改应用到配置对象
+     */
+    fun applyChanges(config: ProxyConfig) {
+        config.name = nameField.text.trim().ifEmpty { "配置组" }
+        config.port = portField.text.toIntOrNull() ?: 8888
+        config.interceptPrefix = interceptPrefixField.text
+        config.baseUrl = baseUrlField.text
+        config.stripPrefix = stripPrefixCheckbox.isSelected
+        config.globalCookie = globalCookieField.text.trim()
+        config.enabled = enabledCheckbox.isSelected
+
+        // 从表格更新Mock API的启用状态
+        for (i in 0 until tableModel.rowCount) {
+            if (i < config.mockApis.size) {
                 config.mockApis[i].enabled = tableModel.getValueAt(i, 0) as Boolean
             }
-
-            // 保存配置
-            configService.saveConfig(config)
-
-            super.doOKAction()
-        } catch (e: Exception) {
-            JOptionPane.showMessageDialog(
-                contentPane,
-                message("config.message.error.save", e.message ?: ""),
-                message("config.message.error"),
-                JOptionPane.ERROR_MESSAGE
-            )
         }
     }
 }
