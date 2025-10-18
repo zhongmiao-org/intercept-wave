@@ -13,7 +13,17 @@
 </div>
 
 <!-- Plugin description -->
-A powerful IntelliJ IDEA plugin that combines the proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It intelligently intercepts HTTP requests, either returning custom mock data or acting as a proxy server to forward real requests to the original server with full HTTP headers.
+## Plugin Introduction
+
+Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It can intelligently intercept HTTP requests, either returning custom mock data or acting as a proxy server to forward real requests to the original server.
+
+### ✨ v2.0 New Features: Multi-Service Proxy
+
+- 📑 **Tab-based Interface**: Manage multiple proxy configuration groups in separate tabs
+- 🚀 **Multiple Proxy Groups**: Run multiple mock services simultaneously, each on its own port
+- 🏗️ **Microservices Ready**: Perfect for microservices architecture (e.g., user service on port 8888, order service on port 8889)
+- 🔄 **Quick Switching**: Easily switch and manage different service configurations via tabs
+- 🌍 **Multi-Environment**: Effortlessly manage dev, test, staging, and other environments
 
 ### Core Capabilities
 
@@ -34,12 +44,13 @@ A powerful IntelliJ IDEA plugin that combines the proxy and interception capabil
 
 ### Typical Use Cases
 
-1. **Independent Frontend Development**: Continue development with mock data when backend APIs are not ready
-2. **API Testing**: Quickly switch between different response data to test edge cases
-3. **Local Debugging**: Use mock for some APIs while proxying others to test servers
-4. **Network Simulation**: Simulate slow networks or API timeout scenarios
-5. **Cross-Origin Development**: Automatically add CORS headers to solve frontend development CORS issues
-<!-- Plugin description end -->
+1. **Microservices Development**: Mock multiple microservices simultaneously (user service, order service, payment service, etc.)
+2. **Independent Frontend Development**: Continue development with mock data when backend APIs are not ready
+3. **API Testing**: Quickly switch between different response data to test edge cases
+4. **Multi-Environment Debugging**: Configure and manage dev, test, staging environments at once
+5. **Local Debugging**: Use mock for some APIs while proxying others to test servers
+6. **Network Simulation**: Simulate slow networks or API timeout scenarios
+7. **Cross-Origin Development**: Automatically add CORS headers to solve frontend development CORS issues
 
 ## Features Overview
 
@@ -53,6 +64,7 @@ Intercept Wave provides the following core functionalities:
 - **Status Code Testing**: Configure different status codes to test error handling logic
 - **Prefix Filtering**: Support prefix filtering to simplify API access paths
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
+<!-- Plugin description end -->
 
 ## Installation
 
@@ -74,41 +86,122 @@ Download the latest release from [GitHub Releases](https://github.com/zhongmiao-
 
 ## Quick Start
 
-### 1. Start Mock Server
+### 1. Open Tool Window
 
 1. Open your project in IntelliJ IDEA
-2. Click the "Intercept Wave" icon in the toolbar
-3. Click the "Start Server" button in the tool window
-4. Once started successfully, the access URL will be displayed (default: http://localhost:8888)
+2. Click the "Intercept Wave" icon in the left toolbar
+3. The tool window displays all configured proxy groups as tabs
 
-### 2. Configure Mock APIs
+### 2. Manage Configuration Groups (v2.0 New Feature)
+
+The tool window provides global operations at the top:
+- **Start All**: Start all enabled configuration groups
+- **Stop All**: Stop all running services
+- **Configuration**: Open the configuration dialog to manage all configuration groups
+
+#### Tab Explanation
+- Each tab represents a configuration group (e.g., "User Service", "Order Service")
+- Displays service name, port number, and enabled status
+- Click a tab to switch to the corresponding service control panel
+- **Plus Tab**: Click to quickly open the configuration dialog and add a new configuration group
+
+#### Individual Service Control
+Each tab panel displays:
+- ☑/☐ **Enabled Status**: Shows whether this configuration group is enabled
+- 🟢/⚫ **Running Status**: Running / Stopped
+- 🔗 **Access URL**: Service access URL when running
+- **Start Service** / **Stop Service**: Control individual service start/stop
+- **Current Configuration**: Displays port, intercept prefix, base URL, mock API list, and other detailed information
+
+### 3. Configure Proxy Groups
 
 Click the "Configuration" button to open the configuration dialog:
 
-#### Global Configuration
-- **Mock Port**: Port for the local mock server to listen on (default: 8888)
+#### Configuration Group Management (Multi-Tab Interface)
+- Each tab represents a configuration group
+- Tab display format: `Configuration Group Name (:Port)`
+- **Add Configuration Group**: Add a new configuration group
+- **Delete Current Configuration Group**: Delete the currently selected configuration group (at least one must remain)
+- **Move Left** / **Move Right**: Adjust the display order of configuration groups
+
+#### Configuration Group Settings
+Each configuration group contains the following settings:
+
+**Basic Configuration**:
+- **Configuration Group Name**: Custom name (e.g., "User Service", "Order Service")
+- **Port Number**: The port this service listens on (e.g., 8888, 8889)
 - **Intercept Prefix**: API path prefix to intercept (default: /api)
 - **Base URL**: Base URL of the original server (e.g., http://localhost:8080)
-- **Strip Prefix**: When enabled, accessing `localhost:8888/user/info` will match `/api/user/info`
-- **Global Cookie**: Configure global cookie value for mock APIs (e.g., sessionId=abc123; userId=456)
+- **Strip Prefix**: When enabled, matching removes the intercept prefix
+  - Example: Request `/api/user` will match mock path `/user`
+- **Global Cookie**: Configure global cookie value (e.g., sessionId=abc123; userId=456)
+- **Enable This Configuration Group**: When checked, this configuration group will be included in "Start All"
 
 #### Mock API Configuration
-1. Click "Add API" button
+1. Click the "Add API" button
 2. Fill in the following information:
-   - **API Path**: e.g., `/api/user/info`
+   - **API Path**: e.g., `/api/user/info` or `/user/info` (depends on whether prefix stripping is enabled)
    - **HTTP Method**: ALL, GET, POST, PUT, DELETE, PATCH
    - **Status Code**: HTTP response status code (default: 200)
    - **Delay (ms)**: Simulate network delay (default: 0)
    - **Mock Data**: Response data in JSON format
    - **Enabled**: Whether to enable this mock configuration
-   - **Use Global Cookie**: When enabled, includes the configured global cookie in response
+   - **Use Global Cookie**: When enabled, the response includes the configured global cookie
 
-3. Click "Format JSON" button to format mock data
+3. Click the "Format JSON" button to format mock data
 4. Click "OK" to save configuration
+
+### 4. Start Services
+
+There are two ways to start services:
+
+**Method 1: Start All Services**
+- Click the "Start All" button at the top of the tool window
+- Automatically starts all enabled configuration groups
+
+**Method 2: Start Individual Service**
+- Switch to the corresponding tab
+- Click the "Start Service" button in that tab
+- Only starts the currently selected service
+
+After successful service startup:
+- Status displays as "● Running"
+- Access URL is displayed (e.g., http://localhost:8888)
+- Run tool window displays real-time logs
 
 ## Use Cases
 
-### Case 1: Mock Specific API
+### Case 1: Microservices Development (v2.0 New Feature)
+
+Mock multiple microservices simultaneously, each service running on an independent port:
+
+**Configuration Group 1 - User Service (Port 8888)**:
+```javascript
+// Frontend code accessing user service
+fetch('http://localhost:8888/api/user/info')
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+**Configuration Group 2 - Order Service (Port 8889)**:
+```javascript
+// Frontend code accessing order service
+fetch('http://localhost:8889/order-api/orders')
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+**Configuration Group 3 - Payment Service (Port 8890)**:
+```javascript
+// Frontend code accessing payment service
+fetch('http://localhost:8890/pay-api/checkout')
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+All services can run simultaneously without interference. Click the "Start All" button to start all services at once!
+
+### Case 2: Mock Specific API
 
 ```javascript
 // Frontend code
@@ -133,28 +226,28 @@ fetch('http://localhost:8888/api/user/info')
 }
 ```
 
-### Case 2: Forward Unconfigured APIs
+### Case 3: Forward Unconfigured APIs
 
 ```javascript
-// This API has no mock configuration, will be forwarded to original server
+// This API has no mock configuration, will be automatically forwarded to the original server
 fetch('http://localhost:8888/api/posts')
   .then(res => res.json())
   .then(data => console.log(data));
 ```
 
-If the base URL is configured as `http://api.example.com`, the actual request will be: `http://api.example.com/api/posts`
+If the original API address is configured as `http://api.example.com`, the actual request will be: `http://api.example.com/api/posts`
 
-### Case 3: Simulate Authenticated APIs
+### Case 4: Simulate Authenticated APIs
 
 1. Set cookie in global configuration: `sessionId=abc123; userId=456`
 2. Check "Use Global Cookie" in mock API configuration
 3. Mock API response will automatically include `Set-Cookie` response header
 
-### Case 4: Simulate Network Delay
+### Case 5: Simulate Network Delay
 
 Set delay time in mock configuration (e.g., 1000ms) to simulate slow network environment.
 
-### Case 5: Test Different Response Status Codes
+### Case 6: Test Different Response Status Codes
 
 Configure different status codes (404, 500, etc.) to test frontend error handling logic.
 
@@ -164,31 +257,67 @@ All configurations are saved in the `.intercept-wave` folder in the project root
 
 ```
 .intercept-wave/
-└── config.json           # Global configuration and API mappings
+└── config.json           # Global configuration and multiple configuration groups
 ```
 
-### config.json Example
+### config.json Example (v2.0 Format)
 
 ```json
 {
-  "port": 8888,
-  "interceptPrefix": "/api",
-  "baseUrl": "http://localhost:8080",
-  "stripPrefix": false,
-  "globalCookie": "sessionId=abc123; userId=456",
-  "mockApis": [
+  "version": "2.0",
+  "proxyGroups": [
     {
-      "path": "/api/user/info",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "User Service",
+      "port": 8888,
+      "interceptPrefix": "/api",
+      "baseUrl": "http://localhost:8080",
+      "stripPrefix": true,
+      "globalCookie": "sessionId=abc123",
       "enabled": true,
-      "mockData": "{\"code\":0,\"data\":{\"name\":\"John\"}}",
-      "method": "GET",
-      "statusCode": 200,
-      "useCookie": true,
-      "delay": 0
+      "mockApis": [
+        {
+          "path": "/user/info",
+          "enabled": true,
+          "mockData": "{\"code\":0,\"data\":{\"name\":\"John Doe\"}}",
+          "method": "GET",
+          "statusCode": 200,
+          "useCookie": true,
+          "delay": 0
+        }
+      ]
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Order Service",
+      "port": 8889,
+      "interceptPrefix": "/order-api",
+      "baseUrl": "http://localhost:8081",
+      "stripPrefix": true,
+      "globalCookie": "",
+      "enabled": true,
+      "mockApis": [
+        {
+          "path": "/orders",
+          "enabled": true,
+          "mockData": "{\"code\":0,\"data\":[]}",
+          "method": "GET",
+          "statusCode": 200,
+          "useCookie": false,
+          "delay": 0
+        }
+      ]
     }
   ]
 }
 ```
+
+### Configuration Migration Instructions
+
+**Upgrading from v1.x to v2.0**:
+- Old configuration automatically migrates and is backed up as `config.json.backup`
+- Old configuration is converted to a "Default Config" group in the new structure
+- Migration process is fully automatic, no manual operation required
 
 ## Advanced Features
 
@@ -259,7 +388,7 @@ A: Check if the port is occupied, you can change the port number in the configur
 A: Make sure the API path matches exactly and the mock configuration is enabled.
 
 ### Q: How to view request logs?
-A: When you start the mock server, a "Intercept Wave Mock Server" tab will automatically appear in the Run tool window at the bottom of IDEA, showing real-time color-coded logs for all requests, including timestamps, request methods, paths, and whether the response was mocked or proxied.
+A: When you start the mock server, the "Intercept Wave Mock Server" tab will automatically appear in the Run tool window at the bottom of IDEA, displaying real-time color-coded logs for all requests, including timestamps, request methods, paths, and whether the response was mocked or proxied.
 
 ### Q: Does it support HTTPS?
 A: The current version only supports HTTP, HTTPS support is planned.

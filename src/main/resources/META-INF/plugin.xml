@@ -13,6 +13,9 @@
             icon="/icons/interceptWave.svg"
             anchor="right"
             doNotActivateOnStart="false"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="Intercept Wave" displayType="BALLOON"/>
     </extensions>
 
     <projectListeners>

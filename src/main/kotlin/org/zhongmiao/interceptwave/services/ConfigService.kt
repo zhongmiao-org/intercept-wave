@@ -1,18 +1,24 @@
 package org.zhongmiao.interceptwave.services
 
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.MockConfig
+import org.zhongmiao.interceptwave.model.ProxyConfig
+import org.zhongmiao.interceptwave.model.RootConfig
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationType
+import com.intellij.notification.Notifications
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import java.io.File
+import java.util.UUID
 
 /**
- * 配置管理服务
+ * 配置管理服务 - v2.0 支持多配置组
  * 负责读取、写入和管理.intercept-wave配置文件夹中的配置
  */
 @Service(Service.Level.PROJECT)
@@ -34,78 +40,202 @@ class ConfigService(private val project: Project) {
     private val configFile: File
         get() = File(configDir, "config.json")
 
-    private var currentConfig: MockConfig = loadConfig()
+    private val backupFile: File
+        get() = File(configDir, "config.json.backup")
+
+    private var rootConfig: RootConfig = loadRootConfig()
 
     /**
-     * 加载配置
+     * 加载根配置，自动处理版本迁移
      */
-    private fun loadConfig(): MockConfig {
+    private fun loadRootConfig(): RootConfig {
         return try {
             if (configFile.exists()) {
                 val content = configFile.readText()
-                // 先解析为JsonObject检查缺失的字段
                 val jsonObject = json.parseToJsonElement(content).jsonObject
-                val hasMissingFields = checkMissingFields(jsonObject)
 
-                // 解码为配置对象（缺失字段会自动使用默认值）
-                val loadedConfig = json.decodeFromString(MockConfig.serializer(), content)
-
-                // 如果有缺失字段，保存完整配置回文件
-                if (hasMissingFields) {
-                    saveConfig(loadedConfig)
-                    thisLogger().info("Config file updated with missing fields")
+                // 检查是否为 v2.0 配置
+                if (jsonObject.containsKey("version") && jsonObject.containsKey("proxyGroups")) {
+                    // v2.0 配置，直接加载
+                    json.decodeFromString(RootConfig.serializer(), content)
+                } else {
+                    // v1.0 配置，执行迁移
+                    thisLogger().info("Detected v1.0 config, starting migration...")
+                    migrateFromV1(content)
                 }
-                loadedConfig
             } else {
-                MockConfig().also { saveConfig(it) }
+                // 新安装，创建默认配置
+                createDefaultConfig()
             }
         } catch (e: Exception) {
             thisLogger().error("Failed to load config", e)
-            MockConfig()
+            createDefaultConfig()
         }.also {
-            currentConfig = it
+            rootConfig = it
         }
     }
 
     /**
-     * 检查配置文件是否缺少必要的字段
+     * 从 v1.0 配置迁移到 v2.0
      */
-    private fun checkMissingFields(jsonObject: JsonObject): Boolean {
-        val requiredFields = setOf("port", "interceptPrefix", "baseUrl", "stripPrefix", "globalCookie", "mockApis")
-        val existingFields = jsonObject.keys
-        val missingFields = requiredFields - existingFields
+    private fun migrateFromV1(oldContent: String): RootConfig {
+        try {
+            // 备份旧配置
+            configFile.copyTo(backupFile, overwrite = true)
+            thisLogger().info("Old config backed up to config.json.backup")
 
-        if (missingFields.isNotEmpty()) {
-            thisLogger().info("Missing config fields detected: $missingFields")
-            return true
+            // 解析旧配置
+            val oldConfig = json.decodeFromString(MockConfig.serializer(), oldContent)
+
+            // 创建新配置结构
+            val newConfig = RootConfig(
+                version = "2.0",
+                proxyGroups = mutableListOf(
+                    ProxyConfig(
+                        id = UUID.randomUUID().toString(),
+                        name = "默认配置",
+                        port = oldConfig.port,
+                        interceptPrefix = oldConfig.interceptPrefix,
+                        baseUrl = oldConfig.baseUrl,
+                        stripPrefix = oldConfig.stripPrefix,
+                        globalCookie = oldConfig.globalCookie,
+                        enabled = true,
+                        mockApis = oldConfig.mockApis
+                    )
+                )
+            )
+
+            // 保存新配置
+            saveRootConfig(newConfig)
+            thisLogger().info("Config migrated from v1.0 to v2.0 successfully")
+
+            // 通知用户
+            Notifications.Bus.notify(
+                Notification(
+                    "Intercept Wave",
+                    message("config.migration.title"),
+                    message("config.migration.message"),
+                    NotificationType.INFORMATION
+                ),
+                project
+            )
+
+            return newConfig
+        } catch (e: Exception) {
+            thisLogger().error("Failed to migrate config from v1.0", e)
+            // 迁移失败，创建默认配置
+            return createDefaultConfig()
         }
-        return false
     }
 
     /**
-     * 保存配置
+     * 创建默认配置
      */
-    fun saveConfig(config: MockConfig) {
+    private fun createDefaultConfig(): RootConfig {
+        val defaultConfig = RootConfig(
+            version = "2.0",
+            proxyGroups = mutableListOf(
+                createDefaultProxyConfig(0, "默认配置")
+            )
+        )
+        saveRootConfig(defaultConfig)
+        return defaultConfig
+    }
+
+    /**
+     * 创建默认代理配置
+     */
+    fun createDefaultProxyConfig(index: Int, name: String? = null): ProxyConfig {
+        return ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = name ?: "配置组 ${index + 1}",
+            port = 8888 + index,
+            interceptPrefix = "/api",
+            baseUrl = "http://localhost:8080",
+            stripPrefix = true,
+            globalCookie = "",
+            enabled = true,
+            mockApis = mutableListOf()
+        )
+    }
+
+    /**
+     * 保存根配置
+     */
+    fun saveRootConfig(config: RootConfig) {
         try {
             configFile.writeText(json.encodeToString(config))
-            currentConfig = config
-            thisLogger().info("Config saved successfully")
+            rootConfig = config
+            thisLogger().info("Root config saved successfully")
         } catch (e: Exception) {
-            thisLogger().error("Failed to save config", e)
+            thisLogger().error("Failed to save root config", e)
             throw e
         }
     }
 
     /**
-     * 获取当前配置
+     * 获取根配置
      */
-    fun getConfig(): MockConfig = currentConfig
+    fun getRootConfig(): RootConfig = rootConfig
 
     /**
-     * 获取Mock接口配置
+     * 获取所有配置组
      */
-    @Suppress("unused")
-    fun getMockApi(path: String): MockApiConfig? {
-        return currentConfig.mockApis.find { it.path == path && it.enabled }
+    fun getAllProxyGroups(): List<ProxyConfig> = rootConfig.proxyGroups
+
+    /**
+     * 获取启用的配置组
+     */
+    fun getEnabledProxyGroups(): List<ProxyConfig> = rootConfig.proxyGroups.filter { it.enabled }
+
+    /**
+     * 根据 ID 获取配置组
+     */
+    fun getProxyGroup(id: String): ProxyConfig? = rootConfig.proxyGroups.find { it.id == id }
+
+    /**
+     * 获取Mock接口配置（从指定配置组）
+     */
+    fun getMockApi(configId: String, path: String): MockApiConfig? {
+        val config = getProxyGroup(configId) ?: return null
+        return config.mockApis.find { it.path == path && it.enabled }
+    }
+
+    // ============ 向后兼容的方法（已废弃） ============
+
+    /**
+     * @deprecated 使用 getRootConfig() 替代
+     */
+    @Deprecated("Use getRootConfig() instead", ReplaceWith("getRootConfig()"))
+    fun getConfig(): MockConfig {
+        // 返回第一个配置组转换为 MockConfig（向后兼容）
+        val firstGroup = rootConfig.proxyGroups.firstOrNull() ?: createDefaultProxyConfig(0, "默认配置")
+        return MockConfig(
+            port = firstGroup.port,
+            interceptPrefix = firstGroup.interceptPrefix,
+            baseUrl = firstGroup.baseUrl,
+            stripPrefix = firstGroup.stripPrefix,
+            globalCookie = firstGroup.globalCookie,
+            mockApis = firstGroup.mockApis
+        )
+    }
+
+    /**
+     * @deprecated 使用 saveRootConfig() 替代
+     */
+    @Deprecated("Use saveRootConfig() instead", ReplaceWith("saveRootConfig(RootConfig(...))"))
+    fun saveConfig(config: MockConfig) {
+        // 更新第一个配置组（向后兼容）
+        if (rootConfig.proxyGroups.isEmpty()) {
+            rootConfig.proxyGroups.add(createDefaultProxyConfig(0, "默认配置"))
+        }
+        val firstGroup = rootConfig.proxyGroups[0]
+        firstGroup.port = config.port
+        firstGroup.interceptPrefix = config.interceptPrefix
+        firstGroup.baseUrl = config.baseUrl
+        firstGroup.stripPrefix = config.stripPrefix
+        firstGroup.globalCookie = config.globalCookie
+        firstGroup.mockApis = config.mockApis
+        saveRootConfig(rootConfig)
     }
 }
