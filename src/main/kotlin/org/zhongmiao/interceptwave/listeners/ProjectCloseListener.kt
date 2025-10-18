@@ -15,12 +15,13 @@ class ProjectCloseListener : ProjectManagerListener {
     override fun projectClosing(project: Project) {
         try {
             val mockServerService = project.service<MockServerService>()
-            if (mockServerService.isRunning()) {
-                thisLogger().info("Stopping mock server before project close")
-                mockServerService.stop()
+            val runningServers = mockServerService.getRunningServers()
+            if (runningServers.isNotEmpty()) {
+                thisLogger().info("Stopping mock servers before project close")
+                mockServerService.stopAllServers()
             }
         } catch (e: Exception) {
-            thisLogger().error("Error stopping mock server on project close", e)
+            thisLogger().error("Error stopping mock servers on project close", e)
         }
     }
 }

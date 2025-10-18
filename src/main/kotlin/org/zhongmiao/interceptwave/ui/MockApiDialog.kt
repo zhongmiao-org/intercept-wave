@@ -2,6 +2,7 @@ package org.zhongmiao.interceptwave.ui
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.MockApiConfig
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
@@ -9,10 +10,10 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.JBUI
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.Insets
 import javax.swing.*
 
 /**
@@ -20,7 +21,7 @@ import javax.swing.*
  */
 class MockApiDialog(
     project: Project,
-    private val existingApi: MockApiConfig?
+    existingApi: MockApiConfig?
 ) : DialogWrapper(project) {
 
     private val pathField = JBTextField(existingApi?.path ?: "")
@@ -46,7 +47,7 @@ class MockApiDialog(
 
         val gbc = GridBagConstraints().apply {
             fill = GridBagConstraints.HORIZONTAL
-            insets = Insets(5, 5, 5, 5)
+            insets = JBUI.insets(5)
         }
 
         // 启用状态
@@ -146,7 +147,8 @@ class MockApiDialog(
         gbc.weighty = 0.0
         gbc.fill = GridBagConstraints.NONE
         gbc.anchor = GridBagConstraints.EAST
-        val formatButton = JButton(message("mockapi.button.format"))
+        val formatButton = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
+        formatButton.isFocusPainted = false
         formatButton.addActionListener {
             try {
                 val formatted = formatJson(mockDataArea.text)

@@ -108,15 +108,6 @@
 - 📢 **User Feedback**: Success notification shown after migration
 - ✅ **No Data Loss**: All mock APIs and settings preserved
 
-#### Deprecated APIs
-Legacy API methods marked `@Deprecated` but still functional for backward compatibility:
-- ⚠️ `ConfigService.getConfig()` → use `getRootConfig()` instead
-- ⚠️ `ConfigService.saveConfig()` → use `saveRootConfig()` instead
-- ⚠️ `MockServerService.start()` → use `startAllServers()` instead
-- ⚠️ `MockServerService.stop()` → use `stopAllServers()` instead
-- ⚠️ `MockServerService.isRunning()` → use `getServerStatus(configId)` instead
-- ⚠️ `MockServerService.getServerUrl()` → use `getServerUrl(configId)` instead
-
 ### 🔧 Technical Details
 
 #### Architecture

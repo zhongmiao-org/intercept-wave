@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.ui
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.services.ConfigService
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -92,16 +93,23 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         val panel = JPanel()
         panel.layout = BoxLayout(panel, BoxLayout.X_AXIS)
 
-        val addButton = JButton(message("config.group.add"))
+        val addButton = JButton(message("config.group.add"), AllIcons.General.Add)
+        addButton.isFocusPainted = false
         addButton.addActionListener { addNewProxyGroup() }
 
-        val deleteButton = JButton(message("config.group.delete"))
+        val deleteButton = JButton(message("config.group.delete"), AllIcons.General.Remove)
+        deleteButton.isFocusPainted = false
         deleteButton.addActionListener { deleteCurrentProxyGroup() }
 
-        val moveLeftButton = JButton(message("config.group.move.left"))
+        val moveLeftButton = JButton(message("config.group.move.left"), AllIcons.Actions.Back)
+        moveLeftButton.isFocusPainted = false
         moveLeftButton.addActionListener { moveCurrentTab(-1) }
 
+        // 特殊处理：右移按钮图标在右边
         val moveRightButton = JButton(message("config.group.move.right"))
+        moveRightButton.horizontalTextPosition = SwingConstants.LEFT
+        moveRightButton.icon = AllIcons.Actions.Forward
+        moveRightButton.isFocusPainted = false
         moveRightButton.addActionListener { moveCurrentTab(1) }
 
         panel.add(addButton)
@@ -305,62 +313,48 @@ class ProxyConfigPanel(
             insets = JBUI.insets(5)
         }
 
-        var row = 0
-
         // 配置组名称
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.name") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         nameField.toolTipText = message("config.group.name.tooltip")
         panel.add(nameField, gbc)
 
-        row++
-
         // 端口
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.port") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         portField.toolTipText = message("config.group.port.tooltip")
         panel.add(portField, gbc)
 
-        row++
-
         // 拦截前缀
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.prefix") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
         panel.add(interceptPrefixField, gbc)
 
-        row++
-
         // 目标地址
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.baseurl") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         panel.add(baseUrlField, gbc)
 
-        row++
-
         // 剥离前缀
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2
         stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
         panel.add(stripPrefixCheckbox, gbc)
 
-        row++
-
         // 全局Cookie
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 1; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.cookie") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         globalCookieField.toolTipText = message("config.group.cookie.tooltip")
         panel.add(globalCookieField, gbc)
 
-        row++
-
         // 启用配置组
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2
         enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
         panel.add(enabledCheckbox, gbc)
 
@@ -379,13 +373,16 @@ class ProxyConfigPanel(
         val buttonPanel = JPanel()
         buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
 
-        val addButton = JButton(message("mockapi.add.button"))
+        val addButton = JButton(message("mockapi.add.button"), AllIcons.General.Add)
+        addButton.isFocusPainted = false
         addButton.addActionListener { addNewMockApi() }
 
-        val editButton = JButton(message("mockapi.edit.button"))
+        val editButton = JButton(message("mockapi.edit.button"), AllIcons.Actions.Edit)
+        editButton.isFocusPainted = false
         editButton.addActionListener { editSelectedMockApi() }
 
-        val deleteButton = JButton(message("mockapi.delete.button"))
+        val deleteButton = JButton(message("mockapi.delete.button"), AllIcons.General.Remove)
+        deleteButton.isFocusPainted = false
         deleteButton.addActionListener { deleteSelectedMockApi() }
 
         buttonPanel.add(addButton)
