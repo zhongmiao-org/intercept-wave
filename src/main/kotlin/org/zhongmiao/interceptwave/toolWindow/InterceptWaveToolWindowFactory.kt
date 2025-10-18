@@ -4,6 +4,7 @@ import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.MockServerService
 import org.zhongmiao.interceptwave.ui.ConfigDialog
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.DumbAware
@@ -41,6 +42,10 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
         private val tabbedPane = JBTabbedPane()
         private val tabPanels = mutableMapOf<String, ProxyGroupTabPanel>()
 
+        // 全局按钮引用，用于状态管理
+        private lateinit var startAllButton: JButton
+        private lateinit var stopAllButton: JButton
+
         init {
             setupTabs()
         }
@@ -59,20 +64,17 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
             val globalButtonPanel = JPanel()
             globalButtonPanel.layout = BoxLayout(globalButtonPanel, BoxLayout.X_AXIS)
 
-            val startAllButton = JButton(message("toolwindow.button.startall"))
-            startAllButton.addActionListener {
+            startAllButton = createButton(message("toolwindow.button.startall"), AllIcons.Actions.RunAll) {
                 mockServerService.startAllServers()
                 refreshAllTabs()
             }
 
-            val stopAllButton = JButton(message("toolwindow.button.stopall"))
-            stopAllButton.addActionListener {
+            stopAllButton = createButton(message("toolwindow.button.stopall"), AllIcons.Debugger.MuteBreakpoints) {
                 mockServerService.stopAllServers()
                 refreshAllTabs()
             }
 
-            val configButton = JButton(message("toolwindow.button.config"))
-            configButton.addActionListener {
+            val configButton = createButton(message("toolwindow.button.config"), AllIcons.General.Settings) {
                 openConfigDialog()
             }
 
@@ -89,7 +91,47 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
             // 标签页
             panel.add(tabbedPane, BorderLayout.CENTER)
 
+            // 初始化按钮状态
+            updateGlobalButtonStates()
+
             return panel
+        }
+
+        /**
+         * 创建按钮并设置样式
+         */
+        private fun createButton(text: String, icon: Icon, action: () -> Unit): JButton {
+            return JButton(text, icon).apply {
+                isFocusPainted = false
+                isFocusable = false
+                addActionListener { action() }
+            }
+        }
+
+        /**
+         * 更新全局按钮状态
+         */
+        private fun updateGlobalButtonStates() {
+            val proxyGroups = configService.getAllProxyGroups()
+            val enabledGroups = proxyGroups.filter { it.enabled }
+
+            if (enabledGroups.isEmpty()) {
+                startAllButton.isEnabled = false
+                stopAllButton.isEnabled = false
+                return
+            }
+
+            val runningServers = mockServerService.getRunningServers()
+            val runningServerIds = runningServers.map { it.first }.toSet()
+            val allEnabledRunning = enabledGroups.all { config ->
+                config.id in runningServerIds
+            }
+            val allEnabledStopped = enabledGroups.none { config ->
+                config.id in runningServerIds
+            }
+
+            startAllButton.isEnabled = !allEnabledRunning
+            stopAllButton.isEnabled = !allEnabledStopped
         }
 
         /**
@@ -116,7 +158,14 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
                 tabbedPane.addTab(message("toolwindow.empty.tab"), emptyPanel)
             } else {
                 proxyGroups.forEach { config ->
-                    val tabPanel = ProxyGroupTabPanel(project, config.id, config.name, config.port, config.enabled)
+                    val tabPanel = ProxyGroupTabPanel(
+                        project,
+                        config.id,
+                        config.name,
+                        config.port,
+                        config.enabled,
+                        onStatusChanged = { updateGlobalButtonStates() }
+                    )
                     tabPanels[config.id] = tabPanel
 
                     // 添加标签页，标签名称显示配置组名称
@@ -154,6 +203,8 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
                 val url = mockServerService.getServerUrl(configId)
                 panel.updateStatus(isRunning, url)
             }
+            // 同时更新全局按钮状态
+            updateGlobalButtonStates()
         }
 
         /**
@@ -187,15 +238,22 @@ class ProxyGroupTabPanel(
     private val configId: String,
     private val configName: String,
     private val port: Int,
-    private val enabled: Boolean
+    private val enabled: Boolean,
+    private val onStatusChanged: () -> Unit = {}
 ) {
     private val mockServerService = project.service<MockServerService>()
     private val configService = project.service<ConfigService>()
 
     private val statusLabel = JBLabel(message("toolwindow.status.stopped"))
     private val urlLabel = JBLabel("")
-    private val startButton = JButton(message("toolwindow.button.start"))
-    private val stopButton = JButton(message("toolwindow.button.stop"))
+    private val startButton = JButton(message("toolwindow.button.start"), AllIcons.Actions.Execute).apply {
+        isFocusPainted = false
+        isFocusable = false
+    }
+    private val stopButton = JButton(message("toolwindow.button.stop"), AllIcons.Actions.Suspend).apply {
+        isFocusPainted = false
+        isFocusable = false
+    }
     private val configInfoArea = JTextArea()
 
     init {
@@ -230,7 +288,7 @@ class ProxyGroupTabPanel(
         }
 
         // 配置组名称
-        val nameLabel = JBLabel("$configName (:$port)")
+        val nameLabel = JBLabel("$configName (:${port.toString()})")
         nameLabel.font = nameLabel.font.deriveFont(16f).deriveFont(java.awt.Font.BOLD)
         gbc.gridx = 0
         gbc.gridy = 0
@@ -238,16 +296,23 @@ class ProxyGroupTabPanel(
         gbc.weightx = 1.0
         panel.add(nameLabel, gbc)
 
-        // 启用状态
-        val enabledLabel = JBLabel(if (enabled) message("toolwindow.status.enabled") else message("toolwindow.status.disabled"))
-        enabledLabel.foreground = if (enabled) JBColor(0x008000, 0x6A8759) else JBColor.GRAY
+        // 配置状态
         gbc.gridy = 1
+        gbc.gridwidth = 1
+        panel.add(JBLabel(message("toolwindow.label.config.status")), gbc)
+        gbc.gridx = 1
+        val enabledLabel = JBLabel(
+            if (enabled) message("toolwindow.status.enabled") else message("toolwindow.status.disabled"),
+            if (enabled) AllIcons.General.InspectionsOK else AllIcons.General.InspectionsError,
+            SwingConstants.LEFT
+        )
+        enabledLabel.foreground = if (enabled) JBColor(0x008000, 0x6A8759) else JBColor.GRAY
         panel.add(enabledLabel, gbc)
 
         // 运行状态
+        gbc.gridx = 0
         gbc.gridy = 2
-        gbc.gridwidth = 1
-        panel.add(JBLabel(message("toolwindow.label.status")), gbc)
+        panel.add(JBLabel(message("toolwindow.label.running.status")), gbc)
         gbc.gridx = 1
         panel.add(statusLabel, gbc)
 
@@ -315,7 +380,7 @@ class ProxyGroupTabPanel(
 
         val info = buildString {
             appendLine(message("toolwindow.config.name", config.name))
-            appendLine(message("toolwindow.config.port", config.port))
+            appendLine(message("toolwindow.config.port", config.port.toString()))
             appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
             appendLine(message("toolwindow.config.baseurl", config.baseUrl))
             appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
@@ -343,6 +408,8 @@ class ProxyGroupTabPanel(
             if (success) {
                 val url = mockServerService.getServerUrl(configId)
                 updateStatus(true, url)
+                // 通知父组件更新全局按钮状态
+                onStatusChanged()
             }
         } catch (e: Exception) {
             thisLogger().error("Failed to start server for $configName", e)
@@ -356,6 +423,8 @@ class ProxyGroupTabPanel(
         try {
             mockServerService.stopServer(configId)
             updateStatus(false, null)
+            // 通知父组件更新全局按钮状态
+            onStatusChanged()
         } catch (e: Exception) {
             thisLogger().error("Failed to stop server for $configName", e)
         }
@@ -370,10 +439,12 @@ class ProxyGroupTabPanel(
 
         if (isRunning) {
             statusLabel.text = message("toolwindow.status.running.indicator")
+            statusLabel.icon = AllIcons.RunConfigurations.TestPassed
             statusLabel.foreground = JBColor(0x008000, 0x6A8759)
             urlLabel.text = url ?: ""
         } else {
             statusLabel.text = message("toolwindow.status.stopped.indicator")
+            statusLabel.icon = AllIcons.RunConfigurations.TestTerminated
             statusLabel.foreground = JBColor.GRAY
             urlLabel.text = ""
         }

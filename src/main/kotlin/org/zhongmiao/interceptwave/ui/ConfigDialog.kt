@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.ui
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.services.ConfigService
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -92,16 +93,24 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         val panel = JPanel()
         panel.layout = BoxLayout(panel, BoxLayout.X_AXIS)
 
-        val addButton = JButton(message("config.group.add"))
+        val addButton = JButton(message("config.group.add"), AllIcons.General.Add)
+        addButton.isFocusPainted = false
         addButton.addActionListener { addNewProxyGroup() }
 
-        val deleteButton = JButton(message("config.group.delete"))
+        val deleteButton = JButton(message("config.group.delete"), AllIcons.General.Remove)
+        deleteButton.isFocusPainted = false
         deleteButton.addActionListener { deleteCurrentProxyGroup() }
 
-        val moveLeftButton = JButton(message("config.group.move.left"))
+        val moveLeftButton = JButton(message("config.group.move.left"), AllIcons.Actions.Back)
+        moveLeftButton.isFocusPainted = false
         moveLeftButton.addActionListener { moveCurrentTab(-1) }
 
+        // 特殊处理：右移按钮图标在右边
         val moveRightButton = JButton(message("config.group.move.right"))
+        moveRightButton.icon = null
+        moveRightButton.horizontalTextPosition = SwingConstants.LEFT
+        moveRightButton.setIcon(AllIcons.Actions.Forward)
+        moveRightButton.isFocusPainted = false
         moveRightButton.addActionListener { moveCurrentTab(1) }
 
         panel.add(addButton)
@@ -379,13 +388,16 @@ class ProxyConfigPanel(
         val buttonPanel = JPanel()
         buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
 
-        val addButton = JButton(message("mockapi.add.button"))
+        val addButton = JButton(message("mockapi.add.button"), AllIcons.General.Add)
+        addButton.isFocusPainted = false
         addButton.addActionListener { addNewMockApi() }
 
-        val editButton = JButton(message("mockapi.edit.button"))
+        val editButton = JButton(message("mockapi.edit.button"), AllIcons.Actions.Edit)
+        editButton.isFocusPainted = false
         editButton.addActionListener { editSelectedMockApi() }
 
-        val deleteButton = JButton(message("mockapi.delete.button"))
+        val deleteButton = JButton(message("mockapi.delete.button"), AllIcons.General.Remove)
+        deleteButton.isFocusPainted = false
         deleteButton.addActionListener { deleteSelectedMockApi() }
 
         buttonPanel.add(addButton)
