@@ -12,6 +12,7 @@
   English | [简体中文](./README_zh.md)
 </div>
 
+<!-- Plugin description -->
 ## Plugin Introduction
 
 Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It can intelligently intercept HTTP requests, either returning custom mock data or acting as a proxy server to forward real requests to the original server.
@@ -63,6 +64,7 @@ Intercept Wave provides the following core functionalities:
 - **Status Code Testing**: Configure different status codes to test error handling logic
 - **Prefix Filtering**: Support prefix filtering to simplify API access paths
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
+<!-- Plugin description end -->
 
 ## Installation
 
