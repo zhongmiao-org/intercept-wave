@@ -42,6 +42,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
 
+    // JUnit Vintage Engine to run JUnit 4 tests on JUnit Platform
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.1")
+
     // UI Testing with Remote Robot
     testImplementation("com.intellij.remoterobot:remote-robot:0.11.23")
     testImplementation("com.intellij.remoterobot:remote-fixtures:0.11.23")
