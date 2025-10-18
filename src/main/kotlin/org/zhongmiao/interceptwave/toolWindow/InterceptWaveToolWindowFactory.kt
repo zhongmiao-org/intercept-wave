@@ -178,7 +178,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
                 addLabel.foreground = JBColor.GRAY
                 addLabel.horizontalAlignment = SwingConstants.CENTER
                 addPanel.add(addLabel, BorderLayout.CENTER)
-                tabbedPane.addTab("+", addPanel)
+                tabbedPane.addTab(null, AllIcons.General.Add, addPanel, message("toolwindow.add.hint"))
 
                 // 监听 "+" 标签被点击
                 tabbedPane.addChangeListener {
