@@ -38,6 +38,15 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.opentest4j)
 
+    // JUnit 5 (Jupiter) for UI tests
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
+
+    // UI Testing with Remote Robot
+    testImplementation("com.intellij.remoterobot:remote-robot:0.11.23")
+    testImplementation("com.intellij.remoterobot:remote-fixtures:0.11.23")
+    testImplementation("com.squareup.okhttp3:okhttp:4.12.0") // Required by remote-robot
+
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
         create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
@@ -113,6 +122,15 @@ intellijPlatform {
     }
 }
 
+// Configure runIdeForUiTests task
+// This task runs IDE with robot-server plugin for UI testing
+tasks.register<org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask>("runIdeForUiTests") {
+    systemProperty("robot-server.port", "8082")
+    systemProperty("ide.mac.message.dialogs.as.sheets", "false")
+    systemProperty("jb.privacy.policy.text", "<!--999.999-->")
+    systemProperty("jb.consents.confirmation.enabled", "false")
+}
+
 // Configure Gradle Changelog Plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
 changelog {
     groups.empty()
@@ -140,6 +158,9 @@ tasks {
     }
 
     test {
+        // Use JUnit Platform for both JUnit 4 and JUnit 5 tests
+        useJUnitPlatform()
+
         // Set test timeout to prevent hanging
         timeout.set(Duration.ofMinutes(10))
 
@@ -157,9 +178,36 @@ tasks {
         val forks = Runtime.getRuntime().availableProcessors().div(2)
         maxParallelForks = if (forks > 0) forks else 1
 
+        // Exclude UI tests from regular test task
+        exclude("**/ui/**")
+
         // In CI environment, exclude Platform tests that require IDE instance
         if (System.getenv("CI") == "true") {
             exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class")
         }
+    }
+
+    // Task to run UI tests separately
+    register<Test>("testUi") {
+        description = "Runs UI tests with a running IDE instance"
+        group = "verification"
+
+        // Use JUnit Platform for JUnit 5 tests
+        useJUnitPlatform()
+
+        // Include only UI tests
+        include("**/ui/**")
+
+        // Use the same JVM configuration as regular tests
+        jvmArgs(
+            "-Djava.awt.headless=true",
+            "-Didea.force.use.core.classloader=true",
+            "-Didea.use.core.classloader.for.plugin.path=true"
+        )
+
+        maxHeapSize = "2048m" // UI tests may need more memory
+        timeout.set(Duration.ofMinutes(20)) // UI tests take longer
+
+        shouldRunAfter(test)
     }
 }
