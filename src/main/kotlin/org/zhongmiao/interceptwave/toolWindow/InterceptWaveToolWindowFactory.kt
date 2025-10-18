@@ -288,7 +288,7 @@ class ProxyGroupTabPanel(
         }
 
         // 配置组名称
-        val nameLabel = JBLabel("$configName (:${port.toString()})")
+        val nameLabel = JBLabel("$configName (:$port)")
         nameLabel.font = nameLabel.font.deriveFont(16f).deriveFont(java.awt.Font.BOLD)
         gbc.gridx = 0
         gbc.gridy = 0
@@ -380,7 +380,7 @@ class ProxyGroupTabPanel(
 
         val info = buildString {
             appendLine(message("toolwindow.config.name", config.name))
-            appendLine(message("toolwindow.config.port", config.port.toString()))
+            appendLine(message("toolwindow.config.port", "${config.port}"))
             appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
             appendLine(message("toolwindow.config.baseurl", config.baseUrl))
             appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))

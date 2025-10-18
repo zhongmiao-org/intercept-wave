@@ -107,9 +107,8 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
 
         // 特殊处理：右移按钮图标在右边
         val moveRightButton = JButton(message("config.group.move.right"))
-        moveRightButton.icon = null
         moveRightButton.horizontalTextPosition = SwingConstants.LEFT
-        moveRightButton.setIcon(AllIcons.Actions.Forward)
+        moveRightButton.icon = AllIcons.Actions.Forward
         moveRightButton.isFocusPainted = false
         moveRightButton.addActionListener { moveCurrentTab(1) }
 
@@ -314,62 +313,48 @@ class ProxyConfigPanel(
             insets = JBUI.insets(5)
         }
 
-        var row = 0
-
         // 配置组名称
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.name") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         nameField.toolTipText = message("config.group.name.tooltip")
         panel.add(nameField, gbc)
 
-        row++
-
         // 端口
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.port") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         portField.toolTipText = message("config.group.port.tooltip")
         panel.add(portField, gbc)
 
-        row++
-
         // 拦截前缀
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.prefix") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
         panel.add(interceptPrefixField, gbc)
 
-        row++
-
         // 目标地址
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.baseurl") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         panel.add(baseUrlField, gbc)
 
-        row++
-
         // 剥离前缀
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2
         stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
         panel.add(stripPrefixCheckbox, gbc)
 
-        row++
-
         // 全局Cookie
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 1; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.cookie") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         globalCookieField.toolTipText = message("config.group.cookie.tooltip")
         panel.add(globalCookieField, gbc)
 
-        row++
-
         // 启用配置组
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2
         enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
         panel.add(enabledCheckbox, gbc)
 
