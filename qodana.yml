@@ -6,7 +6,18 @@ linter: jetbrains/qodana-jvm-community:2024.3
 projectJDK: "21"
 profile:
   name: qodana.recommended
+
+# Code coverage configuration
+# Using Kover (Kotlin code coverage tool) - already configured in build.gradle.kts
+# Kover generates coverage reports at: build/reports/kover/report.xml
+# Learn more: https://www.jetbrains.com/help/qodana/code-coverage.html
+coverage:
+  intellij:
+    - build/reports/kover/report.xml
+
 exclude:
   - name: All
     paths:
       - .qodana
+      - .gradle
+      - build
