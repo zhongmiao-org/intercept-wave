@@ -123,11 +123,14 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
         configService.saveConfig(config)
 
-        val userApi = configService.getMockApi("/api/user")
+        // 获取第一个配置组的 ID
+        val configId = configService.getAllProxyGroups().first().id
+
+        val userApi = configService.getMockApi(configId = configId, path = "/api/user")
         assertNotNull(userApi)
         assertEquals("/api/user", userApi?.path)
 
-        val postsApi = configService.getMockApi("/api/posts")
+        val postsApi = configService.getMockApi(configId = configId, path = "/api/posts")
         assertNull(postsApi) // Should be null because it's disabled
     }
 
@@ -144,7 +147,10 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
         configService.saveConfig(config)
 
-        val api = configService.getMockApi("/api/nonexistent")
+        // 获取第一个配置组的 ID
+        val configId = configService.getAllProxyGroups().first().id
+
+        val api = configService.getMockApi(configId = configId, path = "/api/nonexistent")
         assertNull(api)
     }
 
@@ -233,7 +239,10 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
         configService.saveConfig(config)
 
-        val api = configService.getMockApi("/api/test")
+        // 获取第一个配置组的 ID
+        val configId = configService.getAllProxyGroups().first().id
+
+        val api = configService.getMockApi(configId = configId, path = "/api/test")
         assertNotNull(api)
         assertEquals("{\"version\": 2}", api?.mockData)
     }
