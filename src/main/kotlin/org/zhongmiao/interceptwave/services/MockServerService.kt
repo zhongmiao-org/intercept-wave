@@ -44,17 +44,22 @@ class MockServerService(private val project: Project) {
         val proxyConfig = configService.getProxyGroup(configId)
         if (proxyConfig == null) {
             thisLogger().error("Config not found: $configId")
+            consoleService.showConsole()
             consoleService.printError("配置组不存在: $configId")
             return false
         }
 
         if (!proxyConfig.enabled) {
             thisLogger().warn("Config $configId is disabled")
+            consoleService.showConsole()
             consoleService.printWarning("配置组「${proxyConfig.name}」已禁用")
             return false
         }
 
         return try {
+            // 显示控制台窗口
+            consoleService.showConsole()
+
             // 检查端口是否已被占用
             if (isPortOccupied(proxyConfig.port)) {
                 consoleService.printError("端口 ${proxyConfig.port} 已被占用，无法启动「${proxyConfig.name}」")
@@ -436,42 +441,5 @@ class MockServerService(private val project: Project) {
         } catch (e: Exception) {
             thisLogger().error("Error sending error response", e)
         }
-    }
-
-    // ============ 向后兼容的方法（已废弃） ============
-
-    /**
-     * @deprecated 使用 startServer(configId) 或 startAllServers() 替代
-     */
-    @Deprecated("Use startServer(configId) or startAllServers() instead")
-    fun start(): Boolean {
-        // 启动所有已启用的服务器
-        val results = startAllServers()
-        return results.values.any { it }
-    }
-
-    /**
-     * @deprecated 使用 stopServer(configId) 或 stopAllServers() 替代
-     */
-    @Deprecated("Use stopServer(configId) or stopAllServers() instead")
-    fun stop() {
-        stopAllServers()
-    }
-
-    /**
-     * @deprecated 使用 getServerStatus(configId) 替代
-     */
-    @Deprecated("Use getServerStatus(configId) instead")
-    fun isRunning(): Boolean {
-        return serverStatus.values.any { it }
-    }
-
-    /**
-     * @deprecated 使用 getServerUrl(configId) 替代
-     */
-    @Deprecated("Use getServerUrl(configId) instead")
-    fun getServerUrl(): String? {
-        // 返回第一个运行中的服务器URL
-        return getRunningServers().firstOrNull()?.second
     }
 }

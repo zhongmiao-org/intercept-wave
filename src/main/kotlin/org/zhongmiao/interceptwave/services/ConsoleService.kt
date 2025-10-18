@@ -6,6 +6,7 @@ import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.execution.ui.RunContentManager
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import java.text.SimpleDateFormat
@@ -25,7 +26,7 @@ class ConsoleService(private val project: Project) {
     /**
      * 获取或创建Console视图
      */
-    fun getOrCreateConsole(): ConsoleView {
+    private fun getOrCreateConsole(): ConsoleView {
         if (consoleView == null) {
             consoleView = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
         }
@@ -43,7 +44,8 @@ class ConsoleService(private val project: Project) {
             consoleView,
             null,  // processHandler
             consoleView!!.component,
-            "Intercept Wave Mock Server"
+            "Intercept Wave Mock Server",
+            AllIcons.Debugger.Console
         )
 
         // 显示在 Run 工具窗口

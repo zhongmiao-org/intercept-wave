@@ -108,15 +108,6 @@
 - 📢 **用户反馈**: 迁移后显示成功通知
 - ✅ **无数据丢失**: 保留所有 Mock API 和设置
 
-#### 已废弃的 API
-旧版 API 方法标记为 `@Deprecated`，但仍可正常使用以实现向后兼容：
-- ⚠️ `ConfigService.getConfig()` → 请使用 `getRootConfig()`
-- ⚠️ `ConfigService.saveConfig()` → 请使用 `saveRootConfig()`
-- ⚠️ `MockServerService.start()` → 请使用 `startAllServers()`
-- ⚠️ `MockServerService.stop()` → 请使用 `stopAllServers()`
-- ⚠️ `MockServerService.isRunning()` → 请使用 `getServerStatus(configId)`
-- ⚠️ `MockServerService.getServerUrl()` → 请使用 `getServerUrl(configId)`
-
 ### 🔧 技术细节
 
 #### 架构
