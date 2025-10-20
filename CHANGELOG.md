@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+### 🔄 Changed
+- **UI Components Migration**: Migrated from standard Swing/AWT components to IntelliJ Platform UI components
+  - Replaced `JPanel` with `JBPanel` for better theme integration
+  - Replaced `JCheckBox` with `JBCheckBox` for consistent UI styling
+  - All dialog panels now use JetBrains components for better HiDPI and theme support
+
+### ✨ Added
+- **HTTP Method Dropdown**: Added dropdown selector for HTTP method column in Mock API table
+  - Provides standard HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
+  - Prevents typos and ensures consistency in method selection
+  - Uses IntelliJ Platform's `ComboBox` component
+
 ## [2.0.0] - TBD
 
 ### 🎉 Major Features
