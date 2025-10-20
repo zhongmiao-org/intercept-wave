@@ -28,8 +28,19 @@
     - 监听器实例化
     - 无运行服务器的安全处理
     - 多次调用安全性
-- **测试总数**: 整个项目共 86+ 个单元测试
-- **覆盖领域**: 数据模型、服务、监听器、配置管理、服务器操作
+  - **ConfigDialogTest**: 4 个测试用例，覆盖 UI 组件迁移
+    - 验证 JetBrains UI 组件使用
+    - 对话框实例化和销毁
+    - JBPanel 和 JBCheckBox 可用性
+  - **ConsoleServiceTest**: 2 个测试用例，覆盖 headless 环境中的控制台服务
+    - 服务实例化
+    - 优雅处理不可用的 UI 组件
+  - **MockServerExecutorTest**: 9 个测试用例，覆盖 executor 和服务器管理
+    - Executor 生命周期管理
+    - 服务器状态和 URL 获取
+    - ProxyConfig 创建和验证
+- **测试总数**: 整个项目共 101+ 个单元测试
+- **覆盖领域**: 数据模型、服务、监听器、UI 组件、配置管理、服务器操作、executor 管理
 
 ## [2.0.0]
 

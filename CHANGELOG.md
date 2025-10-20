@@ -28,8 +28,19 @@
     - Listener instantiation
     - Safe handling of no running servers
     - Multiple calls safety
-- **Total Test Count**: 86+ unit tests across the entire project
-- **Coverage Areas**: Data models, services, listeners, configuration management, server operations
+  - **ConfigDialogTest**: 4 test cases for UI component migration
+    - Verification of JetBrains UI component usage
+    - Dialog instantiation and disposal
+    - JBPanel and JBCheckBox availability
+  - **ConsoleServiceTest**: 2 test cases for console service in headless environment
+    - Service instantiation
+    - Graceful handling of unavailable UI components
+  - **MockServerExecutorTest**: 9 test cases for executor and server management
+    - Executor lifecycle management
+    - Server status and URL retrieval
+    - ProxyConfig creation and validation
+- **Total Test Count**: 101+ unit tests across the entire project
+- **Coverage Areas**: Data models, services, listeners, UI components, configuration management, server operations, executor management
 
 ## [2.0.0]
 
