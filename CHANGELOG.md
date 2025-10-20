@@ -18,7 +18,24 @@
   - Prevents typos and ensures consistency in method selection
   - Uses IntelliJ Platform's `ComboBox` component
 
-## [2.0.0] - TBD
+### 🧪 Testing
+- **Expanded Test Coverage**: Added comprehensive unit tests to improve code quality and reliability
+  - **ProxyConfigTest**: 23 test cases for RootConfig and ProxyConfig data models
+    - Tests for default values, serialization, UUID generation
+    - Edge cases: special characters, port boundaries, field mutations
+    - Validation of stripPrefix behavior and useCookie flag
+  - **ConsoleServiceTest**: 20 test cases for console logging service
+    - Tests for all log levels (info, success, warning, error, debug)
+    - Special character handling, long messages, multiline content
+    - Clear operations and rapid successive prints
+  - **ProjectCloseListenerTest**: 7 test cases for project close handling
+    - Server shutdown on project close
+    - Multiple server handling and repeated calls
+    - Mixed server states and error handling
+- **Total Test Count**: 113+ unit tests across the entire project
+- **Coverage Areas**: Data models, services, listeners, server operations, configuration management
+
+## [2.0.0]
 
 ### 🎉 Major Features
 
