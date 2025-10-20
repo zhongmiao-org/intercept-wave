@@ -26,6 +26,7 @@ class MockServerService(private val project: Project) {
     // 多服务器实例管理
     private val serverInstances = ConcurrentHashMap<String, HttpServer>()
     private val serverStatus = ConcurrentHashMap<String, Boolean>()
+    private val serverExecutors = ConcurrentHashMap<String, java.util.concurrent.ExecutorService>()
 
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
     private val consoleService: ConsoleService by lazy { project.service<ConsoleService>() }
@@ -74,15 +75,17 @@ class MockServerService(private val project: Project) {
             consoleService.printInfo("目标地址: ${proxyConfig.baseUrl}")
             consoleService.printInfo("剥离前缀: ${proxyConfig.stripPrefix}")
 
+            val executor = Executors.newFixedThreadPool(10)
             val server = HttpServer.create(InetSocketAddress(proxyConfig.port), 0).apply {
                 createContext("/") { exchange ->
                     handleProxyRequest(exchange, proxyConfig)
                 }
-                executor = Executors.newFixedThreadPool(10)
+                setExecutor(executor)
                 start()
             }
 
             serverInstances[configId] = server
+            serverExecutors[configId] = executor
             serverStatus[configId] = true
 
             val serverUrl = "http://localhost:${proxyConfig.port}"
@@ -110,18 +113,32 @@ class MockServerService(private val project: Project) {
      */
     fun stopServer(configId: String) {
         val server = serverInstances[configId]
+        val executor = serverExecutors[configId]
         val proxyConfig = configService.getProxyGroup(configId)
         val configName = proxyConfig?.name ?: configId
 
         if (server != null) {
+            // Stop the HTTP server
             server.stop(0)
+
+            // Shutdown the executor service to release threads
+            executor?.shutdown()
+
+            // Remove from maps
             serverInstances.remove(configId)
+            serverExecutors.remove(configId)
             serverStatus.remove(configId)
+
             thisLogger().info("Server stopped for config: $configName")
 
-            consoleService.printSeparator()
-            consoleService.printWarning("「$configName」已停止")
-            consoleService.printSeparator()
+            try {
+                consoleService.printSeparator()
+                consoleService.printWarning("「$configName」已停止")
+                consoleService.printSeparator()
+            } catch (e: Exception) {
+                // Ignore console errors if service is disposed
+                thisLogger().debug("Console service unavailable during server stop", e)
+            }
         }
     }
 
@@ -162,9 +179,21 @@ class MockServerService(private val project: Project) {
             return
         }
 
-        consoleService.printInfo("正在停止所有服务器...")
+        try {
+            consoleService.printInfo("正在停止所有服务器...")
+        } catch (e: Exception) {
+            // Ignore console errors if service is disposed
+            thisLogger().debug("Console service unavailable during stopAllServers", e)
+        }
+
         configIds.forEach { stopServer(it) }
-        consoleService.printInfo("所有服务器已停止")
+
+        try {
+            consoleService.printInfo("所有服务器已停止")
+        } catch (e: Exception) {
+            // Ignore console errors if service is disposed
+            thisLogger().debug("Console service unavailable during stopAllServers", e)
+        }
     }
 
     /**
