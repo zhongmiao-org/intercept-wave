@@ -6,11 +6,9 @@ import org.zhongmiao.interceptwave.services.ConfigService
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTabbedPane
-import com.intellij.ui.components.JBTextField
+import com.intellij.ui.components.*
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
@@ -51,7 +49,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
     }
 
     override fun createCenterPanel(): JComponent {
-        val panel = JPanel(BorderLayout(10, 10))
+        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
         panel.preferredSize = Dimension(900, 650)
 
         // 添加标签页
@@ -89,8 +87,8 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
     /**
      * 创建底部按钮面板
      */
-    private fun createBottomButtonPanel(): JPanel {
-        val panel = JPanel()
+    private fun createBottomButtonPanel(): JBPanel<JBPanel<*>> {
+        val panel = JBPanel<JBPanel<*>>()
         panel.layout = BoxLayout(panel, BoxLayout.X_AXIS)
 
         val addButton = JButton(message("config.group.add"), AllIcons.General.Add)
@@ -264,9 +262,9 @@ class ProxyConfigPanel(
     private val portField = JBTextField(initialConfig.port.toString())
     private val interceptPrefixField = JBTextField(initialConfig.interceptPrefix)
     private val baseUrlField = JBTextField(initialConfig.baseUrl)
-    private val stripPrefixCheckbox = JCheckBox(message("config.group.stripprefix"), initialConfig.stripPrefix)
+    private val stripPrefixCheckbox = JBCheckBox(message("config.group.stripprefix"), initialConfig.stripPrefix)
     private val globalCookieField = JBTextField(initialConfig.globalCookie)
-    private val enabledCheckbox = JCheckBox(message("config.group.enabled"), initialConfig.enabled)
+    private val enabledCheckbox = JBCheckBox(message("config.group.enabled"), initialConfig.enabled)
 
     private val tableModel = object : DefaultTableModel(
         arrayOf(
@@ -288,10 +286,21 @@ class ProxyConfigPanel(
 
     init {
         loadMockApisToTable()
+        setupTableEditors()
     }
 
-    fun getPanel(): JPanel {
-        val mainPanel = JPanel(BorderLayout(10, 10))
+    /**
+     * 设置表格编辑器
+     */
+    private fun setupTableEditors() {
+        // 为方法列（第2列）设置下拉选择编辑器
+        val methodColumn = mockTable.columnModel.getColumn(2)
+        val methodComboBox = ComboBox(arrayOf("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"))
+        methodColumn.cellEditor = DefaultCellEditor(methodComboBox)
+    }
+
+    fun getPanel(): JBPanel<JBPanel<*>> {
+        val mainPanel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
 
         // 上部：全局配置
         val globalPanel = createGlobalConfigPanel()
@@ -304,8 +313,8 @@ class ProxyConfigPanel(
         return mainPanel
     }
 
-    private fun createGlobalConfigPanel(): JPanel {
-        val panel = JPanel(GridBagLayout())
+    private fun createGlobalConfigPanel(): JBPanel<JBPanel<*>> {
+        val panel = JBPanel<JBPanel<*>>(GridBagLayout())
         panel.border = BorderFactory.createTitledBorder(message("config.group.settings"))
 
         val gbc = GridBagConstraints().apply {
@@ -361,8 +370,8 @@ class ProxyConfigPanel(
         return panel
     }
 
-    private fun createMockListPanel(): JPanel {
-        val panel = JPanel(BorderLayout(10, 10))
+    private fun createMockListPanel(): JBPanel<JBPanel<*>> {
+        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
         panel.border = BorderFactory.createTitledBorder(message("config.group.mocklist"))
 
         mockTable.fillsViewportHeight = true
@@ -370,7 +379,7 @@ class ProxyConfigPanel(
         panel.add(scrollPane, BorderLayout.CENTER)
 
         // 按钮面板
-        val buttonPanel = JPanel()
+        val buttonPanel = JBPanel<JBPanel<*>>()
         buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
 
         val addButton = JButton(message("mockapi.add.button"), AllIcons.General.Add)
@@ -404,8 +413,8 @@ class ProxyConfigPanel(
                     api.enabled,
                     api.path,
                     api.method,
-                    api.statusCode,
-                    api.delay
+                    api.statusCode.toString(),
+                    api.delay.toString()
                 )
             )
         }
@@ -492,10 +501,15 @@ class ProxyConfigPanel(
         config.globalCookie = globalCookieField.text.trim()
         config.enabled = enabledCheckbox.isSelected
 
-        // 从表格更新Mock API的启用状态
+        // 从表格同步所有Mock API的修改
         for (i in 0 until tableModel.rowCount) {
             if (i < config.mockApis.size) {
-                config.mockApis[i].enabled = tableModel.getValueAt(i, 0) as Boolean
+                val api = config.mockApis[i]
+                api.enabled = tableModel.getValueAt(i, 0) as Boolean
+                api.path = tableModel.getValueAt(i, 1) as String
+                api.method = tableModel.getValueAt(i, 2) as String
+                api.statusCode = (tableModel.getValueAt(i, 3) as String).toIntOrNull() ?: 200
+                api.delay = (tableModel.getValueAt(i, 4) as String).toLongOrNull() ?: 0L
             }
         }
     }

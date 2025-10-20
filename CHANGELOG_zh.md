@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+### 🔄 变更
+- **UI 组件迁移**: 从标准 Swing/AWT 组件迁移到 IntelliJ 平台 UI 组件
+  - 将 `JPanel` 替换为 `JBPanel`，实现更好的主题集成
+  - 将 `JCheckBox` 替换为 `JBCheckBox`，提供一致的 UI 样式
+  - 所有对话框面板现在使用 JetBrains 组件，更好地支持 HiDPI 和主题
+
+### ✨ 新增
+- **HTTP 方法下拉选择器**: 在 Mock API 表格的方法列添加下拉选择器
+  - 提供标准 HTTP 方法：GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS
+  - 防止输入错误，确保方法选择的一致性
+  - 使用 IntelliJ 平台的 `ComboBox` 组件
+
 ## [2.0.0] - 待定
 
 ### 🎉 重大特性
