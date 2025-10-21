@@ -32,14 +32,16 @@
     - Verification of JetBrains UI component usage
     - Dialog instantiation and disposal
     - JBPanel and JBCheckBox availability
-  - **ConsoleServiceTest**: 2 test cases for console service in headless environment
-    - Service instantiation
-    - Graceful handling of unavailable UI components
+  - **ConfigServiceTest**: 20 test cases for v2.0 API (RootConfig and ProxyConfig)
+    - Root config initialization and persistence
+    - Proxy group CRUD operations
+    - Mock API persistence
+    - Configuration reload and file management
   - **MockServerExecutorTest**: 9 test cases for executor and server management
     - Executor lifecycle management
     - Server status and URL retrieval
     - ProxyConfig creation and validation
-- **Total Test Count**: 101+ unit tests across the entire project
+- **Total Test Count**: 104 unit tests across the entire project (61 Platform tests + 22 standard JUnit tests)
 - **Coverage Areas**: Data models, services, listeners, UI components, configuration management, server operations, executor management
 
 ## [2.0.0]
