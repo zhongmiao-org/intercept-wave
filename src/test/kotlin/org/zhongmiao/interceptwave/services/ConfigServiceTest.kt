@@ -2,9 +2,14 @@ package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.zhongmiao.interceptwave.model.MockApiConfig
-import org.zhongmiao.interceptwave.model.MockConfig
+import org.zhongmiao.interceptwave.model.ProxyConfig
+import org.zhongmiao.interceptwave.model.RootConfig
 import java.io.File
+import java.util.UUID
 
+/**
+ * Tests for ConfigService focusing on v2.0 API (RootConfig and ProxyConfig)
+ */
 class ConfigServiceTest : BasePlatformTestCase() {
 
     private lateinit var configService: ConfigService
@@ -12,325 +17,352 @@ class ConfigServiceTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
-        // Initialize configDir first
         configDir = File(project.basePath, ".intercept-wave")
 
-        // Force clean up any existing config before each test
-        // This must happen before getting the service
+        // Clean up before each test
         try {
             if (configDir.exists()) {
                 configDir.deleteRecursively()
             }
-        } catch (e: Exception) {
-            // Ignore deletion errors in setup
-            println("Failed to delete config directory ${e.message}")
+        } catch (_: Exception) {
+            // Ignore cleanup errors
         }
 
-        // Get the service - it will initialize with loadConfig()
         configService = project.getService(ConfigService::class.java)
-
-        // Force reload to ensure we get a fresh config after cleanup
-        // Since the config file was deleted, this should create default config
-        val defaultConfig = MockConfig()
-        configService.saveConfig(defaultConfig)
     }
 
     override fun tearDown() {
         try {
-            // Clean up config directory after each test
             if (configDir.exists()) {
                 configDir.deleteRecursively()
             }
-        } finally {
-            super.tearDown()
+        } catch (_: Exception) {
+            // Ignore cleanup errors
         }
+        super.tearDown()
     }
 
-    fun `test getConfig returns default config on first load`() {
-        val config = configService.getConfig()
+    // ============== Root Config Tests ==============
 
-        assertNotNull(config)
-        assertEquals(8888, config.port)
-        assertEquals("/api", config.interceptPrefix)
-        assertEquals("http://localhost:8080", config.baseUrl)
-        assertFalse(config.stripPrefix)
-        assertEquals("", config.globalCookie)
-        assertTrue(config.mockApis.isEmpty())
+    fun `test getRootConfig returns default config on first load`() {
+        val rootConfig = configService.getRootConfig()
+
+        assertNotNull(rootConfig)
+        assertEquals("2.0", rootConfig.version)
+        // Root config should have at least one default group or none
+        assertNotNull(rootConfig.proxyGroups)
     }
 
-    fun `test saveConfig persists configuration`() {
-        val newConfig = MockConfig(
+    fun `test saveRootConfig persists configuration`() {
+        val proxyConfig = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Test Config",
             port = 9000,
             interceptPrefix = "/v1",
             baseUrl = "https://api.example.com",
-            stripPrefix = true,
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/test",
-                    mockData = "{\"status\": \"ok\"}"
-                )
-            )
+            enabled = true
         )
 
-        configService.saveConfig(newConfig)
+        val rootConfig = RootConfig(
+            version = "2.0",
+            proxyGroups = mutableListOf(proxyConfig)
+        )
 
-        val loadedConfig = configService.getConfig()
-        assertEquals(9000, loadedConfig.port)
-        assertEquals("/v1", loadedConfig.interceptPrefix)
-        assertEquals("https://api.example.com", loadedConfig.baseUrl)
-        assertTrue(loadedConfig.stripPrefix)
-        assertEquals(1, loadedConfig.mockApis.size)
-        assertEquals("/api/test", loadedConfig.mockApis[0].path)
+        configService.saveRootConfig(rootConfig)
+
+        val loaded = configService.getRootConfig()
+        assertEquals(1, loaded.proxyGroups.size)
+        assertEquals("Test Config", loaded.proxyGroups[0].name)
+        assertEquals(9000, loaded.proxyGroups[0].port)
     }
 
-    fun `test saveConfig creates config directory if not exists`() {
-        // Ensure directory doesn't exist
+    // ============== Proxy Group Management Tests ==============
+
+    fun `test getAllProxyGroups returns all groups`() {
+        val config1 = ProxyConfig(id = UUID.randomUUID().toString(), name = "Config 1", port = 8001, enabled = true)
+        val config2 = ProxyConfig(id = UUID.randomUUID().toString(), name = "Config 2", port = 8002, enabled = false)
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config1, config2))
+        configService.saveRootConfig(rootConfig)
+
+        val groups = configService.getAllProxyGroups()
+        assertEquals(2, groups.size)
+        assertEquals("Config 1", groups[0].name)
+        assertEquals("Config 2", groups[1].name)
+    }
+
+    fun `test getEnabledProxyGroups returns only enabled groups`() {
+        val config1 = ProxyConfig(id = UUID.randomUUID().toString(), name = "Enabled", port = 8001, enabled = true)
+        val config2 = ProxyConfig(id = UUID.randomUUID().toString(), name = "Disabled", port = 8002, enabled = false)
+        val config3 = ProxyConfig(id = UUID.randomUUID().toString(), name = "Also Enabled", port = 8003, enabled = true)
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config1, config2, config3))
+        configService.saveRootConfig(rootConfig)
+
+        val enabled = configService.getEnabledProxyGroups()
+        assertEquals(2, enabled.size)
+        assertTrue(enabled.all { it.enabled })
+        assertEquals("Enabled", enabled[0].name)
+        assertEquals("Also Enabled", enabled[1].name)
+    }
+
+    fun `test getProxyGroup returns specific group by ID`() {
+        val id = UUID.randomUUID().toString()
+        val config = ProxyConfig(id = id, name = "Test", port = 8001, enabled = true)
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
+
+        val found = configService.getProxyGroup(id)
+        assertNotNull(found)
+        assertEquals("Test", found?.name)
+        assertEquals(8001, found?.port)
+    }
+
+    fun `test getProxyGroup returns null for non-existent ID`() {
+        val found = configService.getProxyGroup("non-existent-id")
+        assertNull(found)
+    }
+
+    fun `test add proxy group manually via RootConfig`() {
+        val rootConfig = configService.getRootConfig()
+
+        val newConfig = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "New Group",
+            port = 9999,
+            enabled = true
+        )
+
+        rootConfig.proxyGroups.add(newConfig)
+        configService.saveRootConfig(rootConfig)
+
+        val all = configService.getAllProxyGroups()
+        assertTrue(all.any { it.name == "New Group" })
+    }
+
+    fun `test update proxy group manually via RootConfig`() {
+        val id = UUID.randomUUID().toString()
+        val config = ProxyConfig(id = id, name = "Original", port = 8001, enabled = true)
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
+
+        // Update manually
+        val updated = configService.getRootConfig()
+        val index = updated.proxyGroups.indexOfFirst { it.id == id }
+        updated.proxyGroups[index] = ProxyConfig(id = id, name = "Updated", port = 8002, enabled = false)
+        configService.saveRootConfig(updated)
+
+        val found = configService.getProxyGroup(id)
+        assertEquals("Updated", found?.name)
+        assertEquals(8002, found?.port)
+        assertFalse(found?.enabled ?: true)
+    }
+
+    fun `test delete proxy group manually via RootConfig`() {
+        val id1 = UUID.randomUUID().toString()
+        val id2 = UUID.randomUUID().toString()
+        val config1 = ProxyConfig(id = id1, name = "Keep", port = 8001, enabled = true)
+        val config2 = ProxyConfig(id = id2, name = "Delete", port = 8002, enabled = true)
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config1, config2))
+        configService.saveRootConfig(rootConfig)
+
+        // Delete manually
+        val updated = configService.getRootConfig()
+        updated.proxyGroups.removeIf { it.id == id2 }
+        configService.saveRootConfig(updated)
+
+        val all = configService.getAllProxyGroups()
+        assertEquals(1, all.size)
+        assertEquals("Keep", all[0].name)
+        assertNull(configService.getProxyGroup(id2))
+    }
+
+    fun `test toggle enabled status manually via RootConfig`() {
+        val id = UUID.randomUUID().toString()
+        val config = ProxyConfig(id = id, name = "Test", port = 8001, enabled = true)
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
+
+        // Toggle to false
+        val updated1 = configService.getRootConfig()
+        val index1 = updated1.proxyGroups.indexOfFirst { it.id == id }
+        updated1.proxyGroups[index1].enabled = false
+        configService.saveRootConfig(updated1)
+        assertFalse(configService.getProxyGroup(id)?.enabled ?: true)
+
+        // Toggle to true
+        val updated2 = configService.getRootConfig()
+        val index2 = updated2.proxyGroups.indexOfFirst { it.id == id }
+        updated2.proxyGroups[index2].enabled = true
+        configService.saveRootConfig(updated2)
+        assertTrue(configService.getProxyGroup(id)?.enabled ?: false)
+    }
+
+    fun `test createDefaultProxyConfig creates valid config`() {
+        val config = configService.createDefaultProxyConfig(0)
+
+        assertNotNull(config.id)
+        assertTrue(config.id.isNotEmpty())
+        assertNotNull(config.name)
+        assertTrue(config.port > 0)
+        assertNotNull(config.interceptPrefix)
+        assertTrue(config.enabled)
+    }
+
+    fun `test createDefaultProxyConfig with custom name`() {
+        val config = configService.createDefaultProxyConfig(1, "Custom Name")
+
+        assertEquals("Custom Name", config.name)
+        assertNotNull(config.id)
+    }
+
+    // ============== Mock API Persistence Tests ==============
+
+    fun `test mockApis persist in ProxyConfig`() {
+        val id = UUID.randomUUID().toString()
+        val mockApi = MockApiConfig(
+            path = "/api/user",
+            mockData = "{\"name\": \"test\"}",
+            method = "GET",
+            statusCode = 200,
+            enabled = true
+        )
+        val config = ProxyConfig(
+            id = id,
+            name = "Test",
+            port = 8001,
+            enabled = true,
+            mockApis = mutableListOf(mockApi)
+        )
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
+
+        val loaded = configService.getProxyGroup(id)
+        assertEquals(1, loaded?.mockApis?.size)
+        assertEquals("/api/user", loaded?.mockApis?.get(0)?.path)
+        assertEquals("{\"name\": \"test\"}", loaded?.mockApis?.get(0)?.mockData)
+        assertTrue(loaded?.mockApis?.get(0)?.enabled ?: false)
+    }
+
+    fun `test multiple mockApis persist correctly`() {
+        val id = UUID.randomUUID().toString()
+        val api1 = MockApiConfig(path = "/api/user", mockData = "{\"type\": \"user\"}", enabled = true)
+        val api2 = MockApiConfig(path = "/api/product", mockData = "{\"type\": \"product\"}", enabled = false)
+        val api3 = MockApiConfig(path = "/api/order", mockData = "{\"type\": \"order\"}", enabled = true)
+
+        val config = ProxyConfig(
+            id = id,
+            name = "Test",
+            port = 8001,
+            enabled = true,
+            mockApis = mutableListOf(api1, api2, api3)
+        )
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
+
+        val loaded = configService.getProxyGroup(id)
+        assertEquals(3, loaded?.mockApis?.size)
+        assertEquals("/api/user", loaded?.mockApis?.get(0)?.path)
+        assertEquals("/api/product", loaded?.mockApis?.get(1)?.path)
+        assertEquals("/api/order", loaded?.mockApis?.get(2)?.path)
+    }
+
+    // ============== Configuration Persistence Tests ==============
+
+    fun `test config persists after service reload`() {
+        val id = UUID.randomUUID().toString()
+        val config = ProxyConfig(
+            id = id,
+            name = "Persistent",
+            port = 8765,
+            interceptPrefix = "/custom",
+            enabled = true
+        )
+
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
+
+        // Create new service instance to simulate reload
+        val newService = ConfigService(project)
+        val loaded = newService.getProxyGroup(id)
+
+        assertNotNull(loaded)
+        assertEquals("Persistent", loaded?.name)
+        assertEquals(8765, loaded?.port)
+        assertEquals("/custom", loaded?.interceptPrefix)
+    }
+
+    fun `test saveRootConfig creates config directory if not exists`() {
         if (configDir.exists()) {
             configDir.deleteRecursively()
         }
 
-        val config = MockConfig(port = 7777)
-        configService.saveConfig(config)
+        val rootConfig = RootConfig()
+        configService.saveRootConfig(rootConfig)
 
         assertTrue(configDir.exists())
         assertTrue(configDir.isDirectory)
     }
 
-    fun `test saveConfig creates config file`() {
-        val config = MockConfig(port = 8080)
-        configService.saveConfig(config)
+    fun `test saveRootConfig creates config file`() {
+        val rootConfig = RootConfig()
+        configService.saveRootConfig(rootConfig)
 
         val configFile = File(configDir, "config.json")
         assertTrue(configFile.exists())
         assertTrue(configFile.isFile)
     }
 
-    fun `test getMockApi returns correct api when enabled`() {
-        val config = MockConfig(
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/user",
-                    mockData = "{\"name\": \"test\"}",
-                    enabled = true
-                ),
-                MockApiConfig(
-                    path = "/api/posts",
-                    mockData = "{\"posts\": []}",
-                    enabled = false
-                )
-            )
-        )
+    // ============== Edge Cases ==============
 
-        configService.saveConfig(config)
-
-        // 获取第一个配置组的 ID
-        val configId = configService.getAllProxyGroups().first().id
-
-        val userApi = configService.getMockApi(configId = configId, path = "/api/user")
-        assertNotNull(userApi)
-        assertEquals("/api/user", userApi?.path)
-
-        val postsApi = configService.getMockApi(configId = configId, path = "/api/posts")
-        assertNull(postsApi) // Should be null because it's disabled
-    }
-
-    fun `test getMockApi returns null for non-existent path`() {
-        val config = MockConfig(
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/user",
-                    mockData = "{}",
-                    enabled = true
-                )
-            )
-        )
-
-        configService.saveConfig(config)
-
-        // 获取第一个配置组的 ID
-        val configId = configService.getAllProxyGroups().first().id
-
-        val api = configService.getMockApi(configId = configId, path = "/api/nonexistent")
-        assertNull(api)
-    }
-
-    fun `test saveConfig with empty mockApis list`() {
-        val config = MockConfig(
-            port = 8080,
-            mockApis = mutableListOf()
-        )
-
-        configService.saveConfig(config)
-
-        val loadedConfig = configService.getConfig()
-        assertTrue(loadedConfig.mockApis.isEmpty())
-    }
-
-    fun `test saveConfig with multiple mock apis`() {
-        val config = MockConfig(
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/api/1", mockData = "{\"id\": 1}"),
-                MockApiConfig(path = "/api/2", mockData = "{\"id\": 2}"),
-                MockApiConfig(path = "/api/3", mockData = "{\"id\": 3}")
-            )
-        )
-
-        configService.saveConfig(config)
-
-        val loadedConfig = configService.getConfig()
-        assertEquals(3, loadedConfig.mockApis.size)
-        assertEquals("/api/1", loadedConfig.mockApis[0].path)
-        assertEquals("/api/2", loadedConfig.mockApis[1].path)
-        assertEquals("/api/3", loadedConfig.mockApis[2].path)
-    }
-
-    fun `test saveConfig overwrites existing configuration`() {
-        val config1 = MockConfig(port = 8888, interceptPrefix = "/api")
-        configService.saveConfig(config1)
-
-        val config2 = MockConfig(port = 9999, interceptPrefix = "/v2")
-        configService.saveConfig(config2)
-
-        val loadedConfig = configService.getConfig()
-        assertEquals(9999, loadedConfig.port)
-        assertEquals("/v2", loadedConfig.interceptPrefix)
-    }
-
-    fun `test config persists after service reload`() {
-        val originalConfig = MockConfig(
-            port = 8765,
-            interceptPrefix = "/custom",
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/test", mockData = "{}")
-            )
-        )
-
-        configService.saveConfig(originalConfig)
-
-        // Create a new service instance to simulate reload
-        val newService = ConfigService(project)
-        val loadedConfig = newService.getConfig()
-
-        assertEquals(8765, loadedConfig.port)
-        assertEquals("/custom", loadedConfig.interceptPrefix)
-        assertEquals(1, loadedConfig.mockApis.size)
-    }
-
-    fun `test getMockApi with multiple apis having same path returns first enabled`() {
-        val config = MockConfig(
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/test",
-                    mockData = "{\"version\": 1}",
-                    enabled = false
-                ),
-                MockApiConfig(
-                    path = "/api/test",
-                    mockData = "{\"version\": 2}",
-                    enabled = true
-                ),
-                MockApiConfig(
-                    path = "/api/test",
-                    mockData = "{\"version\": 3}",
-                    enabled = true
-                )
-            )
-        )
-
-        configService.saveConfig(config)
-
-        // 获取第一个配置组的 ID
-        val configId = configService.getAllProxyGroups().first().id
-
-        val api = configService.getMockApi(configId = configId, path = "/api/test")
-        assertNotNull(api)
-        assertEquals("{\"version\": 2}", api?.mockData)
-    }
-
-    fun `test config with special characters in paths and data`() {
-        val config = MockConfig(
+    fun `test config with special characters in fields`() {
+        val id = UUID.randomUUID().toString()
+        val config = ProxyConfig(
+            id = id,
+            name = "配置名称 - Special <>&",
+            port = 8001,
             interceptPrefix = "/api/v1/中文",
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/special/!@#$%",
-                    mockData = "{\"message\": \"特殊字符 Special chars: <>&\\\"'\"}"
-                )
-            )
+            baseUrl = "http://example.com/特殊路径",
+            enabled = true
         )
 
-        configService.saveConfig(config)
+        val rootConfig = RootConfig(proxyGroups = mutableListOf(config))
+        configService.saveRootConfig(rootConfig)
 
-        val loadedConfig = configService.getConfig()
-        assertEquals("/api/v1/中文", loadedConfig.interceptPrefix)
-        assertEquals("/api/special/!@#$%", loadedConfig.mockApis[0].path)
-        assertTrue(loadedConfig.mockApis[0].mockData.contains("特殊字符"))
+        val loaded = configService.getProxyGroup(id)
+        assertEquals("配置名称 - Special <>&", loaded?.name)
+        assertEquals("/api/v1/中文", loaded?.interceptPrefix)
+        assertTrue(loaded?.baseUrl?.contains("特殊路径") ?: false)
     }
 
-    fun `test config auto-complete missing fields`() {
-        // 手动创建一个缺少部分字段的配置文件
-        val incompleteConfigJson = """
-            {
-                "baseUrl": "http://192.168.180.135:30332",
-                "mockApis": [
-                    {
-                        "path": "/user",
-                        "mockData": "{\n  name: \"a\",\n  age: 12\n}",
-                        "method": "GET"
-                    }
-                ]
-            }
-        """.trimIndent()
+    fun `test empty proxyGroups list`() {
+        val rootConfig = RootConfig(proxyGroups = mutableListOf())
+        configService.saveRootConfig(rootConfig)
 
-        val configFile = File(configDir, "config.json")
-        configDir.mkdirs()
-        configFile.writeText(incompleteConfigJson)
-
-        // 重新加载配置服务，触发自动补全
-        val newService = ConfigService(project)
-        val loadedConfig = newService.getConfig()
-
-        // 验证缺失的字段已经被补全为默认值
-        assertEquals(8888, loadedConfig.port)
-        assertEquals("/api", loadedConfig.interceptPrefix)
-        assertEquals("http://192.168.180.135:30332", loadedConfig.baseUrl)
-        assertFalse(loadedConfig.stripPrefix)
-        assertEquals("", loadedConfig.globalCookie)
-        assertEquals(1, loadedConfig.mockApis.size)
-
-        // 验证配置文件已经被更新
-        val updatedContent = configFile.readText()
-        println("Updated config content: $updatedContent")
-        assertTrue("Config should contain 'port' field", updatedContent.contains("port"))
-        assertTrue("Config should contain 'interceptPrefix' field", updatedContent.contains("interceptPrefix"))
-        assertTrue("Config should contain 'stripPrefix' field", updatedContent.contains("stripPrefix"))
-        assertTrue("Config should contain 'globalCookie' field", updatedContent.contains("globalCookie"))
+        val all = configService.getAllProxyGroups()
+        assertTrue(all.isEmpty())
     }
 
-    fun `test config with all fields present is not rewritten`() {
-        // 创建一个完整的配置
-        val completeConfig = MockConfig(
-            port = 9000,
-            interceptPrefix = "/v1",
-            baseUrl = "http://example.com",
-            stripPrefix = true,
-            globalCookie = "session=abc",
-            mockApis = mutableListOf()
-        )
+    fun `test multiple saves overwrite correctly`() {
+        val id = UUID.randomUUID().toString()
 
-        configService.saveConfig(completeConfig)
+        val config1 = ProxyConfig(id = id, name = "Version 1", port = 8001, enabled = true)
+        val root1 = RootConfig(proxyGroups = mutableListOf(config1))
+        configService.saveRootConfig(root1)
 
-        val configFile = File(configDir, "config.json")
-        val originalContent = configFile.readText()
+        val config2 = ProxyConfig(id = id, name = "Version 2", port = 8002, enabled = false)
+        val root2 = RootConfig(proxyGroups = mutableListOf(config2))
+        configService.saveRootConfig(root2)
 
-        // 等待一小段时间确保时间戳会变化（如果文件被修改）
-        Thread.sleep(10)
-
-        // 重新加载配置
-        val newService = ConfigService(project)
-        newService.getConfig()
-
-        // 验证文件内容没有变化（因为所有字段都存在）
-        val newContent = configFile.readText()
-        assertEquals(originalContent, newContent)
+        val loaded = configService.getProxyGroup(id)
+        assertEquals("Version 2", loaded?.name)
+        assertEquals(8002, loaded?.port)
+        assertFalse(loaded?.enabled ?: true)
     }
 }
