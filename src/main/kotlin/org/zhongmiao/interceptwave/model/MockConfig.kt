@@ -59,7 +59,7 @@ data class ProxyConfig(
 
 /**
  * Mock服务的全局配置（保留用于向后兼容）
- * @deprecated 使用 RootConfig 和 ProxyConfig 替代
+ * @deprecated 使用 RootConfig 和 ProxyConfig 替代 10 个迭代后废弃
  */
 @Serializable
 data class MockConfig(
