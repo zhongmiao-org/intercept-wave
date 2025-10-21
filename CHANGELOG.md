@@ -41,7 +41,8 @@
     - Executor lifecycle management
     - Server status and URL retrieval
     - ProxyConfig creation and validation
-- **Total Test Count**: 104 unit tests across the entire project (61 Platform tests + 22 standard JUnit tests)
+- **Total Test Count**: 104 unit tests across the entire project (61 Platform tests + 22 standard JUnit tests + 21 integration tests)
+  - Note: In CI environment, some Platform tests (MockServerServiceTest, ConfigServiceTest, ProjectCloseListenerTest) are excluded due to IDE instance requirements
 - **Coverage Areas**: Data models, services, listeners, UI components, configuration management, server operations, executor management
 
 ## [2.0.0]

@@ -41,7 +41,8 @@
     - Executor 生命周期管理
     - 服务器状态和 URL 获取
     - ProxyConfig 创建和验证
-- **测试总数**: 整个项目共 104 个单元测试（61 个平台测试 + 22 个标准 JUnit 测试）
+- **测试总数**: 整个项目共 104 个单元测试（61 个平台测试 + 22 个标准 JUnit 测试 + 21 个集成测试）
+  - 注意：在 CI 环境中，部分平台测试（MockServerServiceTest、ConfigServiceTest、ProjectCloseListenerTest）因需要 IDE 实例而被排除
 - **覆盖领域**: 数据模型、服务、监听器、UI 组件、配置管理、服务器操作、executor 管理
 
 ## [2.0.0]

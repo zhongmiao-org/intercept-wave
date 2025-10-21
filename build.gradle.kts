@@ -203,7 +203,7 @@ tasks {
 
         // In CI environment, exclude Platform tests that require IDE instance
         if (System.getenv("CI") == "true") {
-            exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class")
+            exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class", "**/ProjectCloseListenerTest.class")
         }
     }
 
