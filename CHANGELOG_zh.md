@@ -18,7 +18,34 @@
   - 防止输入错误，确保方法选择的一致性
   - 使用 IntelliJ 平台的 `ComboBox` 组件
 
-## [2.0.0] - 待定
+### 🧪 测试
+- **扩展测试覆盖率**: 添加全面的单元测试以提高代码质量和可靠性
+  - **ProxyConfigTest**: 23 个测试用例，覆盖 RootConfig 和 ProxyConfig 数据模型
+    - 测试默认值、序列化、UUID 生成
+    - 边界情况：特殊字符、端口边界值、字段变更
+    - 验证 stripPrefix 行为和 useCookie 标志
+  - **ProjectCloseListenerTest**: 3 个测试用例，覆盖项目关闭处理
+    - 监听器实例化
+    - 无运行服务器的安全处理
+    - 多次调用安全性
+  - **ConfigDialogTest**: 4 个测试用例，覆盖 UI 组件迁移
+    - 验证 JetBrains UI 组件使用
+    - 对话框实例化和销毁
+    - JBPanel 和 JBCheckBox 可用性
+  - **ConfigServiceTest**: 20 个测试用例，覆盖 v2.0 API（RootConfig 和 ProxyConfig）
+    - Root 配置初始化和持久化
+    - 代理组 CRUD 操作
+    - Mock API 持久化
+    - 配置重新加载和文件管理
+  - **MockServerExecutorTest**: 9 个测试用例，覆盖 executor 和服务器管理
+    - Executor 生命周期管理
+    - 服务器状态和 URL 获取
+    - ProxyConfig 创建和验证
+- **测试总数**: 整个项目共 104 个单元测试（61 个平台测试 + 22 个标准 JUnit 测试 + 21 个集成测试）
+  - 注意：在 CI 环境中，部分平台测试（MockServerServiceTest、ConfigServiceTest、ProjectCloseListenerTest）因需要 IDE 实例而被排除
+- **覆盖领域**: 数据模型、服务、监听器、UI 组件、配置管理、服务器操作、executor 管理
+
+## [2.0.0]
 
 ### 🎉 重大特性
 

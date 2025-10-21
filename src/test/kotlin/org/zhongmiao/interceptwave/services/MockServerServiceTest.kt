@@ -22,9 +22,12 @@ class MockServerServiceTest : BasePlatformTestCase() {
         try {
             // Ensure all servers are stopped after each test
             mockServerService.stopAllServers()
-        } finally {
-            super.tearDown()
+            // Wait for servers to fully stop
+            Thread.sleep(200)
+        } catch (_: Exception) {
+            // Ignore errors during cleanup
         }
+        super.tearDown()
     }
 
     // Helper method to add a proxy config

@@ -18,7 +18,34 @@
   - Prevents typos and ensures consistency in method selection
   - Uses IntelliJ Platform's `ComboBox` component
 
-## [2.0.0] - TBD
+### 🧪 Testing
+- **Expanded Test Coverage**: Added comprehensive unit tests to improve code quality and reliability
+  - **ProxyConfigTest**: 23 test cases for RootConfig and ProxyConfig data models
+    - Tests for default values, serialization, UUID generation
+    - Edge cases: special characters, port boundaries, field mutations
+    - Validation of stripPrefix behavior and useCookie flag
+  - **ProjectCloseListenerTest**: 3 test cases for project close handling
+    - Listener instantiation
+    - Safe handling of no running servers
+    - Multiple calls safety
+  - **ConfigDialogTest**: 4 test cases for UI component migration
+    - Verification of JetBrains UI component usage
+    - Dialog instantiation and disposal
+    - JBPanel and JBCheckBox availability
+  - **ConfigServiceTest**: 20 test cases for v2.0 API (RootConfig and ProxyConfig)
+    - Root config initialization and persistence
+    - Proxy group CRUD operations
+    - Mock API persistence
+    - Configuration reload and file management
+  - **MockServerExecutorTest**: 9 test cases for executor and server management
+    - Executor lifecycle management
+    - Server status and URL retrieval
+    - ProxyConfig creation and validation
+- **Total Test Count**: 104 unit tests across the entire project (61 Platform tests + 22 standard JUnit tests + 21 integration tests)
+  - Note: In CI environment, some Platform tests (MockServerServiceTest, ConfigServiceTest, ProjectCloseListenerTest) are excluded due to IDE instance requirements
+- **Coverage Areas**: Data models, services, listeners, UI components, configuration management, server operations, executor management
+
+## [2.0.0]
 
 ### 🎉 Major Features
 

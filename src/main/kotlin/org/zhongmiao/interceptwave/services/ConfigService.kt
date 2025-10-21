@@ -1,7 +1,6 @@
 package org.zhongmiao.interceptwave.services
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
-import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.MockConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.model.RootConfig
@@ -193,49 +192,4 @@ class ConfigService(private val project: Project) {
      */
     fun getProxyGroup(id: String): ProxyConfig? = rootConfig.proxyGroups.find { it.id == id }
 
-    /**
-     * 获取Mock接口配置（从指定配置组）
-     */
-    fun getMockApi(configId: String, path: String): MockApiConfig? {
-        val config = getProxyGroup(configId) ?: return null
-        return config.mockApis.find { it.path == path && it.enabled }
-    }
-
-    // ============ 向后兼容的方法（已废弃） ============
-
-    /**
-     * @deprecated 使用 getRootConfig() 替代
-     */
-    @Deprecated("Use getRootConfig() instead", ReplaceWith("getRootConfig()"))
-    fun getConfig(): MockConfig {
-        // 返回第一个配置组转换为 MockConfig（向后兼容）
-        val firstGroup = rootConfig.proxyGroups.firstOrNull() ?: createDefaultProxyConfig(0, "默认配置")
-        return MockConfig(
-            port = firstGroup.port,
-            interceptPrefix = firstGroup.interceptPrefix,
-            baseUrl = firstGroup.baseUrl,
-            stripPrefix = firstGroup.stripPrefix,
-            globalCookie = firstGroup.globalCookie,
-            mockApis = firstGroup.mockApis
-        )
-    }
-
-    /**
-     * @deprecated 使用 saveRootConfig() 替代
-     */
-    @Deprecated("Use saveRootConfig() instead", ReplaceWith("saveRootConfig(RootConfig(...))"))
-    fun saveConfig(config: MockConfig) {
-        // 更新第一个配置组（向后兼容）
-        if (rootConfig.proxyGroups.isEmpty()) {
-            rootConfig.proxyGroups.add(createDefaultProxyConfig(0, "默认配置"))
-        }
-        val firstGroup = rootConfig.proxyGroups[0]
-        firstGroup.port = config.port
-        firstGroup.interceptPrefix = config.interceptPrefix
-        firstGroup.baseUrl = config.baseUrl
-        firstGroup.stripPrefix = config.stripPrefix
-        firstGroup.globalCookie = config.globalCookie
-        firstGroup.mockApis = config.mockApis
-        saveRootConfig(rootConfig)
-    }
 }

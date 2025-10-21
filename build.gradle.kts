@@ -130,24 +130,20 @@ intellijPlatform {
 
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
-intellijPlatformTesting {
-    runIde {
-        register("runIdeForUiTests") {
-            task {
-                jvmArgumentProviders += CommandLineArgumentProvider {
-                    listOf(
-                        "-Drobot-server.port=8082",
-                        "-Dide.mac.message.dialogs.as.sheets=false",
-                        "-Djb.privacy.policy.text=<!--999.999-->",
-                        "-Djb.consents.confirmation.enabled=false",
-                    )
-                }
-            }
-
-            plugins {
-                robotServerPlugin()
-            }
+val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
+    task {
+        jvmArgumentProviders += CommandLineArgumentProvider {
+            listOf(
+                "-Drobot-server.port=8082",
+                "-Dide.mac.message.dialogs.as.sheets=false",
+                "-Djb.privacy.policy.text=<!--999.999-->",
+                "-Djb.consents.confirmation.enabled=false",
+            )
         }
+    }
+
+    plugins {
+        robotServerPlugin()
     }
 }
 
@@ -203,7 +199,7 @@ tasks {
 
         // In CI environment, exclude Platform tests that require IDE instance
         if (System.getenv("CI") == "true") {
-            exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class")
+            exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class", "**/ProjectCloseListenerTest.class")
         }
     }
 
