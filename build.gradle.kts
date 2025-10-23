@@ -43,7 +43,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.0.0")
 
     // JUnit Vintage Engine to run JUnit 4 tests on JUnit Platform
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.1")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.0.0")
 
     // JUnit Platform Launcher (required for test execution)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.0")
