@@ -90,6 +90,10 @@ data class MockApiConfig(
     // 接口路径
     // 注意：如果stripPrefix=true（推荐），这里配置相对路径，例如: /user
     // 如果stripPrefix=false，这里需要配置完整路径，例如: /api/user
+    // 支持通配符：
+    //   *  匹配单个路径段（不含 /），如 /a/b/*
+    //   ** 匹配多个路径段（可含 /），如 /a/b/**
+    //   段内通配，如 /order/*/submit
     var path: String,
 
     // 是否启用Mock（如果不启用则转发到原始接口）
