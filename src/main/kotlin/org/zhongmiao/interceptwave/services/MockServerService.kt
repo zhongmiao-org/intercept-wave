@@ -232,17 +232,8 @@ class MockServerService(private val project: Project) {
      * 检查端口是否被占用
      * 使用 ServerSocket 来测试端口，更轻量且能立即释放
      */
-    private fun isPortOccupied(port: Int): Boolean {
-        return try {
-            ServerSocket(port).use {
-                // 端口可用，立即关闭并返回 false（未被占用）
-                false
-            }
-        } catch (_: Exception) {
-            // 端口被占用或其他错误，返回 true
-            true
-        }
-    }
+    private fun isPortOccupied(port: Int): Boolean =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.isPortOccupied(port)
 
     // ============ 请求处理方法（ProxyConfig版本） ============
 
@@ -343,29 +334,8 @@ class MockServerService(private val project: Project) {
     /**
      * 查找匹配的Mock API（ProxyConfig版本）
      */
-    private fun findMatchingMockApiInProxy(requestPath: String, method: String, config: ProxyConfig): MockApiConfig? {
-        // 方法匹配辅助：启用且方法为 ALL 或与请求方法一致
-        fun methodMatches(api: MockApiConfig): Boolean =
-            api.enabled && (api.method == "ALL" || api.method.equals(method, ignoreCase = true))
-
-        // 1) 精确路径优先
-        val exact = config.mockApis.find { api -> methodMatches(api) && api.path == requestPath }
-        if (exact != null) return exact
-
-        // 2) 通配匹配：支持 *（单段）与 **（多段）
-        val wildcardCandidates = config.mockApis.filter { api ->
-            methodMatches(api) && pathPatternMatches(api.path, requestPath)
-        }
-
-        if (wildcardCandidates.isEmpty()) return null
-
-        // 3) 候选排序：通配符更少 > 方法更具体(非 ALL) > 模式更长
-        return wildcardCandidates.sortedWith(
-            compareBy<MockApiConfig> { wildcardCount(it.path) }
-                .thenBy { if (it.method == "ALL") 1 else 0 }
-                .thenByDescending { it.path.length }
-        ).first()
-    }
+    private fun findMatchingMockApiInProxy(requestPath: String, method: String, config: ProxyConfig): MockApiConfig? =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.findMatchingMockApiInProxy(requestPath, method, config)
 
     /**
      * 判断路径模式是否匹配实际请求路径。
@@ -378,40 +348,15 @@ class MockServerService(private val project: Project) {
     //    *   - "/a/b/*"          → 匹配 "/a/b/123"，不匹配 "/a/b/123/456"
     //    *   - "/order/*/submit" → 匹配 "/order/123/submit"
     //    *   - "/a/b/**"         → 匹配 "/a/b/123" 与 "/a/b/123/456"
-    private fun pathPatternMatches(pattern: String, path: String): Boolean {
-        if (!pattern.contains('*')) return pattern == path
-        val regex = patternToRegex(pattern)
-        return regex.matches(path)
-    }
+    private fun pathPatternMatches(pattern: String, path: String): Boolean =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.pathPatternMatches(pattern, path)
 
     /** 统计模式中的通配符个数（用于排序优先级）。 */
     private fun wildcardCount(pattern: String): Int = pattern.count { it == '*' }
 
     /** 将类 glob 的模式转换为带锚点的正则表达式。 */
-    private fun patternToRegex(pattern: String): Regex {
-        val sb = StringBuilder()
-        var i = 0
-        while (i < pattern.length) {
-            val c = pattern[i]
-            if (c == '*') {
-                // check for ** (multi-segment)
-                if (i + 1 < pattern.length && pattern[i + 1] == '*') {
-                    sb.append(".*")
-                    i += 2
-                } else {
-                    // single segment wildcard (no slash)
-                    sb.append("[^/]+")
-                    i += 1
-                }
-            } else {
-                // escape regex meta characters
-                if (".\\[]{}()+-?^$|".indexOf(c) >= 0) sb.append('\\')
-                sb.append(c)
-                i += 1
-            }
-        }
-        return Regex("^$sb$")
-    }
+    private fun patternToRegex(pattern: String): Regex =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.patternToRegex(pattern)
 
     /**
      * 处理Mock响应（ProxyConfig版本）
