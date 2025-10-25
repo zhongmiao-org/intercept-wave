@@ -151,6 +151,22 @@ Each configuration group contains the following settings:
 3. Click the "Format JSON" button to format mock data
 4. Click "OK" to save configuration
 
+#### Path Matching Rules (Wildcards)
+Support wildcards in `path` for flexible matching (behavior of `stripPrefix` and `interceptPrefix` remains unchanged):
+- Single-segment `*`: matches exactly one path segment (no slash)
+  - Example: `/a/b/*` matches `/a/b/123`, not `/a/b/123/456`
+- Multi-segment `**`: matches multiple segments (can include slashes)
+  - Example: `/a/b/**` matches `/a/b/123` and `/a/b/123/456`
+- Middle-segment wildcard: support `*` at middle positions
+  - Example: `/order/*/submit` matches `/order/123/submit`
+
+Priority (high → low):
+- Exact path > wildcard with fewer `*` > method-specific (non-ALL) > longer pattern
+
+Notes:
+- Matching only applies to the path (query string is ignored)
+- `/a/b/**` does not match `/a/b` itself. Add an extra exact rule `/a/b` if needed
+
 ### 4. Start Services
 
 There are two ways to start services:

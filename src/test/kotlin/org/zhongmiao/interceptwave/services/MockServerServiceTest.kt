@@ -534,4 +534,133 @@ class MockServerServiceTest : BasePlatformTestCase() {
         mockServerService.stopAllServers()
         assertTrue(mockServerService.getRunningServers().isEmpty())
     }
+
+    fun `test wildcard single segment star`() {
+        val mockData = "{\"star\": 1}"
+        val config = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Wildcard Single",
+            port = 18905,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            enabled = true,
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/a/b/*",
+                    mockData = mockData,
+                    method = "GET",
+                    enabled = true
+                )
+            )
+        )
+        addProxyConfig(config)
+
+        mockServerService.startServer(config.id)
+
+        try {
+            // Matches exactly one segment
+            val url1 = URI("http://localhost:18905/api/a/b/123").toURL()
+            val conn1 = url1.openConnection() as HttpURLConnection
+            conn1.requestMethod = "GET"
+            assertEquals(200, conn1.responseCode)
+            assertEquals(mockData, conn1.inputStream.bufferedReader().readText())
+
+            // Does not match multiple segments
+            val url2 = URI("http://localhost:18905/api/a/b/123/456").toURL()
+            val conn2 = url2.openConnection() as HttpURLConnection
+            conn2.requestMethod = "GET"
+            val notMatched2 = if (conn2.responseCode < 400) conn2.inputStream else conn2.errorStream
+            val text2 = notMatched2.bufferedReader().readText()
+            assertFalse(text2 == mockData)
+        } finally {
+            mockServerService.stopServer(config.id)
+        }
+    }
+
+    fun `test wildcard multi segment double star`() {
+        val mockData = "{\"dstar\": 1}"
+        val config = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Wildcard Double",
+            port = 18906,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            enabled = true,
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/a/b/**",
+                    mockData = mockData,
+                    method = "GET",
+                    enabled = true
+                )
+            )
+        )
+        addProxyConfig(config)
+
+        mockServerService.startServer(config.id)
+
+        try {
+            // Matches nested paths
+            val url1 = URI("http://localhost:18906/api/a/b/123").toURL()
+            val conn1 = url1.openConnection() as HttpURLConnection
+            conn1.requestMethod = "GET"
+            assertEquals(mockData, conn1.inputStream.bufferedReader().readText())
+
+            val url2 = URI("http://localhost:18906/api/a/b/123/456").toURL()
+            val conn2 = url2.openConnection() as HttpURLConnection
+            conn2.requestMethod = "GET"
+            assertEquals(mockData, conn2.inputStream.bufferedReader().readText())
+
+            // Does not match base without further segment (by design)
+            val url3 = URI("http://localhost:18906/api/a/b").toURL()
+            val conn3 = url3.openConnection() as HttpURLConnection
+            conn3.requestMethod = "GET"
+            val notMatched3 = if (conn3.responseCode < 400) conn3.inputStream else conn3.errorStream
+            val text3 = notMatched3.bufferedReader().readText()
+            assertFalse(text3 == mockData)
+        } finally {
+            mockServerService.stopServer(config.id)
+        }
+    }
+
+    fun `test wildcard middle segment`() {
+        val mockData = "{\"middle\": 1}"
+        val config = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Wildcard Middle",
+            port = 18907,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            enabled = true,
+            mockApis = mutableListOf(
+                MockApiConfig(
+                    path = "/order/*/submit",
+                    mockData = mockData,
+                    method = "GET",
+                    enabled = true
+                )
+            )
+        )
+        addProxyConfig(config)
+
+        mockServerService.startServer(config.id)
+
+        try {
+            // Matches exactly one middle segment
+            val url1 = URI("http://localhost:18907/api/order/123/submit").toURL()
+            val conn1 = url1.openConnection() as HttpURLConnection
+            conn1.requestMethod = "GET"
+            assertEquals(mockData, conn1.inputStream.bufferedReader().readText())
+
+            // Does not match if there are extra segments
+            val url2 = URI("http://localhost:18907/api/order/123/extra/submit").toURL()
+            val conn2 = url2.openConnection() as HttpURLConnection
+            conn2.requestMethod = "GET"
+            val notMatched4 = if (conn2.responseCode < 400) conn2.inputStream else conn2.errorStream
+            val text4 = notMatched4.bufferedReader().readText()
+            assertFalse(text4 == mockData)
+        } finally {
+            mockServerService.stopServer(config.id)
+        }
+    }
 }

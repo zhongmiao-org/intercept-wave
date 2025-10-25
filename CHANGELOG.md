@@ -6,6 +6,24 @@
 
 ## [Unreleased]
 
+### ✨ Added
+- 🌟 Wildcard path matching for mock API paths
+- 🔹 Single-segment `*`: e.g., `/a/b/*` matches `/a/b/123` (not `/a/b/123/456`)
+- 🔹 Multi-segment `**`: e.g., `/a/b/**` matches `/a/b/123` and `/a/b/123/456` (not `/a/b`)
+- 🔹 Middle-segment wildcard: e.g., `/order/*/submit` matches `/order/123/submit`
+- 🧭 Matching priority: exact path > fewer wildcards > specific method (non-ALL) > longer pattern
+- 🧩 `stripPrefix` behavior unchanged: when enabled, write paths after removing the intercept prefix
+
+### 🧪 Testing & Quality
+- ✅ Added unit tests for wildcard matching: single `*`, double `**`, and middle `*`
+- 🗒️ Updated code comments to Chinese and avoided `/**` sequences by splitting examples
+
+### 📚 Documentation
+- 📖 README: Added "Path Matching Rules (Wildcards)" section with examples and priority
+- 🇨🇳 README_zh: Added "路径匹配规则（通配符）"说明与示例
+- 📝 CHANGELOG: Updated Unreleased with the above changes
+
+## [2.1.0]
 ### 🔄 Changed
 - **UI Components Migration**: Migrated from standard Swing/AWT components to IntelliJ Platform UI components
   - Replaced `JPanel` with `JBPanel` for better theme integration
