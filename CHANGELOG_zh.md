@@ -5,7 +5,13 @@
 > [English Changelog](./CHANGELOG.md) | [英文更新日志](./CHANGELOG.md)
 
 ## [Unreleased]
+### 🔧 CI/CD
+- 🔧 发布工作流第一步执行 `patchChangelog`，确保打包到插件市场的 changeNotes 与当前版本一致。
+- 🚀 发布成功后检出 `main`，再次执行 changelog 更新，并创建 PR 自动合并以更新 `main`。
+- 🇨🇳 新增中文日志处理：自动将 Unreleased 归档到当前版本并插入新的 Unreleased，供下个版本编写。
+- ✅ 仅在发布成功后才变更 `main` 分支的 changelog。
 
+## [2.2.0]
 ### ✨ 新增
 - 🌟 Mock 接口路径支持通配匹配
 - 🔹 单段通配 `*`：如 `/a/b/*` 匹配 `/a/b/123`（不匹配 `/a/b/123/456`）

@@ -50,11 +50,21 @@ jobs:
         env:
           CHANGELOG: ${{ github.event.release.body }}
         run: |
+          VERSION_RAW="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION_RAW#v}"
           RELEASE_NOTE="./build/tmp/release_note.txt"
           mkdir -p "$(dirname "$RELEASE_NOTE")"
           echo "$CHANGELOG" > $RELEASE_NOTE
 
           ./gradlew patchChangelog --release-note-file=$RELEASE_NOTE
+
+          # Patch Chinese changelog: rename Unreleased -> [VERSION] and add new Unreleased on top
+          if [ -f CHANGELOG_zh.md ]; then
+            awk -v ver="$VERSION" '
+              !done && $0 ~ /^## \[Unreleased\]\s*$/ { print "## [Unreleased]\n\n## [" ver "]"; done=1; next }
+              { print }
+            ' CHANGELOG_zh.md > CHANGELOG_zh.md.tmp && mv CHANGELOG_zh.md.tmp CHANGELOG_zh.md
+          fi
 
       # Publish the plugin to JetBrains Marketplace
       - name: Publish Plugin
@@ -71,30 +81,74 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/*
 
-      # Create a pull request
-      - name: Create Pull Request
-        if: ${{ steps.properties.outputs.changelog != '' }}
+      # After successful publish, update main branch changelog via PR with auto-merge
+      - name: Check out main branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch Changelog on main
+        if: ${{ github.event.release.body != '' }}
+        env:
+          CHANGELOG: ${{ github.event.release.body }}
+        run: |
+          VERSION_RAW="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION_RAW#v}"
+          RELEASE_NOTE="./build/tmp/release_note.txt"
+          mkdir -p "$(dirname "$RELEASE_NOTE")"
+          echo "$CHANGELOG" > $RELEASE_NOTE
+
+          ./gradlew patchChangelog --release-note-file=$RELEASE_NOTE
+
+          # Patch Chinese changelog: rename Unreleased -> [VERSION] and add new Unreleased on top
+          if [ -f CHANGELOG_zh.md ]; then
+            awk -v ver="$VERSION" '
+              !done && $0 ~ /^## \[Unreleased\]\s*$/ { print "## [Unreleased]\n\n## [" ver "]"; done=1; next }
+              { print }
+            ' CHANGELOG_zh.md > CHANGELOG_zh.md.tmp && mv CHANGELOG_zh.md.tmp CHANGELOG_zh.md
+          fi
+
+      - name: Create PR for changelog update (auto-merge)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          BRANCH="changelog-update-$VERSION"
+          VERSION_RAW="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION_RAW#v}"
+          BRANCH="changelog/update-$VERSION"
           LABEL="release changelog"
 
+          git switch -c "$BRANCH"
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
 
-          git checkout -b $BRANCH
-          git commit -am "Changelog update - $VERSION"
-          git push --set-upstream origin $BRANCH
-          
-          gh label create "$LABEL" \
-            --description "Pull requests with release changelog update" \
-            --force \
-            || true
+          # Stage potential changelog files
+          git add CHANGELOG.md || true
+          if [ -f CHANGELOG_zh.md ]; then
+            git add CHANGELOG_zh.md || true
+          fi
 
-          gh pr create \
-            --title "Changelog update - \`$VERSION\`" \
-            --body "Current pull request contains patched \`CHANGELOG.md\` file for the \`$VERSION\` version." \
-            --label "$LABEL" \
-            --head $BRANCH
+          # Commit only if there are staged changes
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(changelog): update for $VERSION"
+            git push --set-upstream origin "$BRANCH"
+
+            # Ensure label exists
+            gh label create "$LABEL" \
+              --description "Pull requests with release changelog update" \
+              --force \
+              || true
+
+            # Create PR targeting main
+            gh pr create \
+              --title "Changelog update - $VERSION" \
+              --body "This PR updates \`CHANGELOG.md\` replacing Unreleased with \`$VERSION\` and adds a new Unreleased section." \
+              --label "$LABEL" \
+              --base main \
+              --head "$BRANCH"
+
+            # Enable auto-merge (squash); will merge when checks pass
+            gh pr merge --auto --squash "$BRANCH" || true
+          else
+            echo "No changelog changes detected; skipping PR creation."
+          fi

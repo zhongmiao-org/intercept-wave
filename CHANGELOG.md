@@ -5,7 +5,13 @@
 > [中文更新日志](./CHANGELOG_zh.md) | [Chinese Changelog](./CHANGELOG_zh.md)
 
 ## [Unreleased]
+### 🔧 CI/CD
+- 🔧 Update release workflow to patch `CHANGELOG.md` at the start of the release using `patchChangelog`, ensuring packaged change notes match the current version.
+- 🚀 After a successful publish, check out `main`, re-run the changelog patch, and open an auto-merge PR to update `main`.
+- 🇨🇳 Add Chinese changelog handling: automatically move Unreleased to the current version and insert a new Unreleased section for the next cycle.
+- ✅ Ensure `main` branch changelog only changes after a successful publish.
 
+## [2.2.0]
 ### ✨ Added
 - 🌟 Wildcard path matching for mock API paths
 - 🔹 Single-segment `*`: e.g., `/a/b/*` matches `/a/b/123` (not `/a/b/123/456`)
