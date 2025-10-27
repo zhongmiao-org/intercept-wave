@@ -5,14 +5,20 @@
 > [中文更新日志](./CHANGELOG_zh.md) | [Chinese Changelog](./CHANGELOG_zh.md)
 
 ## [Unreleased]
+
+## [2.2.1] - 2025-10-27
+
 ### 🔧 CI/CD
+
 - 🔧 Update release workflow to patch `CHANGELOG.md` at the start of the release using `patchChangelog`, ensuring packaged change notes match the current version.
 - 🚀 After a successful publish, check out `main`, re-run the changelog patch, and open an auto-merge PR to update `main`.
 - 🇨🇳 Add Chinese changelog handling: automatically move Unreleased to the current version and insert a new Unreleased section for the next cycle.
 - ✅ Ensure `main` branch changelog only changes after a successful publish.
 
 ## [2.2.0]
+
 ### ✨ Added
+
 - 🌟 Wildcard path matching for mock API paths
 - 🔹 Single-segment `*`: e.g., `/a/b/*` matches `/a/b/123` (not `/a/b/123/456`)
 - 🔹 Multi-segment `**`: e.g., `/a/b/**` matches `/a/b/123` and `/a/b/123/456` (not `/a/b`)
@@ -21,28 +27,34 @@
 - 🧩 `stripPrefix` behavior unchanged: when enabled, write paths after removing the intercept prefix
 
 ### 🧪 Testing & Quality
+
 - ✅ Added unit tests for wildcard matching: single `*`, double `**`, and middle `*`
 - 🗒️ Updated code comments to Chinese and avoided `/**` sequences by splitting examples
 
 ### 📚 Documentation
+
 - 📖 README: Added "Path Matching Rules (Wildcards)" section with examples and priority
 - 🇨🇳 README_zh: Added "路径匹配规则（通配符）"说明与示例
 - 📝 CHANGELOG: Updated Unreleased with the above changes
 
 ## [2.1.0]
+
 ### 🔄 Changed
+
 - **UI Components Migration**: Migrated from standard Swing/AWT components to IntelliJ Platform UI components
   - Replaced `JPanel` with `JBPanel` for better theme integration
   - Replaced `JCheckBox` with `JBCheckBox` for consistent UI styling
   - All dialog panels now use JetBrains components for better HiDPI and theme support
 
 ### ✨ Added
+
 - **HTTP Method Dropdown**: Added dropdown selector for HTTP method column in Mock API table
   - Provides standard HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
   - Prevents typos and ensures consistency in method selection
   - Uses IntelliJ Platform's `ComboBox` component
 
 ### 🧪 Testing
+
 - **Expanded Test Coverage**: Added comprehensive unit tests to improve code quality and reliability
   - **ProxyConfigTest**: 23 test cases for RootConfig and ProxyConfig data models
     - Tests for default values, serialization, UUID generation
@@ -73,7 +85,6 @@
 
 ### 🎉 Major Features
 
-#### Multi-Service Proxy Support
 - ✨ **Tab-based UI**: Organize multiple proxy configurations in separate tabs
 - 🚀 **Multiple Proxy Groups**: Configure and manage multiple services simultaneously
 - 🎯 **Individual Port Management**: Each proxy group can run on its own port
@@ -82,81 +93,21 @@
 - 🏗️ **Microservices Ready**: Perfect for microservices architecture development (e.g., user service on port 8888, order service on port 8889)
 - 🌍 **Multi-Environment**: Support different environment configurations (dev, test, staging, production)
 
-#### Enhanced User Interface
-- 📑 **Tab System**: Visual tabs showing all configured proxy groups in Tool Window
-- ➕ **Quick Add**: Click "+" tab to add new proxy groups instantly
-- ✏️ **Config Dialog**: Full-featured dialog for editing all proxy groups
-- 🗑️ **Group Management**: Delete groups (except the last one) directly from dialog
-- 🔘 **Enable/Disable Toggle**: Control which groups are active via checkbox
-- ⬅️➡️ **Tab Reordering**: Move tabs left/right to organize your services
-
-#### Configuration Migration
-- 🔄 **Automatic Migration**: Old v1.0 configs automatically upgrade to v2.0 on plugin upgrade
-- 💾 **Backup Created**: Old configuration backed up as `config.json.backup`
-- 📦 **Preserved Data**: All existing mock APIs and settings retained during migration
-- 🆔 **UUID-based Groups**: Each proxy group gets a unique identifier for reliable management
-- 📢 **User Notification**: Success notification displayed after migration completes
-
 ### ✨ Added
 
-#### New Data Models
 - 📋 **RootConfig**: New root configuration structure with version and proxyGroups
 - 🎯 **ProxyConfig**: Individual proxy group configuration with UUID, name, enabled status
 - 🔗 **Backward Compatible**: Old MockConfig kept for compatibility (marked @Deprecated)
 
-#### ConfigService Enhancements
-- 📂 `getAllProxyGroups()`: Get all configuration groups
-- ✅ `getEnabledProxyGroups()`: Get enabled configuration groups
-- 🔍 `getProxyGroup(id)`: Get specific group by UUID
-- ➕ `addProxyGroup(config)`: Add new configuration group
-- 🔄 `updateProxyGroup(id, config)`: Update existing group
-- 🗑️ `deleteProxyGroup(id)`: Delete configuration group
-- 🔘 `toggleProxyGroup(id, enabled)`: Enable/disable group
-- ⬆️⬇️ `moveProxyGroup(fromIndex, toIndex)`: Reorder groups
-- 🏭 `createDefaultProxyConfig()`: Factory method for new configs
-
-#### MockServerService Enhancements
-- ▶️ `startServer(configId)`: Start a specific configuration group's server
-- ⏹️ `stopServer(configId)`: Stop a specific configuration group's server
-- ▶️▶️ `startAllServers()`: Start all enabled configuration groups
-- ⏹️⏹️ `stopAllServers()`: Stop all running servers
-- ℹ️ `getServerStatus(configId)`: Get server running status
-- 🔗 `getServerUrl(configId)`: Get server access URL
-- 📊 `getRunningServers()`: Get all running server instances
-
-#### UI Components
-- 🪟 **ConfigDialog**: Tab-based configuration dialog with multi-group support
-- 📱 **ProxyConfigPanel**: Individual panel for each group's settings
-- 🛠️ **Tool Window**: Tab-based interface for service control and status
-- 🎨 **ProxyGroupTabPanel**: Display panel for each service's status and actions
-
-#### Additional Features
-- 🔒 **Port Conflict Detection**: Check port availability before starting server
-- 🚫 **Duplicate Port Prevention**: Prevent multiple services on same port
-- 🌐 **Multi-language Names**: Support Chinese/English configuration group names
-- 📝 **Enhanced Logging**: Console logs include configuration group names (`[User Service] ➤ GET /api/user`)
-
 ### 🔄 Changed
 
-#### Configuration Format
 - 📄 **File Structure**: Configuration format upgraded from v1.0 to v2.0
   - **New format**: `{ "version": "2.0", "proxyGroups": [...] }`
   - **Old format**: `{ "port": 8888, "interceptPrefix": "/api", ... }`
 - 📁 **Nested Structure**: Single config now becomes array of configs in `proxyGroups`
 
-#### Server Behavior
-- 📊 **Console Logs**: Now include configuration group names for better identification
-  - Example: `[User Service] ➤ GET /api/user/info`
-- 🏠 **Welcome Page**: Server welcome page displays configuration group information
-- 🚀 **Independent Servers**: Each group runs as separate HTTP server instance
-
-#### UI/UX Improvements
-- 🎨 **Modern Layout**: Complete UI redesign with tabbed interface
-- 🔀 **Multi-server Control**: Separate start/stop controls for each service
-- 📍 **Status Indicators**: Visual indicators for running/stopped services
-- 🎯 **Better Organization**: Logical grouping of related configurations
-
 ### 🐛 Fixed
+
 - 🔧 **Port Detection**: Fixed false positive port conflict detection using ServerSocket
 - 🔄 **Dialog Close**: Fixed configuration dialog not closing after saving
 - 🎯 **Change Listeners**: Removed duplicate tab change listeners to prevent dialog reopening
@@ -164,7 +115,6 @@
 
 ### 🛡️ Backward Compatibility
 
-#### Automatic Migration
 - 🔄 **Seamless Upgrade**: Old v1.0 configs automatically upgrade to v2.0 format
 - 💾 **Safety Backup**: Old configuration backed up as `config.json.backup`
 - 🎯 **Default Name**: Migrated config becomes "默认配置" (Default Config)
@@ -173,33 +123,30 @@
 
 ### 🔧 Technical Details
 
-#### Architecture
 - 🗺️ **ConcurrentHashMap**: Thread-safe multi-server instance management
 - 🧵 **Independent Threads**: Each server has its own `HttpServer` and thread pool
 - 🆔 **UUID Identification**: Configuration groups identified by UUID for stability
 - 🔍 **Smart Detection**: Intelligent port conflict detection before startup
 - 🧹 **Resource Management**: Proper lifecycle management for server instances
 
-#### Data Flow
-- 📊 **State Management**: Centralized state tracking for all server instances
-- 🔄 **Reactive Updates**: UI updates automatically when server state changes
-- 💾 **Persistence**: Configuration changes immediately saved to disk
-- 🔐 **Data Integrity**: Validation ensures configuration consistency
-
 ### 📝 Notes
+
 - ✅ **Complete Implementation**: UI Layer, configuration dialog, and tool window all updated
 - 🚫 **No Breaking Changes**: Zero breaking changes for end users - automatic migration handles everything
 - 🎯 **Production Ready**: Thoroughly tested with multiple concurrent servers
 - 📚 **Documentation**: Comprehensive CHANGELOG with migration guide
 
 ## [1.0.3]
+
 ### Changed
+
 - Updated plugin name to "Intercept Wave"
 - Simplified tool window configuration by moving more attributes to declarative plugin.xml configuration
     - Configure icon, anchor, and doNotActivateOnStart attributes directly in plugin.xml
     - Removed `init()` method from code in favor of XML declarative configuration
 
 ### Added
+
 - Added MIT License file
 - Added real-time request log viewer in IDEA's Run tool window
     - Automatically displays in Run tool window when server starts
@@ -210,18 +157,22 @@
     - Integrated with IDEA's native Run tool window (not embedded in plugin window)
 
 ### Improved
+
 - Removed dialog popups for server start/stop operations
     - Server status notifications now appear in Run tool window logs only
     - Provides cleaner, less intrusive user experience
 
 ### Note
+
 - Some Plugin Verifier warnings (deprecated/experimental/internal API) originate from the `ToolWindowFactory` interface itself
     - Kotlin compiler automatically generates bridge implementations for interface methods
     - These warnings are inherent characteristics of Kotlin's interaction with IntelliJ Platform and do not affect functionality
     - Source code already uses all recommended new APIs (`shouldBeAvailable()`, DumbAware, etc.)
 
 ## [1.0.2]
+
 ### Added
+
 - Updated documentation for more precise plugin introduction
 - Improved UI compatibility
     - Use `JBColor` instead of `java.awt.Color` to support light and dark themes
@@ -229,6 +180,7 @@
     - Use `JBScrollPane` instead of native `JScrollPane`
 
 ### Fixed
+
 - Fixed `stripPrefix` path matching logic
     - Corrected path matching behavior to be more intuitive
     - `stripPrefix=true` (default): `path` in `mockApis` is configured as relative path, request `/api/user` strips prefix to match `path="/user"`
@@ -247,20 +199,35 @@
     - Added `kotlin.build.report.enabled = false` configuration
 
 ## [1.0.1] - 2025-10-15
+
 ### Added
+
 - Configuration file auto-completion feature
     - Automatically detects and completes missing fields in configuration file on plugin startup
     - Preserves existing user configuration, only adds missing default configuration items
     - Supports smooth upgrade from old version configurations to new versions
 
 ### Fixed
+
 - Fixed `ERR_INVALID_CHUNKED_ENCODING` error when forwarding requests
     - Resolved conflict between `Transfer-Encoding: chunked` and `Content-Length` when forwarding responses
     - Exclude `Transfer-Encoding` and `Content-Length` headers when copying original server response headers
 
 ## [1.0.0] - 2025-10-15
+
 ### Added
+
 - Implemented core Mock server functionality
 - Support for request interception and forwarding
 - Support for custom Mock data responses
 - Provided visual configuration interface
+
+[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v1.0.3...v2.0.0
+[1.0.3]: https://github.com/zhongmiao-org/intercept-wave/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/zhongmiao-org/intercept-wave/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/zhongmiao-org/intercept-wave/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/zhongmiao-org/intercept-wave/commits/v1.0.0
