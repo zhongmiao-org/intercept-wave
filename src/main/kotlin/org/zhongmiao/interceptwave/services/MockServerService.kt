@@ -232,17 +232,8 @@ class MockServerService(private val project: Project) {
      * 检查端口是否被占用
      * 使用 ServerSocket 来测试端口，更轻量且能立即释放
      */
-    private fun isPortOccupied(port: Int): Boolean {
-        return try {
-            ServerSocket(port).use {
-                // 端口可用，立即关闭并返回 false（未被占用）
-                false
-            }
-        } catch (_: Exception) {
-            // 端口被占用或其他错误，返回 true
-            true
-        }
-    }
+    private fun isPortOccupied(port: Int): Boolean =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.isPortOccupied(port)
 
     // ============ 请求处理方法（ProxyConfig版本） ============
 
@@ -343,11 +334,29 @@ class MockServerService(private val project: Project) {
     /**
      * 查找匹配的Mock API（ProxyConfig版本）
      */
-    private fun findMatchingMockApiInProxy(requestPath: String, method: String, config: ProxyConfig): MockApiConfig? {
-        return config.mockApis.find { api ->
-            api.enabled && api.path == requestPath && (api.method == "ALL" || api.method.equals(method, ignoreCase = true))
-        }
-    }
+    private fun findMatchingMockApiInProxy(requestPath: String, method: String, config: ProxyConfig): MockApiConfig? =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.findMatchingMockApiInProxy(requestPath, method, config)
+
+    /**
+     * 判断路径模式是否匹配实际请求路径。
+     * 支持的通配符：
+     *  - 星号(*)：匹配单个路径段（不含斜杠）
+     *  - 双星(**)：匹配多个路径段（可含斜杠）。
+     */
+    // 例如 “/a/b/**” 可匹配 “/a/b/123” 与 “/a/b/123/456”（不匹配 “/a/b”）。
+    //    *  示例（为避免触发块注释，这里用引号包裹）：
+    //    *   - "/a/b/*"          → 匹配 "/a/b/123"，不匹配 "/a/b/123/456"
+    //    *   - "/order/*/submit" → 匹配 "/order/123/submit"
+    //    *   - "/a/b/**"         → 匹配 "/a/b/123" 与 "/a/b/123/456"
+    private fun pathPatternMatches(pattern: String, path: String): Boolean =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.pathPatternMatches(pattern, path)
+
+    /** 统计模式中的通配符个数（用于排序优先级）。 */
+    private fun wildcardCount(pattern: String): Int = pattern.count { it == '*' }
+
+    /** 将类 glob 的模式转换为带锚点的正则表达式。 */
+    private fun patternToRegex(pattern: String): Regex =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.patternToRegex(pattern)
 
     /**
      * 处理Mock响应（ProxyConfig版本）
