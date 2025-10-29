@@ -253,6 +253,15 @@ class MockServerService(private val project: Project) {
                 return
             }
 
+            // 当启用剥离前缀时，访问 /前缀 或 /前缀/ 也展示欢迎页
+            if (config.stripPrefix && config.interceptPrefix.isNotEmpty()) {
+                val normalizedPrefix = if (config.interceptPrefix.endsWith("/")) config.interceptPrefix.dropLast(1) else config.interceptPrefix
+                if (requestPath == normalizedPrefix || requestPath == "$normalizedPrefix/") {
+                    handleProxyWelcomePage(exchange, config)
+                    return
+                }
+            }
+
             // 路径匹配逻辑
             val matchPath = if (config.stripPrefix && config.interceptPrefix.isNotEmpty()) {
                 if (requestPath.startsWith(config.interceptPrefix)) {
@@ -291,6 +300,28 @@ class MockServerService(private val project: Project) {
             val mockApiCount = config.mockApis.size
             val enabledApiCount = config.mockApis.count { it.enabled }
 
+            val enabledApis = config.mockApis.filter { it.enabled }
+
+            // 构造示例访问链接（仅展示已启用的接口）
+            val examples = enabledApis.joinToString(",\n    ") { api ->
+                val method = api.method
+                val exampleUrl = if (config.stripPrefix) {
+                    // path 视为相对路径，例如 /user，拼接为 /<prefix><path>
+                    val prefix = if (config.interceptPrefix.endsWith("/")) config.interceptPrefix.dropLast(1) else config.interceptPrefix
+                    val path = if (api.path.startsWith("/")) api.path else "/${api.path}"
+                    "http://localhost:${config.port}" + prefix + path
+                } else {
+                    // path 为完整路径，例如 /api/user，直接拼接到本地端口
+                    val fullPath = if (api.path.startsWith("/")) api.path else "/${api.path}"
+                    "http://localhost:${config.port}" + fullPath
+                }
+                """{"method": "$method", "url": "$exampleUrl"}"""
+            }
+
+            val apisJson = enabledApis.joinToString(",\n    ") { api ->
+                """{"path": "${api.path}", "method": "${api.method}", "enabled": ${api.enabled}}"""
+            }
+
             val welcomeJson = """
                 {
                   "status": "running",
@@ -311,9 +342,10 @@ class MockServerService(private val project: Project) {
                     "example": "GET http://localhost:${config.port}${config.interceptPrefix}/your-api-path"
                   },
                   "apis": [
-                    ${config.mockApis.joinToString(",\n    ") { api ->
-                        """{"path": "${api.path}", "method": "${api.method}", "enabled": ${api.enabled}}"""
-                    }}
+                    $apisJson
+                  ],
+                  "examples": [
+                    $examples
                   ]
                 }
             """.trimIndent()

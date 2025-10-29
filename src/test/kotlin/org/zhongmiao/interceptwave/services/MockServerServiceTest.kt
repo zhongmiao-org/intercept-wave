@@ -1,6 +1,8 @@
 package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.HttpURLConnection
@@ -659,6 +661,62 @@ class MockServerServiceTest : BasePlatformTestCase() {
             val notMatched4 = if (conn2.responseCode < 400) conn2.inputStream else conn2.errorStream
             val text4 = notMatched4.bufferedReader().readText()
             assertFalse(text4 == mockData)
+        } finally {
+            mockServerService.stopServer(config.id)
+        }
+    }
+
+    fun `test prefix route returns welcome when stripPrefix true`() {
+        val config = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Prefix Welcome",
+            port = 18908,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            enabled = true,
+            mockApis = mutableListOf(
+                MockApiConfig(path = "/user", mockData = "{\"u\":1}", enabled = true),
+                MockApiConfig(path = "/product", mockData = "{\"p\":1}", enabled = false),
+                MockApiConfig(path = "/order", mockData = "{\"o\":1}", enabled = true)
+            )
+        )
+        addProxyConfig(config)
+
+        mockServerService.startServer(config.id)
+
+        try {
+            fun checkWelcome(path: String) {
+                val url = URI("http://localhost:18908$path").toURL()
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                assertEquals(200, conn.responseCode)
+                assertEquals("application/json; charset=UTF-8", conn.contentType)
+                val body = conn.inputStream.bufferedReader().readText()
+
+                // Basic fields
+                assertTrue(body.contains("\"status\""))
+                assertTrue(body.contains("\"running\""))
+
+                // Validate counts and arrays are enabled-only (2 enabled from 3)
+                val json = kotlinx.serialization.json.Json.parseToJsonElement(body).jsonObject
+                val mockApisObj = json["mockApis"]!!.jsonObject
+                assertEquals(3, mockApisObj["total"]!!.toString().toInt())
+                assertEquals(2, mockApisObj["enabled"]!!.toString().toInt())
+
+                val apis = json["apis"]!!.jsonArray
+                assertEquals(2, apis.size)
+
+                val examples = json["examples"]!!.jsonArray
+                assertEquals(2, examples.size)
+                // Example URL should start with http://localhost:18908/api
+                val example0 = examples[0].jsonObject["url"]!!.toString().trim('"')
+                assertTrue(example0.startsWith("http://localhost:18908/api"))
+            }
+
+            // /api without trailing slash
+            checkWelcome("/api")
+            // /api/ with trailing slash
+            checkWelcome("/api/")
         } finally {
             mockServerService.stopServer(config.id)
         }
