@@ -11,16 +11,16 @@ import kotlinx.serialization.json.jsonObject
 class MockApiDialogTest : BasePlatformTestCase() {
 
     private fun setPrivateTextField(instance: Any, fieldName: String, value: String) {
-        val field = instance.javaClass.getDeclaredField(fieldName)
+        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField(fieldName)
         field.isAccessible = true
-        val textField = field.get(instance) as JBTextField
+        val textField: JBTextField = field.get(instance) as JBTextField
         textField.text = value
     }
 
     private fun setPrivateTextArea(instance: Any, fieldName: String, value: String) {
-        val field = instance.javaClass.getDeclaredField(fieldName)
+        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField(fieldName)
         field.isAccessible = true
-        val area = field.get(instance) as JTextArea
+        val area: JTextArea = field.get(instance) as JTextArea
         area.text = value
     }
 

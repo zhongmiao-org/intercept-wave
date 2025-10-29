@@ -11,6 +11,7 @@
 
 ### 🔄 Changed
 - 🗜️ Mock data persistence: On save, `mockData` is strictly validated and minified to compact JSON (no spaces or newlines). Invalid JSON is rejected with clear errors; the “Format JSON” button now pretty-prints using a real JSON parser for readability only, storage remains minified. (MockApiDialog)
+- 🔁 Config version stamping: On load or after normalization, the `version` field in `config.json` is automatically updated to the plugin's major.minor (x.y). Patch (z) releases do not change this value, ensuring migration scripts run at intended milestones. (ConfigService)
 
 ## [2.2.1] - 2025-10-27
 

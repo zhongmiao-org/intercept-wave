@@ -18,6 +18,15 @@ class MockServerServiceTest : BasePlatformTestCase() {
         super.setUp()
         mockServerService = project.getService(MockServerService::class.java)
         configService = project.getService(ConfigService::class.java)
+
+        // Ensure a clean configuration for each test to avoid cross-test pollution
+        try {
+            val root = configService.getRootConfig()
+            root.proxyGroups.clear()
+            configService.saveRootConfig(root)
+        } catch (_: Throwable) {
+            // ignore cleanup issues in test env
+        }
     }
 
     override fun tearDown() {
@@ -134,7 +143,7 @@ class MockServerServiceTest : BasePlatformTestCase() {
             enabled = true,
             mockApis = mutableListOf(
                 MockApiConfig(
-                    path = "/api/user",
+                    path = "/user",
                     mockData = mockData,
                     method = "GET",
                     statusCode = 200,
@@ -169,7 +178,7 @@ class MockServerServiceTest : BasePlatformTestCase() {
             enabled = true,
             mockApis = mutableListOf(
                 MockApiConfig(
-                    path = "/api/data",
+                    path = "/data",
                     mockData = "{\"method\": \"POST\"}",
                     method = "POST",
                     enabled = true
@@ -207,7 +216,7 @@ class MockServerServiceTest : BasePlatformTestCase() {
             enabled = true,
             mockApis = mutableListOf(
                 MockApiConfig(
-                    path = "/api/all",
+                    path = "/all",
                     mockData = mockData,
                     method = "ALL",
                     enabled = true
@@ -246,7 +255,7 @@ class MockServerServiceTest : BasePlatformTestCase() {
             enabled = true,
             mockApis = mutableListOf(
                 MockApiConfig(
-                    path = "/api/disabled",
+                    path = "/disabled",
                     mockData = "{\"disabled\": true}",
                     enabled = false
                 )
@@ -281,7 +290,7 @@ class MockServerServiceTest : BasePlatformTestCase() {
             enabled = true,
             mockApis = mutableListOf(
                 MockApiConfig(
-                    path = "/api/created",
+                    path = "/created",
                     mockData = "{\"created\": true}",
                     statusCode = 201,
                     enabled = true
@@ -311,7 +320,7 @@ class MockServerServiceTest : BasePlatformTestCase() {
             enabled = true,
             mockApis = mutableListOf(
                 MockApiConfig(
-                    path = "/api/cors",
+                    path = "/cors",
                     mockData = "{}",
                     enabled = true
                 )
