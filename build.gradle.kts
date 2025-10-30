@@ -163,9 +163,14 @@ kover {
             // Exclude UI packages from coverage report
             filters {
                 excludes {
+                    // Entire UI packages
                     packages(
                         "org.zhongmiao.interceptwave.ui",
                         "org.zhongmiao.interceptwave.toolWindow"
+                    )
+                    // UI-facing service (wraps IDE Console UI)
+                    classes(
+                        "org.zhongmiao.interceptwave.services.ConsoleService"
                     )
                 }
             }
