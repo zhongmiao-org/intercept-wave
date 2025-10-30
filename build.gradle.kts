@@ -160,9 +160,20 @@ kover {
             xml {
                 onCheck = true
             }
+            // Exclude UI packages from coverage report
+            filters {
+                excludes {
+                    packages(
+                        "org.zhongmiao.interceptwave.ui",
+                        "org.zhongmiao.interceptwave.toolWindow"
+                    )
+                }
+            }
         }
     }
 }
+
+// Note: Kover filters are applied at report level above to exclude UI packages
 
 tasks {
     wrapper {
