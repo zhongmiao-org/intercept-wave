@@ -2,6 +2,8 @@ package org.zhongmiao.interceptwave.ui
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.MockApiConfig
+import kotlinx.serialization.json.JsonElement
+import org.zhongmiao.interceptwave.util.JsonNormalizeUtil
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -140,7 +142,7 @@ class MockApiDialog(
         panel.add(scrollPane, gbc)
         row++
 
-        // 添加格式化按钮
+        // 添加格式化按钮（用于辅助校验与可读性查看，不影响保存策略）
         gbc.gridx = 1
         gbc.gridy = row
         gbc.weightx = 0.0
@@ -151,7 +153,7 @@ class MockApiDialog(
         formatButton.isFocusPainted = false
         formatButton.addActionListener {
             try {
-                val formatted = formatJson(mockDataArea.text)
+                val formatted = prettyJson(mockDataArea.text)
                 mockDataArea.text = formatted
             } catch (e: Exception) {
                 JOptionPane.showMessageDialog(
@@ -167,70 +169,37 @@ class MockApiDialog(
         return panel
     }
 
-    /**
-     * 简单的JSON格式化
-     */
-    private fun formatJson(json: String): String {
-        var indent = 0
-        val result = StringBuilder()
-        var inString = false
-        var escapeNext = false
+    // 使用严格 JSON 解析进行格式化与压缩
+    // 宽容解析：先严格解析，失败再尝试归一化后解析
+    private fun parseJson(text: String): JsonElement = JsonNormalizeUtil.parseStrictOrNormalize(text)
 
-        for (char in json) {
-            when {
-                escapeNext -> {
-                    result.append(char)
-                    escapeNext = false
-                }
-                char == '\\' -> {
-                    result.append(char)
-                    escapeNext = true
-                }
-                char == '"' -> {
-                    inString = !inString
-                    result.append(char)
-                }
-                !inString && char == '{' || char == '[' -> {
-                    result.append(char)
-                    result.append('\n')
-                    indent++
-                    result.append("  ".repeat(indent))
-                }
-                !inString && char == '}' || char == ']' -> {
-                    result.append('\n')
-                    indent--
-                    result.append("  ".repeat(indent))
-                    result.append(char)
-                }
-                !inString && char == ',' -> {
-                    result.append(char)
-                    result.append('\n')
-                    result.append("  ".repeat(indent))
-                }
-                !inString && char == ':' -> {
-                    result.append(char)
-                    result.append(' ')
-                }
-                !inString && char.isWhitespace() -> {
-                    // Skip whitespace outside strings
-                }
-                else -> {
-                    result.append(char)
-                }
-            }
-        }
+    // 用于“格式化”按钮（辅助查看）：美化输出
+    private fun prettyJson(text: String): String {
+        return JsonNormalizeUtil.prettyJson(text)
+    }
 
-        return result.toString()
+    // 保存时压缩为无空格无换行的 JSON 串
+    private fun minifyJson(text: String): String {
+        return JsonNormalizeUtil.minifyJson(text)
     }
 
     /**
      * 获取配置的Mock API
      */
     fun getMockApiConfig(): MockApiConfig {
+        val raw = mockDataArea.text.trim()
+        // 保存前进行严格校验并压缩
+        val minified = try {
+            minifyJson(raw)
+        } catch (e: Exception) {
+            // 理论上 doValidate 已校验，这里兜底再报错
+            throw IllegalArgumentException("Invalid JSON: ${e.message}")
+        }
+
         return MockApiConfig(
             path = pathField.text.trim(),
             enabled = enabledCheckBox.isSelected,
-            mockData = mockDataArea.text.trim(),
+            mockData = minified,
             method = methodComboBox.selectedItem as String,
             statusCode = statusCodeField.text.toIntOrNull() ?: 200,
             useCookie = useCookieCheckBox.isSelected,
@@ -251,8 +220,15 @@ class MockApiDialog(
         if (delayField.text.toLongOrNull() == null) {
             return ValidationInfo(message("mockapi.validation.delay.invalid"), delayField)
         }
-        if (mockDataArea.text.isBlank()) {
+        val text = mockDataArea.text.trim()
+        if (text.isBlank()) {
             return ValidationInfo(message("mockapi.validation.mockdata.empty"), mockDataArea)
+        }
+        // 校验 JSON 合法性，要求双引号等严格 JSON 语法
+        try {
+            parseJson(text)
+        } catch (e: Exception) {
+            return ValidationInfo(message("mockapi.message.json.error", e.message ?: ""), mockDataArea)
         }
         return null
     }

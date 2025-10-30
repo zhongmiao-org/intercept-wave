@@ -48,7 +48,8 @@ class ConfigServiceTest : BasePlatformTestCase() {
         val rootConfig = configService.getRootConfig()
 
         assertNotNull(rootConfig)
-        assertEquals("2.0", rootConfig.version)
+        // version follows x.y (major.minor); value depends on running plugin version
+        assertTrue(rootConfig.version.matches(Regex("\\d+\\.\\d+")))
         // Root config should have at least one default group or none
         assertNotNull(rootConfig.proxyGroups)
     }
@@ -317,6 +318,44 @@ class ConfigServiceTest : BasePlatformTestCase() {
         val configFile = File(configDir, "config.json")
         assertTrue(configFile.exists())
         assertTrue(configFile.isFile)
+    }
+
+    fun `test normalize and minify existing mockData on load`() {
+        // Prepare a group with pretty-printed and JS-like mockData
+        val pretty = """
+            {
+              "a": 1,
+              "b": { "c": 2 }
+            }
+        """.trimIndent()
+        val jsLike = "{ key: 'v', arr: [1,2,], /*c*/ d: 'x' }"
+
+        val cfg = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "NormTest",
+            port = 19990,
+            enabled = true,
+            mockApis = mutableListOf(
+                MockApiConfig(path = "/p1", mockData = pretty, enabled = true),
+                MockApiConfig(path = "/p2", mockData = jsLike, enabled = true)
+            )
+        )
+        val root = RootConfig(version = "2.0", proxyGroups = mutableListOf(cfg))
+        configService.saveRootConfig(root)
+
+        // Simulate a reload to trigger normalization during load
+        val newService = ConfigService(project)
+        val loadedGroup = newService.getAllProxyGroups().find { it.name == "NormTest" }!!
+        val m1 = loadedGroup.mockApis[0].mockData
+        val m2 = loadedGroup.mockApis[1].mockData
+
+        // Should be minified (no newlines) and strict JSON (double quotes)
+        assertFalse(m1.contains("\n"))
+        assertFalse(m2.contains("\n"))
+        assertTrue(m1.startsWith("{"))
+        assertTrue(m2.startsWith("{"))
+        assertTrue(m2.contains("\"key\""))
+        assertTrue(m2.contains("\"v\""))
     }
 
     // ============== Edge Cases ==============

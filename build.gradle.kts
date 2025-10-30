@@ -160,9 +160,25 @@ kover {
             xml {
                 onCheck = true
             }
+            // Exclude UI packages from coverage report
+            filters {
+                excludes {
+                    // Entire UI packages
+                    packages(
+                        "org.zhongmiao.interceptwave.ui",
+                        "org.zhongmiao.interceptwave.toolWindow"
+                    )
+                    // UI-facing service (wraps IDE Console UI)
+                    classes(
+                        "org.zhongmiao.interceptwave.services.ConsoleService"
+                    )
+                }
+            }
         }
     }
 }
+
+// Note: Kover filters are applied at report level above to exclude UI packages
 
 tasks {
     wrapper {
@@ -190,9 +206,14 @@ tasks {
         // Increase heap size for tests
         maxHeapSize = "1024m"
 
-        // Enable parallel execution to speed up tests
-        val forks = Runtime.getRuntime().availableProcessors().div(2)
-        maxParallelForks = if (forks > 0) forks else 1
+        // IntelliJ Platform tests must run in a single forked JVM to avoid
+        // VFS/index initialization failures and leaking thread checks.
+        // Running with multiple forks can cause "Index data initialization failed".
+        maxParallelForks = 1
+
+        // Mark task as not compatible with Gradle Configuration Cache to avoid
+        // capturing IntelliJ test initialization state that breaks VFS startup.
+        notCompatibleWithConfigurationCache("IntelliJ Platform tests require fresh IDE boot per run")
 
         // Exclude UI tests from regular test task
         exclude("**/ui/**")

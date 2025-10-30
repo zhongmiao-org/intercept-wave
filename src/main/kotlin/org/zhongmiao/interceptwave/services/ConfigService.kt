@@ -13,6 +13,9 @@ import com.intellij.openapi.project.Project
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.openapi.extensions.PluginId
+import org.zhongmiao.interceptwave.util.PluginConstants
 import java.io.File
 import java.util.UUID
 
@@ -56,15 +59,34 @@ class ConfigService(private val project: Project) {
                 // 检查是否为 v2.0 配置
                 if (jsonObject.containsKey("version") && jsonObject.containsKey("proxyGroups")) {
                     // v2.0 配置，直接加载
-                    json.decodeFromString(RootConfig.serializer(), content)
+                    val loaded = json.decodeFromString(RootConfig.serializer(), content)
+                    // 兼容性处理：规范化历史 mockData（单引号、未引号键、尾逗号）并最小化，并确保版本为当前主次版本
+                    val fixed = normalizeAndMinifyMockData(loaded)
+                    val withVersion = ensureVersionMajorMinor(fixed.second)
+                    if (fixed.first || withVersion.version != loaded.version) {
+                        saveRootConfig(withVersion)
+                    }
+                    withVersion
                 } else {
                     // v1.0 配置，执行迁移
                     thisLogger().info("Detected v1.0 config, starting migration...")
-                    migrateFromV1(content)
+                    val migrated = migrateFromV1(content)
+                    // 迁移后再做一次规范化（以防旧数据中的 mockData 不是严格 JSON），并确保版本
+                    val fixed = normalizeAndMinifyMockData(migrated)
+                    val withVersion = ensureVersionMajorMinor(fixed.second)
+                    if (fixed.first || withVersion.version != migrated.version) {
+                        saveRootConfig(withVersion)
+                    }
+                    withVersion
                 }
             } else {
                 // 新安装，创建默认配置
-                createDefaultConfig()
+                val created = createDefaultConfig()
+                val withVersion = ensureVersionMajorMinor(created)
+                if (withVersion.version != created.version) {
+                    saveRootConfig(withVersion)
+                }
+                withVersion
             }
         } catch (e: Exception) {
             thisLogger().error("Failed to load config", e)
@@ -72,6 +94,57 @@ class ConfigService(private val project: Project) {
         }.also {
             rootConfig = it
         }
+    }
+
+    /**
+     * 遍历所有组的 mockData，尝试宽容解析并最小化为紧凑 JSON。
+     * @return Pair<changed, normalizedConfig>
+     */
+    private fun normalizeAndMinifyMockData(root: RootConfig): Pair<Boolean, RootConfig> {
+        var changed = false
+        val normalizedGroups = root.proxyGroups.map { group ->
+            val newApis = group.mockApis.map { api ->
+                val original = api.mockData
+                try {
+                    val minified = org.zhongmiao.interceptwave.util.JsonNormalizeUtil.minifyJson(original)
+                    if (minified != original) {
+                        changed = true
+                        api.copy(mockData = minified)
+                    } else api
+                } catch (e: Exception) {
+                    // 宽容解析失败则保留原样，但记录日志
+                    thisLogger().warn("Normalize mockData failed for path=${api.path}: ${e.message}")
+                    api
+                }
+            }.toMutableList()
+            group.copy(mockApis = newApis)
+        }.toMutableList()
+
+        return changed to root.copy(proxyGroups = normalizedGroups)
+    }
+
+    /**
+     * 计算当前插件的主次版本号（x.y）。
+     * 优先从插件管理器读取，失败时回退为现有 version 的主次或 2.0。
+     */
+    private fun currentMajorMinor(existing: String? = null): String {
+        val fallbackExisting = existing ?: "2.0"
+        val fallback = fallbackExisting.split('.').let { if (it.size >= 2) it[0] + "." + it[1] else "2.0" }
+        return try {
+            val ver = PluginManagerCore.getPlugin(PluginId.getId(PluginConstants.PLUGIN_ID))?.version
+            val parts = ver?.split('.')
+            if (parts != null && parts.size >= 2) parts[0] + "." + parts[1] else fallback
+        } catch (_: Throwable) {
+            val sys = try { System.getProperty("intercept.wave.version") } catch (_: Throwable) { null }
+            val parts = sys?.split('.')
+            if (parts != null && parts.size >= 2) parts[0] + "." + parts[1] else fallback
+        }
+    }
+
+    /** 确保配置 version 为当前插件的 x.y */
+    private fun ensureVersionMajorMinor(root: RootConfig): RootConfig {
+        val desired = currentMajorMinor(root.version)
+        return if (root.version != desired) root.copy(version = desired) else root
     }
 
     /**
@@ -163,8 +236,9 @@ class ConfigService(private val project: Project) {
      */
     fun saveRootConfig(config: RootConfig) {
         try {
-            configFile.writeText(json.encodeToString(config))
-            rootConfig = config
+            val versioned = ensureVersionMajorMinor(config)
+            configFile.writeText(json.encodeToString(versioned))
+            rootConfig = versioned
             thisLogger().info("Root config saved successfully")
         } catch (e: Exception) {
             thisLogger().error("Failed to save root config", e)

@@ -39,7 +39,7 @@ class ConfigDialogTest : BasePlatformTestCase() {
      */
     fun `test JBPanel class is available`() {
         // Verify JBPanel class exists
-        val jbPanelClass = JBPanel::class.java
+        val jbPanelClass: Class<JBPanel<*>> = JBPanel::class.java
         assertNotNull(jbPanelClass)
 
         // Verify it's a subclass of JPanel
@@ -51,7 +51,7 @@ class ConfigDialogTest : BasePlatformTestCase() {
      */
     fun `test JBCheckBox class is available`() {
         // Verify JBCheckBox class exists
-        val jbCheckBoxClass = JBCheckBox::class.java
+        val jbCheckBoxClass: Class<JBCheckBox> = JBCheckBox::class.java
         assertNotNull(jbCheckBoxClass)
 
         // Can be instantiated
