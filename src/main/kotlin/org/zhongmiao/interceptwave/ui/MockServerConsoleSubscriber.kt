@@ -18,6 +18,7 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
 
     private val console: ConsoleService by lazy { project.service<ConsoleService>() }
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
+    private val mockServerService: org.zhongmiao.interceptwave.services.MockServerService by lazy { project.service<org.zhongmiao.interceptwave.services.MockServerService>() }
 
     init {
         // 订阅消息总线事件，连接与 Project 生命周期绑定，避免重复注册/泄漏
@@ -74,6 +75,15 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 console.printSeparator()
                 console.printWarning(message("console.server.stopped", event.name))
                 console.printSeparator()
+                // 如果这是最后一个服务，结束虚拟进程，禁用 Stop 按钮。
+                // 若为 Stop 动作引发的停止事件，消费一次抑制标志并跳过销毁。
+                runCatching {
+                    if (!console.consumeSuppressAutoTerminateOnce() &&
+                        mockServerService.getRunningServers().isEmpty()
+                    ) {
+                        console.terminateConsoleProcess()
+                    }
+                }
             }
             is AllServersStarting -> {
                 console.showConsole()
@@ -87,6 +97,10 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
             }
             is AllServersStopped -> {
                 console.printInfo(message("console.allstopped"))
+                // Stop 动作产生的事件：消费抑制标志并跳过；否则销毁虚拟进程
+                if (!console.consumeSuppressAutoTerminateOnce()) {
+                    console.terminateConsoleProcess()
+                }
             }
             is RequestReceived -> {
                 console.printInfo(message("console.request", event.configName, event.method, event.path))

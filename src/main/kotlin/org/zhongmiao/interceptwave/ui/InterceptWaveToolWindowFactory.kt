@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.ui
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.MockServerService
+import org.zhongmiao.interceptwave.services.ConsoleService
 import org.zhongmiao.interceptwave.events.*
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
@@ -37,6 +38,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
     class InterceptWaveToolWindow(private val project: Project) {
 
         private val mockServerService = project.service<MockServerService>()
+        private val consoleService = project.service<ConsoleService>()
         private val configService = project.service<ConfigService>()
 
         // 使用标签页来切换不同的配置组
@@ -88,7 +90,8 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
             }
 
             stopAllButton = createButton(message("toolwindow.button.stopall"), AllIcons.Debugger.MuteBreakpoints) {
-                mockServerService.stopAllServers()
+                // 通过 ConsoleService 的虚拟进程终止来统一停止逻辑，确保 IDE Stop 按钮一致联动
+                consoleService.terminateConsoleProcess()
                 refreshAllTabs()
             }
 
@@ -261,7 +264,7 @@ class ProxyGroupTabPanel(
 ) {
     private val mockServerService = project.service<MockServerService>()
     private val configService = project.service<ConfigService>()
-    private val consoleService = project.service<org.zhongmiao.interceptwave.services.ConsoleService>()
+    private val consoleService = project.service<ConsoleService>()
 
     private val statusLabel = JBLabel(message("toolwindow.status.stopped"))
     private val urlLabel = JBLabel("")

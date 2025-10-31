@@ -12,7 +12,6 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import java.net.BindException
-import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
@@ -154,6 +153,9 @@ class MockServerService(private val project: Project) {
     fun stopAllServers() {
         val configIds = serverInstances.keys.toList()
         if (configIds.isEmpty()) {
+            // 即使没有运行中的服务，也发布 AllServersStopped 事件，
+            // 以便上层（Console 联动/抑制标志消费）能完成一次完整的停止周期。
+            output.publish(AllServersStopped())
             return
         }
 
@@ -402,41 +404,40 @@ class MockServerService(private val project: Project) {
                 return
             }
 
-            val connection = URI(targetUrl).toURL().openConnection() as HttpURLConnection
-            connection.requestMethod = method
-            connection.doInput = true
-            connection.doOutput = method in listOf("POST", "PUT", "PATCH")
-            connection.connectTimeout = 10000
-            connection.readTimeout = 30000
+            // 使用 JDK HttpClient 以规避后端响应头（如 Transfer-Encoding 与实际编码不一致）导致的阻塞问题
+            val client = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(10))
+                .build()
 
-            // 复制请求头
+            // 构造请求
+            val requestBuilder = java.net.http.HttpRequest.newBuilder(URI(targetUrl))
+                .timeout(java.time.Duration.ofSeconds(30))
+
+            // 复制请求头（排除受限与 Hop-by-hop 头）
+            val restricted = setOf(
+                "host", "connection", "content-length", "date", "expect", "upgrade", "trailer", "te"
+            )
             exchange.requestHeaders.forEach { (key, values) ->
-                if (key.equals("Host", ignoreCase = true)) return@forEach
-                values.forEach { value ->
-                    connection.setRequestProperty(key, value)
-                }
+                if (restricted.contains(key.lowercase())) return@forEach
+                values.forEach { value -> requestBuilder.header(key, value) }
             }
 
             // 复制请求体
-            if (connection.doOutput) {
-                exchange.requestBody.use { input ->
-                    connection.outputStream.use { output ->
-                        input.copyTo(output)
-                    }
-                }
+            val hasBody = method in listOf("POST", "PUT", "PATCH")
+            val bodyPublisher = if (hasBody) {
+                val bytes = exchange.requestBody.readAllBytes()
+                java.net.http.HttpRequest.BodyPublishers.ofByteArray(bytes)
+            } else {
+                java.net.http.HttpRequest.BodyPublishers.noBody()
             }
+            requestBuilder.method(method, bodyPublisher)
 
-            // 获取响应
-            val responseCode = connection.responseCode
-            val responseStream = if (responseCode < 400) connection.inputStream else connection.errorStream
+            val response = client.send(requestBuilder.build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray())
 
-            // 复制响应头
-            connection.headerFields.forEach { (key, values) ->
-                if (key != null && !key.equals("Transfer-Encoding", ignoreCase = true) &&
-                    !key.equals("Content-Length", ignoreCase = true)) {
-                    values.forEach { value ->
-                        exchange.responseHeaders.add(key, value)
-                    }
+            // 复制响应头（过滤不安全头）
+            response.headers().map().forEach { (key, values) ->
+                if (!key.equals("transfer-encoding", ignoreCase = true) && !key.equals("content-length", ignoreCase = true)) {
+                    values.forEach { value -> exchange.responseHeaders.add(key, value) }
                 }
             }
 
@@ -445,12 +446,11 @@ class MockServerService(private val project: Project) {
             exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
             exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-            // 发送响应
-            val responseBytes = responseStream.readBytes()
-            exchange.sendResponseHeaders(responseCode, responseBytes.size.toLong())
-            exchange.responseBody.use { it.write(responseBytes) }
+            val respBytes = response.body()
+            exchange.sendResponseHeaders(response.statusCode(), respBytes.size.toLong())
+            exchange.responseBody.use { it.write(respBytes) }
 
-            output.publish(Forwarded(config.id, config.name, targetUrl, responseCode))
+            output.publish(Forwarded(config.id, config.name, targetUrl, response.statusCode()))
         } catch (e: Exception) {
             // 在测试环境中降级为 warn，避免 TestLogger 对 error 级别抛出断言
             logForwardError(e)
