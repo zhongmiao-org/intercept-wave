@@ -359,11 +359,11 @@ class MockServerService(private val project: Project) {
                 exchange.responseHeaders.add("Set-Cookie", config.globalCookie)
             }
 
-            // 设置响应头
-            exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
-            exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
-            exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-            exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            // 设置响应头（使用 set 确保唯一值，避免浏览器报重复 CORS 值）
+            exchange.responseHeaders.set("Content-Type", "application/json; charset=UTF-8")
+            exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
+            exchange.responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
             // 处理OPTIONS请求
             if (exchange.requestMethod.equals("OPTIONS", ignoreCase = true)) {
@@ -434,17 +434,20 @@ class MockServerService(private val project: Project) {
 
             val response = client.send(requestBuilder.build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray())
 
-            // 复制响应头（过滤不安全头）
+            // 复制响应头（过滤不安全与 CORS 相关头，CORS 在下方统一 set 保证唯一值）
             response.headers().map().forEach { (key, values) ->
-                if (!key.equals("transfer-encoding", ignoreCase = true) && !key.equals("content-length", ignoreCase = true)) {
+                val k = key.lowercase()
+                if (k != "transfer-encoding" && k != "content-length" &&
+                    k != "access-control-allow-origin" && k != "access-control-allow-methods" &&
+                    k != "access-control-allow-headers") {
                     values.forEach { value -> exchange.responseHeaders.add(key, value) }
                 }
             }
 
-            // 添加CORS头
-            exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
-            exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-            exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            // 添加/覆盖 CORS 头，使用 set 确保不会出现重复值
+            exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
+            exchange.responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
             val respBytes = response.body()
             exchange.sendResponseHeaders(response.statusCode(), respBytes.size.toLong())

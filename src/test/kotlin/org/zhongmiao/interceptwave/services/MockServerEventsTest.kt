@@ -74,7 +74,7 @@ class MockServerEventsTest : BasePlatformTestCase() {
 
         // 至少包含启动中的两个事件（等待异步投递）
         assertTrue(await { received.any { it is ServerStarting && it.configId == cfg.id } })
-        assertTrue(await { received.any { it is ServerStarted && it.configId == cfg.id && (it as ServerStarted).port == 19040 } })
+        assertTrue(await { received.any { it is ServerStarted && it.configId == cfg.id && it.port == 19040 } })
 
         mockServerService.stopServer(cfg.id)
         assertTrue(await { received.any { it is ServerStopped && it.configId == cfg.id } })
@@ -103,8 +103,8 @@ class MockServerEventsTest : BasePlatformTestCase() {
         conn.requestMethod = "GET"
         assertEquals(200, conn.responseCode)
 
-        assertTrue(await { received.any { it is RequestReceived && it.configId == cfg.id && (it as RequestReceived).path == "/api/user" } })
-        assertTrue(await { received.any { it is MockMatched && it.configId == cfg.id && (it as MockMatched).statusCode == 200 } })
+        assertTrue(await { received.any { it is RequestReceived && it.configId == cfg.id && it.path == "/api/user" } })
+        assertTrue(await { received.any { it is MockMatched && it.configId == cfg.id && it.statusCode == 200 } })
     }
 
     fun `test forwarding emits Forwarded`() {
@@ -146,8 +146,8 @@ class MockServerEventsTest : BasePlatformTestCase() {
         conn.requestMethod = "GET"
         assertEquals(200, conn.responseCode)
 
-        assertTrue(await { received.any { it is RequestReceived && it.configId == cfg.id && (it as RequestReceived).path == path } })
-        assertTrue(await { received.any { it is Forwarded && it.configId == cfg.id && (it as Forwarded).statusCode == 200 } })
+        assertTrue(await { received.any { it is RequestReceived && it.configId == cfg.id && it.path == path } })
+        assertTrue(await { received.any { it is Forwarded && it.configId == cfg.id && it.statusCode == 200 } })
     }
 
     fun `test forwarding failure emits ErrorOccurred`() {
@@ -178,7 +178,7 @@ class MockServerEventsTest : BasePlatformTestCase() {
 
         assertTrue(
             await {
-                received.any { it is ErrorOccurred && it.configId == cfg.id && (it as ErrorOccurred).message.contains("代理错误") }
+                received.any { it is ErrorOccurred && it.configId == cfg.id && it.message.contains("Proxy error") }
             }
         )
     }
