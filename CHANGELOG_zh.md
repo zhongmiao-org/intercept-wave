@@ -5,6 +5,8 @@
 > [English Changelog](./CHANGELOG.md) | [英文更新日志](./CHANGELOG.md)
 
 ## [Unreleased]
+
+## [3.0.0]
 ### ✨ 新增
 - 🏠 前缀欢迎页：当 `stripPrefix=true` 时，访问 `/<interceptPrefix>` 与 `/<interceptPrefix>/` 会返回与根路径 `/` 相同的欢迎页 JSON，仅展示已启用的 Mock 接口，并附带可直接访问的示例链接。（MockServerService）
 - 🧠 智能粘贴：Mock 数据编辑器支持粘贴 JS/JSON5 风格片段（单引号、未加引号的键、尾逗号、注释等），保存前自动归一化为严格 JSON。（MockApiDialog）
