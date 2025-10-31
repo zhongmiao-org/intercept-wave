@@ -1,0 +1,123 @@
+name: "Bug 报告 / Bug Report"
+description: "报告 Intercept Wave 的问题 / Report a problem with Intercept Wave"
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先完成下方预检查；字段尽量详细有助于我们复现与修复。
+        Thank you! Please complete the pre-checks and provide details to help us reproduce and fix the issue.
+        
+        参考 Contributing / Refer to Contributing:
+        - 中文 / Chinese: CONTRIBUTING_zh.md#报告问题
+        - English: CONTRIBUTING.md#reporting-issues
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: 预检查 / Pre-checks
+      options:
+        - label: 我已搜索现有 issues（包括已关闭）/ I have searched existing (including closed) issues
+          required: true
+        - label: 我已在最新版本验证问题 / I verified the issue on the latest version
+          required: true
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: 插件版本 / Plugin Version
+      description: 在 Settings > Plugins 中查看 / Check in Settings > Plugins
+      placeholder: e.g. 2.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: idea_version
+    attributes:
+      label: IntelliJ IDEA 版本 / IntelliJ IDEA Version
+      description: 在 Help > About 中查看 / Check in Help > About
+      placeholder: e.g. 2024.1 (Build xxx)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统 / Operating System
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述 / Description
+      description: 对问题的清晰描述 / A clear description of the issue
+      placeholder: 简要描述问题 / Briefly describe the problem
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重现步骤 / Steps to Reproduce
+      description: 请提供清晰编号步骤 / Please provide clear, numbered steps
+      placeholder: |
+        1. 打开 ... / Open ...
+        2. 点击 ... / Click ...
+        3. 观察 ... / Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为 / Expected Behavior
+      placeholder: 应该发生什么？/ What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为 / Actual Behavior
+      placeholder: 实际发生了什么？/ What actually happens?
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: 相关配置（已脱敏）/ Relevant Configuration (sanitized)
+      description: 提供与问题相关的 config.json 片段，注意脱敏敏感信息 / Provide relevant config.json parts, sanitize sensitive info
+      render: json
+      placeholder: |
+        {
+          "servers": [
+            { "name": "mock", "port": 12345 }
+          ]
+        }
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / Logs
+      description: 如适用，粘贴相关日志或错误堆栈 / If applicable, paste relevant logs or stack traces
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图 / Screenshots
+      description: 如适用，粘贴或描述关键界面 / If applicable, paste images or describe key UI states
+    validations:
+      required: false
+

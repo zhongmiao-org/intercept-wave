@@ -1,0 +1,59 @@
+name: "文档改进 / Documentation"
+description: "报告文档问题或提出文档改进 / Report docs issue or propose improvements"
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢帮助改进文档！请尽量指明受影响页面并给出建议。
+        Thanks for improving the docs! Please point to affected pages and suggest changes.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: 预检查 / Pre-checks
+      options:
+        - label: 我已搜索现有 issues / I have searched existing issues
+          required: true
+
+  - type: input
+    id: pages
+    attributes:
+      label: 受影响页面或文件 / Affected Pages or Files
+      description: 链接或仓库内路径 / Links or repo paths
+      placeholder: e.g. README.md, USAGE.md, docs/xxx.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 当前内容 / Current Content
+      description: 简述当前表达 / Describe the current wording/behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: 建议改动 / Proposed Changes
+      description: 给出你建议的内容或大纲 / Provide your suggested content or outline
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 动机与收益 / Motivation & Benefits
+      description: 为什么需要这项更改？ / Why is this change needed?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 其他上下文 / Additional Context
+      description: 截图、示例、相关链接等 / Screenshots, examples, related links
+    validations:
+      required: false
+
