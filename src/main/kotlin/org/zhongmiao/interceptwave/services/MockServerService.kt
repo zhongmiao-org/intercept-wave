@@ -453,7 +453,7 @@ class MockServerService(private val project: Project) {
             output.publish(Forwarded(config.id, config.name, targetUrl, responseCode))
         } catch (e: Exception) {
             // 在测试环境中降级为 warn，避免 TestLogger 对 error 级别抛出断言
-            logForwardError("Error forwarding request", e)
+            logForwardError(e)
             output.publish(ErrorOccurred(config.id, config.name, message("error.proxy.error"), e.message))
             sendErrorResponse(exchange, 502, "Bad Gateway: Unable to reach original server")
         }
@@ -480,11 +480,11 @@ class MockServerService(private val project: Project) {
         false
     }
 
-    private fun logForwardError(message: String, t: Throwable) {
+    private fun logForwardError(t: Throwable) {
         if (isUnitTestMode()) {
-            thisLogger().warn(message, t)
+            thisLogger().warn("Error forwarding request", t)
         } else {
-            thisLogger().error(message, t)
+            thisLogger().error("Error forwarding request", t)
         }
     }
 }

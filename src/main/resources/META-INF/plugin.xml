@@ -10,13 +10,13 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
             factoryClass="org.zhongmiao.interceptwave.ui.InterceptWaveToolWindowFactory"
-            id="Intercept Wave"
+            id="InterceptWave"
             icon="/icons/interceptWave.svg"
             anchor="right"
             doNotActivateOnStart="false"/>
 
         <!-- Notification Group -->
-        <notificationGroup id="Intercept Wave" displayType="BALLOON"/>
+        <notificationGroup id="InterceptWave" displayType="BALLOON"/>
 
         <!-- Run after project is opened (replacement for deprecated ProjectManagerListener#projectOpened) -->
         <postStartupActivity implementation="org.zhongmiao.interceptwave.startup.ConsoleSubscriberStartupActivity"/>

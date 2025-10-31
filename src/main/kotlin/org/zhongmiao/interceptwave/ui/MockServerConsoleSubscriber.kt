@@ -14,14 +14,14 @@ import org.zhongmiao.interceptwave.services.ConfigService
  * 放在 ui 包中，纯渲染层，不参与业务逻辑与覆盖率统计。
  */
 @Service(Service.Level.PROJECT)
-class MockServerConsoleSubscriber(private val project: Project) {
+class MockServerConsoleSubscriber(private val project: Project) : com.intellij.openapi.Disposable {
 
     private val console: ConsoleService by lazy { project.service<ConsoleService>() }
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
 
     init {
         // 订阅消息总线事件，连接与 Project 生命周期绑定，避免重复注册/泄漏
-        project.messageBus.connect(project).subscribe(MOCK_SERVER_TOPIC, MockServerEventListener { event -> // UI 更新需在 EDT 上执行
+        project.messageBus.connect(this).subscribe(MOCK_SERVER_TOPIC, MockServerEventListener { event -> // UI 更新需在 EDT 上执行
             runOnEdt {
                 handle(event)
             }
