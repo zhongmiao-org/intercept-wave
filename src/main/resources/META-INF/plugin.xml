@@ -3,6 +3,7 @@
     <id>org.zhongmiao.interceptwave</id>
     <name>Intercept Wave</name>
     <vendor>zhongmiao</vendor>
+    <resource-bundle>messages.InterceptWaveBundle</resource-bundle>
 
     <depends>com.intellij.modules.platform</depends>
 

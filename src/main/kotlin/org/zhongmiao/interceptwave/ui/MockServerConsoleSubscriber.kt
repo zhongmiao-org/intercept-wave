@@ -5,6 +5,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.application.ApplicationManager
 import org.zhongmiao.interceptwave.events.*
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConsoleService
 import org.zhongmiao.interceptwave.services.ConfigService
 
@@ -40,67 +41,67 @@ class MockServerConsoleSubscriber(private val project: Project) {
             is ServerStarting -> {
                 console.showConsole()
                 console.printSeparator()
-                console.printInfo("正在启动: 「${event.name}」")
-                console.printInfo("端口: ${event.port}")
+                console.printInfo(message("console.starting", event.name))
+                console.printInfo(message("console.port", event.port))
                 // 附加详细配置
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
-                        console.printInfo("拦截前缀: ${cfg.interceptPrefix}")
-                        console.printInfo("目标地址: ${cfg.baseUrl}")
-                        console.printInfo("剥离前缀: ${cfg.stripPrefix}")
+                        console.printInfo(message("console.prefix", cfg.interceptPrefix))
+                        console.printInfo(message("console.baseurl", cfg.baseUrl))
+                        console.printInfo(message("console.stripprefix", cfg.stripPrefix))
                     }
                 }
             }
             is ServerStarted -> {
-                console.printSuccess("「${event.name}」启动成功!")
-                console.printSuccess("访问地址: ${event.url}")
+                console.printSuccess(message("console.started", event.name))
+                console.printSuccess(message("console.access.url", event.url))
                 // 输出 Mock 接口启用情况
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
                         val total = cfg.mockApis.size
                         val enabled = cfg.mockApis.count { it.enabled }
-                        console.printInfo("Mock APIs: ${enabled}/${total} 已启用")
+                        console.printInfo(message("console.mockapis.enabled", enabled, total))
                     }
                 }
                 console.printSeparator()
             }
             is ServerStartFailed -> {
-                console.printError("启动失败: ${event.reason ?: "未知错误"}")
+                console.printError(message("console.start.failed.reason", event.reason ?: "Unknown"))
             }
             is ServerStopped -> {
                 console.printSeparator()
-                console.printWarning("「${event.name}」已停止")
+                console.printWarning(message("console.server.stopped", event.name))
                 console.printSeparator()
             }
             is AllServersStarting -> {
                 console.showConsole()
                 // 不再清空，确保多服务并发启动时日志按序追加
-                console.printInfo("正在启动所有配置组...")
+                console.printInfo(message("console.startall"))
             }
             is AllServersStarted -> {
                 console.printSeparator()
-                console.printInfo("启动完成: ${event.success}/${event.total} 个配置组成功启动")
+                console.printInfo(message("console.startall.done", event.success, event.total))
                 console.printSeparator()
             }
             is AllServersStopped -> {
-                console.printInfo("所有服务器已停止")
+                console.printInfo(message("console.allstopped"))
             }
             is RequestReceived -> {
-                console.printInfo("[${event.configName}] ➤ ${event.method} ${event.path}")
+                console.printInfo(message("console.request", event.configName, event.method, event.path))
             }
             is MatchedPath -> {
-                console.printInfo("  [${event.configName}]   匹配路径: ${event.path}")
+                console.printInfo(message("console.matched.path", event.configName, event.path))
             }
             is ForwardingTo -> {
-                console.printInfo("  [${event.configName}]   → 转发至: ${event.targetUrl}")
+                console.printInfo(message("console.forwarding.to", event.configName, event.targetUrl))
             }
             is MockMatched -> {
-                console.printSuccess("[${event.configName}]   ← ${event.statusCode} Mock")
+                console.printSuccess(message("console.mock.matched", event.configName, event.statusCode))
             }
             is Forwarded -> {
-                console.printSuccess("[${event.configName}]   ← ${event.statusCode} Proxied")
+                console.printSuccess(message("console.forwarded", event.configName, event.statusCode))
             }
             is ErrorOccurred -> {
                 console.printError("[${event.configName ?: ""}]   ✗ ${event.message}${event.details?.let { ": $it" } ?: ""}")

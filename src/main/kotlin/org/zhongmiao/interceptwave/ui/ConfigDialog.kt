@@ -40,9 +40,9 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
         init()
         title = message("config.dialog.title")
 
-        // 如果没有配置组，创建一个默认的
+        // 如果没有配置组，创建一个默认的（国际化）
         if (proxyGroups.isEmpty()) {
-            proxyGroups.add(configService.createDefaultProxyConfig(0, "默认配置"))
+            proxyGroups.add(configService.createDefaultProxyConfig(0, message("config.group.default")))
         }
 
         setupTabbedPane()
@@ -127,7 +127,7 @@ class ConfigDialog(private val project: Project) : DialogWrapper(project) {
     private fun addNewProxyGroup() {
         val newConfig = configService.createDefaultProxyConfig(
             proxyGroups.size,
-            "配置组 ${proxyGroups.size + 1}"
+            message("config.group.default.indexed", proxyGroups.size + 1)
         )
 
         proxyGroups.add(newConfig)
@@ -493,7 +493,7 @@ class ProxyConfigPanel(
      * 将UI的修改应用到配置对象
      */
     fun applyChanges(config: ProxyConfig) {
-        config.name = nameField.text.trim().ifEmpty { "配置组" }
+        config.name = nameField.text.trim().ifEmpty { message("config.group.default") }
         config.port = portField.text.toIntOrNull() ?: 8888
         config.interceptPrefix = interceptPrefixField.text
         config.baseUrl = baseUrlField.text

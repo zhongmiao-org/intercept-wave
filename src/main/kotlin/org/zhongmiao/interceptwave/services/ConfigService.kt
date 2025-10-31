@@ -160,17 +160,17 @@ class ConfigService(private val project: Project) {
             val oldConfig = json.decodeFromString(MockConfig.serializer(), oldContent)
 
             // 创建新配置结构
-            val newConfig = RootConfig(
-                version = "2.0",
-                proxyGroups = mutableListOf(
-                    ProxyConfig(
-                        id = UUID.randomUUID().toString(),
-                        name = "默认配置",
-                        port = oldConfig.port,
-                        interceptPrefix = oldConfig.interceptPrefix,
-                        baseUrl = oldConfig.baseUrl,
-                        stripPrefix = oldConfig.stripPrefix,
-                        globalCookie = oldConfig.globalCookie,
+                    val newConfig = RootConfig(
+                        version = "2.0",
+                        proxyGroups = mutableListOf(
+                            ProxyConfig(
+                                id = UUID.randomUUID().toString(),
+                                name = message("config.group.default"),
+                                port = oldConfig.port,
+                                interceptPrefix = oldConfig.interceptPrefix,
+                                baseUrl = oldConfig.baseUrl,
+                                stripPrefix = oldConfig.stripPrefix,
+                                globalCookie = oldConfig.globalCookie,
                         enabled = true,
                         mockApis = oldConfig.mockApis
                     )
@@ -207,7 +207,7 @@ class ConfigService(private val project: Project) {
         val defaultConfig = RootConfig(
             version = "2.0",
             proxyGroups = mutableListOf(
-                createDefaultProxyConfig(0, "默认配置")
+                createDefaultProxyConfig(0, message("config.group.default"))
             )
         )
         saveRootConfig(defaultConfig)
@@ -220,7 +220,7 @@ class ConfigService(private val project: Project) {
     fun createDefaultProxyConfig(index: Int, name: String? = null): ProxyConfig {
         return ProxyConfig(
             id = UUID.randomUUID().toString(),
-            name = name ?: "配置组 ${index + 1}",
+            name = name ?: message("config.group.default.indexed", index + 1),
             port = 8888 + index,
             interceptPrefix = "/api",
             baseUrl = "http://localhost:8080",

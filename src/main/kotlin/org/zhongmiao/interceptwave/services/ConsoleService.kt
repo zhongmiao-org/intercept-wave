@@ -16,6 +16,7 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindowId
 import com.intellij.openapi.wm.ToolWindowManager
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.io.OutputStream
@@ -98,7 +99,7 @@ class ConsoleService(private val project: Project) {
                 console,
                 processHandler,
                 console.component,
-                "Intercept Wave Mock Server",
+                message("console.descriptor.title"),
                 AllIcons.Debugger.Console
             )
             created = true
