@@ -108,4 +108,9 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
             }
         }
     }
+
+    override fun dispose() {
+        // No-op: messageBus connection is bound to this Disposable via connect(this)
+        // and will be disposed automatically.
+    }
 }
