@@ -1,4 +1,4 @@
-<div align="center">
+<div style="text-align: center;">
   <img src="src/main/resources/META-INF/pluginIcon.svg" alt="Intercept Wave Logo" width="128" height="128">
 
   # Intercept Wave for IntelliJ IDEA
@@ -411,6 +411,51 @@ A: The current version only supports HTTP, HTTPS support is planned.
 
 ### Q: How does global cookie work?
 A: Set cookie value in global configuration, then check "Use Global Cookie" in mock API configuration. The response will include the cookie via `Set-Cookie` response header.
+
+## Testing & Coverage
+
+### Run Unit Tests
+
+- Run all tests: `./gradlew test`
+- UI tests (Robot): `./gradlew testUi` (requires a running IDE instance configured by the plugin)
+
+Notes:
+- Platform tests run in a single forked JVM and are headless-configured.
+- UI tests are split into a separate task and use the robot-server plugin.
+
+### Coverage Reports (Kover)
+
+- XML: `./gradlew koverXmlReport` → `build/reports/kover/report.xml`
+- HTML: `./gradlew koverHtmlReport` → `build/reports/kover/html/index.html`
+
+Excluded from coverage:
+- UI packages: `org.zhongmiao.interceptwave.ui`, `org.zhongmiao.interceptwave.toolWindow`
+- Adapter packages: `org.zhongmiao.interceptwave.listeners`, `org.zhongmiao.interceptwave.startup`, `org.zhongmiao.interceptwave.events`
+- UI-facing service: `org.zhongmiao.interceptwave.services.ConsoleService`
+
+## Project Structure (Gradle)
+
+```
+project/
+├── build.gradle.kts        # Core build: plugins, dependencies, IntelliJ config
+├── gradle/
+│   ├── changelog.gradle.kts # Changelog plugin config
+│   ├── kover.gradle.kts     # Coverage config and exclusions
+│   ├── test.gradle.kts      # Unit test task configuration
+│   └── ui-test.gradle.kts   # UI test and robot server configuration
+├── gradle.properties        # Version, platform, plugin coordinates
+└── settings.gradle.kts      # Gradle settings
+```
+
+Rationale:
+- Keep `build.gradle.kts` concise and focused on core plugin setup.
+- Isolate test/UI/coverage/changelog logic to reduce merge conflicts and improve readability.
+
+## Repository Layout
+
+For a brief Gradle layout, see the previous section. For the full repository layout (with module/package responsibilities), see:
+- CONTRIBUTING.md: Project Structure
+- CONTRIBUTING_zh.md: 项目结构
 
 ## Development Roadmap
 

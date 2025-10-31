@@ -76,27 +76,42 @@
 
 ```
 intercept-wave/
+├── .github/                      # CI 配置、Issue 模板
+├── .gradle/                      # Gradle 本地缓存（生成）
+├── .idea/                        # IDEA 项目文件（本地）
+├── build/                        # 构建输出（生成）
+├── gradle/
+│   ├── changelog.gradle.kts      # Changelog 插件配置
+│   ├── kover.gradle.kts          # 覆盖率配置与排除
+│   ├── test.gradle.kts           # 单元测试任务配置
+│   └── ui-test.gradle.kts        # UI 测试与 robot server 配置
 ├── src/
 │   ├── main/
 │   │   ├── kotlin/
 │   │   │   └── org/zhongmiao/interceptwave/
-│   │   │       ├── listeners/        # 事件监听器
-│   │   │       ├── model/            # 数据模型
-│   │   │       ├── services/         # 核心服务
-│   │   │       ├── toolWindow/       # 工具窗口工厂
-│   │   │       └── ui/               # UI 组件
+│   │   │       ├── services/     # 核心服务（MockServer、Config、Console 适配等）
+│   │   │       ├── ui/           # 工具窗口、对话框、控制台订阅者
+│   │   │       ├── events/       # 领域事件定义与发布器（消息总线）
+│   │   │       ├── listeners/    # IDE 监听器（如项目关闭）
+│   │   │       ├── startup/      # 启动活动（订阅者初始化）
+│   │   │       ├── model/        # 数据模型（RootConfig、ProxyConfig、MockApiConfig）
+│   │   │       └── util/         # 工具类（JSON 归一化、路径匹配、常量）
 │   │   └── resources/
-│   │       ├── META-INF/
-│   │       │   ├── plugin.xml        # 插件配置
-│   │       │   └── pluginIcon.svg    # 插件图标
-│   │       └── messages/             # 国际化
+│   │       ├── META-INF/plugin.xml           # 插件声明
+│   │       ├── messages/InterceptWaveBundle*.properties  # i18n 资源
+│   │       └── icons/                         # 插件图标与资源
 │   └── test/
-│       └── kotlin/                   # 单元测试和 UI 测试
-├── .intercept-wave/                  # 示例配置
-├── build.gradle.kts                  # 构建配置
-├── gradle.properties                 # 插件属性
-├── CHANGELOG.md                      # 变更历史
-└── README.md                         # 用户文档
+│       └── kotlin/
+│           └── org/zhongmiao/interceptwave/
+│               ├── services/     # 服务层单测（含平台测试）
+│               └── ui/           # UI 测试（单独任务 testUi）
+├── CHANGELOG.md                  # 英文更新日志
+├── CHANGELOG_zh.md               # 中文更新日志
+├── README.md                     # 英文说明
+├── README_zh.md                  # 中文说明
+├── build.gradle.kts              # 核心构建：插件、依赖、IntelliJ 配置
+├── gradle.properties             # 版本、平台、插件坐标
+└── settings.gradle.kts           # Gradle 设置
 ```
 
 ### 核心组件
