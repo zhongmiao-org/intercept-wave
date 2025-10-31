@@ -10,6 +10,7 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import java.net.BindException
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
@@ -47,20 +48,20 @@ class MockServerService(private val project: Project) {
         val proxyConfig = configService.getProxyGroup(configId)
         if (proxyConfig == null) {
             thisLogger().error("Config not found: $configId")
-            output.publish(ErrorOccurred(configId, null, "配置组不存在", configId))
+            output.publish(ErrorOccurred(configId, null, message("error.config.notfound"), configId))
             return false
         }
 
         if (!proxyConfig.enabled) {
             thisLogger().warn("Config $configId is disabled")
-            output.publish(ErrorOccurred(configId, proxyConfig.name, "配置组已禁用"))
+            output.publish(ErrorOccurred(configId, proxyConfig.name, message("error.config.disabled")))
             return false
         }
 
         return try {
             // 检查端口是否已被占用
             if (isPortOccupied(proxyConfig.port)) {
-                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, "端口已被占用"))
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, message("error.port.in.use")))
                 return false
             }
 
@@ -131,7 +132,7 @@ class MockServerService(private val project: Project) {
         val enabledConfigs = configService.getEnabledProxyGroups()
 
         if (enabledConfigs.isEmpty()) {
-            output.publish(ErrorOccurred(message = "没有启用的配置组"))
+            output.publish(ErrorOccurred(message = message("error.no.enabled.config")))
             return results
         }
 
@@ -247,7 +248,7 @@ class MockServerService(private val project: Project) {
             val mockApi = findMatchingMockApiInProxy(matchPath, method, config)
 
             // 告知 UI 实际参与匹配的路径，便于诊断
-            output.publish(org.zhongmiao.interceptwave.events.MatchedPath(config.id, config.name, matchPath))
+            output.publish(MatchedPath(config.id, config.name, matchPath))
 
             if (mockApi != null && mockApi.enabled) {
                 // 使用Mock数据响应
@@ -258,7 +259,7 @@ class MockServerService(private val project: Project) {
             }
         } catch (e: Exception) {
             thisLogger().error("[${config.name}] Error handling request", e)
-            output.publish(ErrorOccurred(config.id, config.name, "请求处理错误", e.message))
+            output.publish(ErrorOccurred(config.id, config.name, message("error.request.processing"), e.message))
             sendErrorResponse(exchange, 500, "Internal Server Error: ${e.message}")
         }
     }
@@ -296,7 +297,7 @@ class MockServerService(private val project: Project) {
             val welcomeJson = """
                 {
                   "status": "running",
-                  "message": "Intercept Wave Mock 服务运行中",
+                  "message": "${message("welcome.running")}",
                   "configGroup": "${config.name}",
                   "server": {
                     "port": ${config.port},
@@ -309,7 +310,7 @@ class MockServerService(private val project: Project) {
                     "enabled": $enabledApiCount
                   },
                   "usage": {
-                    "description": "访问配置的 Mock 接口路径即可获取 Mock 数据",
+                    "description": "${message("welcome.usage.description")}",
                     "example": "GET http://localhost:${config.port}${config.interceptPrefix}/your-api-path"
                   },
                   "apis": [
@@ -392,7 +393,7 @@ class MockServerService(private val project: Project) {
 
             // 仅记录日志，渲染交给订阅方
             // 在转发前发布目标 URL 事件，便于在控制台看到“→ 转发至: ...”
-            output.publish(org.zhongmiao.interceptwave.events.ForwardingTo(config.id, config.name, targetUrl))
+            output.publish(ForwardingTo(config.id, config.name, targetUrl))
 
             // 在单元测试模式下，默认不进行真实转发，避免连接被拒绝导致的错误日志
             // 如需在测试中允许真实转发，可设置 -Dinterceptwave.allowForwardInTests=true
@@ -453,7 +454,7 @@ class MockServerService(private val project: Project) {
         } catch (e: Exception) {
             // 在测试环境中降级为 warn，避免 TestLogger 对 error 级别抛出断言
             logForwardError("Error forwarding request", e)
-            output.publish(ErrorOccurred(config.id, config.name, "代理错误", e.message))
+            output.publish(ErrorOccurred(config.id, config.name, message("error.proxy.error"), e.message))
             sendErrorResponse(exchange, 502, "Bad Gateway: Unable to reach original server")
         }
     }
