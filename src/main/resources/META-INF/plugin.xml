@@ -8,7 +8,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
-            factoryClass="org.zhongmiao.interceptwave.toolWindow.InterceptWaveToolWindowFactory"
+            factoryClass="org.zhongmiao.interceptwave.ui.InterceptWaveToolWindowFactory"
             id="Intercept Wave"
             icon="/icons/interceptWave.svg"
             anchor="right"
@@ -16,6 +16,9 @@
 
         <!-- Notification Group -->
         <notificationGroup id="Intercept Wave" displayType="BALLOON"/>
+
+        <!-- Run after project is opened (replacement for deprecated ProjectManagerListener#projectOpened) -->
+        <postStartupActivity implementation="org.zhongmiao.interceptwave.startup.ConsoleSubscriberStartupActivity"/>
     </extensions>
 
     <projectListeners>

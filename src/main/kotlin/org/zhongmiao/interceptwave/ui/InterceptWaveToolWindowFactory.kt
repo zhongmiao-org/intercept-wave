@@ -1,9 +1,9 @@
-package org.zhongmiao.interceptwave.toolWindow
+package org.zhongmiao.interceptwave.ui
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.MockServerService
-import org.zhongmiao.interceptwave.ui.ConfigDialog
+import org.zhongmiao.interceptwave.events.*
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
@@ -21,6 +21,7 @@ import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
+import javax.swing.SwingUtilities
 import javax.swing.*
 
 class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
@@ -48,6 +49,26 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
 
         init {
             setupTabs()
+            // 订阅领域事件，实时刷新 ToolWindow（仅 UI 更新，无业务逻辑）
+            project.messageBus.connect().subscribe(MOCK_SERVER_TOPIC, MockServerEventListener { event ->
+                SwingUtilities.invokeLater {
+                    when (event) {
+                        is ServerStarted -> {
+                            tabPanels[event.configId]?.updateStatus(true, mockServerService.getServerUrl(event.configId))
+                            updateGlobalButtonStates()
+                        }
+                        is ServerStopped -> {
+                            tabPanels[event.configId]?.updateStatus(false, null)
+                            updateGlobalButtonStates()
+                        }
+                        is AllServersStarted, is AllServersStopped, is AllServersStarting, is ServerStartFailed -> {
+                            refreshAllTabs()
+                        }
+                        is ServerStarting -> updateGlobalButtonStates()
+                        is ErrorOccurred, is RequestReceived, is Forwarded, is MockMatched, is ForwardingTo, is MatchedPath -> { /* 无需状态变更 */ }
+                    }
+                }
+            })
         }
 
         fun getContent(): JComponent {
@@ -243,6 +264,7 @@ class ProxyGroupTabPanel(
 ) {
     private val mockServerService = project.service<MockServerService>()
     private val configService = project.service<ConfigService>()
+    private val consoleService = project.service<org.zhongmiao.interceptwave.services.ConsoleService>()
 
     private val statusLabel = JBLabel(message("toolwindow.status.stopped"))
     private val urlLabel = JBLabel("")
@@ -404,6 +426,8 @@ class ProxyGroupTabPanel(
      */
     private fun startServer() {
         try {
+            // 先确保唤起 Run 窗口，避免首次订阅者尚未就绪导致不显示
+            consoleService.showConsole()
             val success = mockServerService.startServer(configId)
             if (success) {
                 val url = mockServerService.getServerUrl(configId)

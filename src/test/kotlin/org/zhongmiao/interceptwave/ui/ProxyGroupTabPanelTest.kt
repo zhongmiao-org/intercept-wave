@@ -1,4 +1,4 @@
-package org.zhongmiao.interceptwave.toolWindow
+package org.zhongmiao.interceptwave.ui
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.zhongmiao.interceptwave.model.MockApiConfig
@@ -71,4 +71,3 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         assertTrue(text.contains("Configuration not found"))
     }
 }
-

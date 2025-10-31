@@ -2,6 +2,7 @@ package org.zhongmiao.interceptwave.services
 
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
+import org.zhongmiao.interceptwave.events.*
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -29,7 +30,8 @@ class MockServerService(private val project: Project) {
     private val serverExecutors = ConcurrentHashMap<String, java.util.concurrent.ExecutorService>()
 
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
-    private val consoleService: ConsoleService by lazy { project.service<ConsoleService>() }
+    // 业务输出端口：面向事件发布，不直接依赖任何 UI
+    private val output: MockServerOutput by lazy { project.service<MockServerEventPublisher>() }
 
     // ============ v2.0 新方法：多服务器管理 ============
 
@@ -45,35 +47,25 @@ class MockServerService(private val project: Project) {
         val proxyConfig = configService.getProxyGroup(configId)
         if (proxyConfig == null) {
             thisLogger().error("Config not found: $configId")
-            consoleService.showConsole()
-            consoleService.printError("配置组不存在: $configId")
+            output.publish(ErrorOccurred(configId, null, "配置组不存在", configId))
             return false
         }
 
         if (!proxyConfig.enabled) {
             thisLogger().warn("Config $configId is disabled")
-            consoleService.showConsole()
-            consoleService.printWarning("配置组「${proxyConfig.name}」已禁用")
+            output.publish(ErrorOccurred(configId, proxyConfig.name, "配置组已禁用"))
             return false
         }
 
         return try {
-            // 显示控制台窗口
-            consoleService.showConsole()
-
             // 检查端口是否已被占用
             if (isPortOccupied(proxyConfig.port)) {
-                consoleService.printError("端口 ${proxyConfig.port} 已被占用，无法启动「${proxyConfig.name}」")
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, "端口已被占用"))
                 return false
             }
 
-            // 打印启动信息
-            consoleService.printSeparator()
-            consoleService.printInfo("正在启动: 「${proxyConfig.name}」")
-            consoleService.printInfo("端口: ${proxyConfig.port}")
-            consoleService.printInfo("拦截前缀: ${proxyConfig.interceptPrefix}")
-            consoleService.printInfo("目标地址: ${proxyConfig.baseUrl}")
-            consoleService.printInfo("剥离前缀: ${proxyConfig.stripPrefix}")
+            // 发布启动事件
+            output.publish(ServerStarting(configId, proxyConfig.name, proxyConfig.port))
 
             val executor = Executors.newFixedThreadPool(10)
             val server = HttpServer.create(InetSocketAddress(proxyConfig.port), 0).apply {
@@ -90,20 +82,16 @@ class MockServerService(private val project: Project) {
 
             val serverUrl = "http://localhost:${proxyConfig.port}"
             thisLogger().info("Server started for config: ${proxyConfig.name} on port ${proxyConfig.port}")
-
-            consoleService.printSuccess("✓ 「${proxyConfig.name}」启动成功!")
-            consoleService.printSuccess("✓ 访问地址: $serverUrl")
-            consoleService.printInfo("Mock APIs: ${proxyConfig.mockApis.count { it.enabled }}/${proxyConfig.mockApis.size} 已启用")
-            consoleService.printSeparator()
+            output.publish(ServerStarted(configId, proxyConfig.name, proxyConfig.port, serverUrl))
 
             true
         } catch (e: BindException) {
             thisLogger().error("Port ${proxyConfig.port} is already in use", e)
-            consoleService.printError("端口 ${proxyConfig.port} 已被占用")
+            output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, e.message))
             false
         } catch (e: Exception) {
             thisLogger().error("Failed to start server for config: ${proxyConfig.name}", e)
-            consoleService.printError("启动失败: ${e.message}")
+            output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, e.message))
             false
         }
     }
@@ -131,14 +119,7 @@ class MockServerService(private val project: Project) {
 
             thisLogger().info("Server stopped for config: $configName")
 
-            try {
-                consoleService.printSeparator()
-                consoleService.printWarning("「$configName」已停止")
-                consoleService.printSeparator()
-            } catch (e: Exception) {
-                // Ignore console errors if service is disposed
-                thisLogger().debug("Console service unavailable during server stop", e)
-            }
+            output.publish(ServerStopped(configId, configName, proxyConfig?.port ?: -1))
         }
     }
 
@@ -150,22 +131,18 @@ class MockServerService(private val project: Project) {
         val enabledConfigs = configService.getEnabledProxyGroups()
 
         if (enabledConfigs.isEmpty()) {
-            consoleService.printWarning("没有启用的配置组")
+            output.publish(ErrorOccurred(message = "没有启用的配置组"))
             return results
         }
 
-        consoleService.showConsole()
-        consoleService.clear()
-        consoleService.printInfo("正在启动所有配置组...")
+        output.publish(AllServersStarting(total = enabledConfigs.size))
 
         enabledConfigs.forEach { config ->
             results[config.id] = startServer(config.id)
         }
 
         val successCount = results.values.count { it }
-        consoleService.printSeparator()
-        consoleService.printInfo("启动完成: $successCount/${enabledConfigs.size} 个配置组成功启动")
-        consoleService.printSeparator()
+        output.publish(AllServersStarted(success = successCount, total = enabledConfigs.size))
 
         return results
     }
@@ -179,21 +156,11 @@ class MockServerService(private val project: Project) {
             return
         }
 
-        try {
-            consoleService.printInfo("正在停止所有服务器...")
-        } catch (e: Exception) {
-            // Ignore console errors if service is disposed
-            thisLogger().debug("Console service unavailable during stopAllServers", e)
-        }
+        // 发布批量停止事件
 
         configIds.forEach { stopServer(it) }
 
-        try {
-            consoleService.printInfo("所有服务器已停止")
-        } catch (e: Exception) {
-            // Ignore console errors if service is disposed
-            thisLogger().debug("Console service unavailable during stopAllServers", e)
-        }
+        output.publish(AllServersStopped())
     }
 
     /**
@@ -246,7 +213,7 @@ class MockServerService(private val project: Project) {
             val method = exchange.requestMethod
 
             thisLogger().info("[${config.name}] Received: $method $requestPath")
-            consoleService.printInfo("[${config.name}] ➤ $method $requestPath")
+            output.publish(RequestReceived(config.id, config.name, method, requestPath))
 
             // 处理根路径访问
             if (requestPath == "/" || requestPath.isEmpty()) {
@@ -274,10 +241,13 @@ class MockServerService(private val project: Project) {
                 requestPath
             }
 
-            consoleService.printDebug("[${config.name}]   匹配路径: $matchPath")
+            // 仅记录日志，渲染交给订阅方
 
             // 查找匹配的Mock配置
             val mockApi = findMatchingMockApiInProxy(matchPath, method, config)
+
+            // 告知 UI 实际参与匹配的路径，便于诊断
+            output.publish(org.zhongmiao.interceptwave.events.MatchedPath(config.id, config.name, matchPath))
 
             if (mockApi != null && mockApi.enabled) {
                 // 使用Mock数据响应
@@ -288,7 +258,7 @@ class MockServerService(private val project: Project) {
             }
         } catch (e: Exception) {
             thisLogger().error("[${config.name}] Error handling request", e)
-            consoleService.printError("[${config.name}] 请求处理错误: ${e.message}")
+            output.publish(ErrorOccurred(config.id, config.name, "请求处理错误", e.message))
             sendErrorResponse(exchange, 500, "Internal Server Error: ${e.message}")
         }
     }
@@ -404,8 +374,7 @@ class MockServerService(private val project: Project) {
             exchange.sendResponseHeaders(mockApi.statusCode, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
 
-            val delayInfo = if (mockApi.delay > 0) " (${mockApi.delay}ms delay)" else ""
-            consoleService.printSuccess("[${config.name}]   ← ${mockApi.statusCode} Mock$delayInfo")
+            output.publish(MockMatched(config.id, config.name, mockApi.path, exchange.requestMethod, mockApi.statusCode))
         } catch (e: Exception) {
             thisLogger().error("Error sending mock response", e)
             sendErrorResponse(exchange, 500, "Error sending mock response")
@@ -421,7 +390,9 @@ class MockServerService(private val project: Project) {
             val targetUrl = config.baseUrl + requestPath
             val method = exchange.requestMethod
 
-            consoleService.printDebug("[${config.name}]   → 转发至: $targetUrl")
+            // 仅记录日志，渲染交给订阅方
+            // 在转发前发布目标 URL 事件，便于在控制台看到“→ 转发至: ...”
+            output.publish(org.zhongmiao.interceptwave.events.ForwardingTo(config.id, config.name, targetUrl))
 
             // 在单元测试模式下，默认不进行真实转发，避免连接被拒绝导致的错误日志
             // 如需在测试中允许真实转发，可设置 -Dinterceptwave.allowForwardInTests=true
@@ -478,11 +449,11 @@ class MockServerService(private val project: Project) {
             exchange.sendResponseHeaders(responseCode, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
 
-            consoleService.printSuccess("[${config.name}]   ← $responseCode Proxied")
+            output.publish(Forwarded(config.id, config.name, targetUrl, responseCode))
         } catch (e: Exception) {
             // 在测试环境中降级为 warn，避免 TestLogger 对 error 级别抛出断言
             logForwardError("Error forwarding request", e)
-            consoleService.printError("[${config.name}]   ✗ 代理错误: ${e.message}")
+            output.publish(ErrorOccurred(config.id, config.name, "代理错误", e.message))
             sendErrorResponse(exchange, 502, "Bad Gateway: Unable to reach original server")
         }
     }
