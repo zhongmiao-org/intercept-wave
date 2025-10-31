@@ -4,17 +4,16 @@ import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.MockConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.model.RootConfig
-import com.intellij.notification.Notification
+import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.notification.Notifications
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.extensions.PluginId
+import kotlinx.serialization.encodeToString
 import org.zhongmiao.interceptwave.util.PluginConstants
 import java.io.File
 import java.util.UUID
@@ -182,15 +181,14 @@ class ConfigService(private val project: Project) {
             thisLogger().info("Config migrated from v1.0 to v2.0 successfully")
 
             // 通知用户
-            Notifications.Bus.notify(
-                Notification(
-                    "Intercept Wave",
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("InterceptWave")
+                .createNotification(
                     message("config.migration.title"),
                     message("config.migration.message"),
                     NotificationType.INFORMATION
-                ),
-                project
-            )
+                )
+                .notify(project)
 
             return newConfig
         } catch (e: Exception) {

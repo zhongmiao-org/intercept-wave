@@ -7,7 +7,7 @@ import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.execution.ui.RunContentManager
 import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
@@ -66,7 +66,7 @@ class ConsoleService(private val project: Project) {
             val ph = processHandler!!
             console.attachToProcess(ph)
             // 监听 Run 标签被关闭后用户选择“Terminate”的情况：联动停止所有服务并重置控制台状态
-            ph.addProcessListener(object : ProcessAdapter() {
+            ph.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {
                     // 停止所有服务器并重置内部状态，以便下次启动时重新唤起
                     runCatching {

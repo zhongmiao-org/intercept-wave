@@ -75,11 +75,8 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
             val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
             panel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
 
-            // 标题
+            // 顶部容器（仅放置右侧全局按钮，不再显示左侧标题）
             val titlePanel = JPanel(BorderLayout())
-            val titleLabel = JBLabel(message("plugin.name"))
-            titleLabel.font = titleLabel.font.deriveFont(16f)
-            titlePanel.add(titleLabel, BorderLayout.WEST)
 
             // 全局操作按钮
             val globalButtonPanel = JPanel()
