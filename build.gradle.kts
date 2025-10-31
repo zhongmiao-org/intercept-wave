@@ -83,7 +83,7 @@ dependencies {
     // UI Testing with Remote Robot
     testImplementation("com.intellij.remoterobot:remote-robot:0.11.23")
     testImplementation("com.intellij.remoterobot:remote-fixtures:0.11.23")
-    testImplementation("com.squareup.okhttp3:okhttp:5.2.1") // Required by remote-robot
+    testImplementation("com.squareup.okhttp3:okhttp:5.3.0") // Required by remote-robot
 
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
