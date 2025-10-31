@@ -112,13 +112,13 @@ class ConsoleService(private val project: Project) {
             val ph = processHandler!!
             console.attachToProcess(ph)
             // 更新 RunContentDescriptor 的 ProcessHandler 以正确联动 Stop 按钮
-            runCatching { contentDescriptor?.setProcessHandler(ph) }
+            runCatching { contentDescriptor?.processHandler = ph }
             // 监听进程终止：重置状态（不清空 Console 视图，保留停止日志可见）
             ph.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {
                     processHandler = null
                     stopActionInProgress = false
-                    runCatching { contentDescriptor?.setProcessHandler(null) }
+                    runCatching { contentDescriptor?.processHandler = null }
                 }
             })
             ph.startNotify()

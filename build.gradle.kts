@@ -1,6 +1,8 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.gradle.process.CommandLineArgumentProvider
+import java.time.Duration
 
 plugins {
     id("java") // Java support
@@ -30,11 +32,36 @@ repositories {
     }
 }
 
-// Split build into focused scripts for clarity
-apply(from = "gradle/changelog.gradle.kts")
-apply(from = "gradle/kover.gradle.kts")
-apply(from = "gradle/test.gradle.kts")
-apply(from = "gradle/ui-test.gradle.kts")
+// Changelog configuration (inlined to avoid DSL resolution issues in applied scripts)
+changelog {
+    groups.empty()
+    repositoryUrl.set(providers.gradleProperty("pluginRepositoryUrl"))
+}
+
+// Kover configuration
+kover {
+    reports {
+        total {
+            xml { onCheck = true }
+            // Exclude UI/adapters from coverage report
+            filters {
+                excludes {
+                    // Entire UI/adapter packages
+                    packages(
+                        "org.zhongmiao.interceptwave.ui",
+                        "org.zhongmiao.interceptwave.listeners",
+                        "org.zhongmiao.interceptwave.startup",
+                        "org.zhongmiao.interceptwave.events"
+                    )
+                    // UI-facing service (wraps IDE Console UI)
+                    classes(
+                        "org.zhongmiao.interceptwave.services.ConsoleService"
+                    )
+                }
+            }
+        }
+    }
+}
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
@@ -133,6 +160,23 @@ intellijPlatform {
     }
 }
 
+// Configure UI testing with robot-server plugin
+// See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
+val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
+    task {
+        jvmArgumentProviders += CommandLineArgumentProvider {
+            listOf(
+                "-Drobot-server.port=8082",
+                "-Dide.mac.message.dialogs.as.sheets=false",
+                "-Djb.privacy.policy.text=<!--999.999-->",
+                "-Djb.consents.confirmation.enabled=false",
+            )
+        }
+    }
+
+    plugins { robotServerPlugin() }
+}
+
 tasks {
     wrapper {
         gradleVersion = providers.gradleProperty("gradleVersion").get()
@@ -142,4 +186,63 @@ tasks {
         dependsOn(patchChangelog)
     }
 
+    // Tests configuration
+    test {
+        // Use JUnit Platform for both JUnit 4 and JUnit 5 tests
+        useJUnitPlatform()
+
+        // Set test timeout to prevent hanging
+        timeout.set(Duration.ofMinutes(10))
+
+        // Configure JVM args for headless testing
+        jvmArgs(
+            "-Djava.awt.headless=true",
+            "-Didea.force.use.core.classloader=true",
+            "-Didea.use.core.classloader.for.plugin.path=true"
+        )
+
+        // Increase heap size for tests
+        maxHeapSize = "1024m"
+
+        // IntelliJ Platform tests must run in a single forked JVM to avoid
+        // VFS/index initialization failures and leaking thread checks.
+        // Running with multiple forks can cause "Index data initialization failed".
+        maxParallelForks = 1
+
+        // Mark task as not compatible with Gradle Configuration Cache to avoid
+        // capturing IntelliJ test initialization state that breaks VFS startup.
+        notCompatibleWithConfigurationCache("IntelliJ Platform tests require fresh IDE boot per run")
+
+        // Exclude UI tests from regular test task
+        exclude("**/ui/**")
+
+        // In CI environment, exclude Platform tests that require IDE instance
+        if (System.getenv("CI") == "true") {
+            exclude("**/MockServerServiceTest.class", "**/ConfigServiceTest.class", "**/ProjectCloseListenerTest.class")
+        }
+    }
+
+    // Separate UI test task
+    register<Test>("testUi") {
+        description = "Runs UI tests with a running IDE instance"
+        group = "verification"
+
+        // Use JUnit Platform for JUnit 5 tests
+        useJUnitPlatform()
+
+        // Include only UI tests
+        include("**/ui/**")
+
+        // Use the same JVM configuration as regular tests
+        jvmArgs(
+            "-Djava.awt.headless=true",
+            "-Didea.force.use.core.classloader=true",
+            "-Didea.use.core.classloader.for.plugin.path=true"
+        )
+
+        maxHeapSize = "2048m" // UI tests may need more memory
+        timeout.set(Duration.ofMinutes(20)) // UI tests take longer
+
+        shouldRunAfter(named<Test>("test"))
+    }
 }
