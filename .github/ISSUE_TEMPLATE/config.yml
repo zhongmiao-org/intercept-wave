@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "💬 Discussions / 讨论区"
+    url: https://github.com/zhongmiao-org/intercept-wave/discussions
+    about: "问题咨询与交流优先使用 Discussions / Prefer Discussions for Q&A and general chats"
+  - name: "🔒 Report a security vulnerability / 报告安全漏洞"
+    url: https://github.com/zhongmiao-org/intercept-wave/security/advisories/new
+    about: "使用私密渠道报告安全问题 / Use the private advisory channel to report vulnerabilities"

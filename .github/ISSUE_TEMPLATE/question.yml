@@ -1,0 +1,44 @@
+name: "问题咨询 / Question"
+description: "使用问题或一般性咨询 / Usage questions or general inquiries"
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        建议优先在 Discussions 中发起问题交流，以便分类沉淀：
+        Prefer using Discussions for Q&A so knowledge can be organized:
+        https://github.com/zhongmiao-org/intercept-wave/discussions
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题描述 / Your Question
+      description: 尽可能具体，便于他人理解与解答 / Be as specific as possible
+      placeholder: 你遇到了什么问题？/ What are you trying to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 上下文与尝试 / Context & Attempts
+      description: 你已经尝试过什么？查阅了哪些文档？/ What have you tried? Which docs did you read?
+    validations:
+      required: false
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: 插件版本（可选）/ Plugin Version (optional)
+      placeholder: e.g. 2.0.0
+    validations:
+      required: false
+
+  - type: input
+    id: idea_version
+    attributes:
+      label: IntelliJ IDEA 版本（可选）/ IntelliJ IDEA Version (optional)
+      placeholder: e.g. 2024.1 (Build xxx)
+    validations:
+      required: false
+

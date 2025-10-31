@@ -1,0 +1,62 @@
+# Label definitions synced by workflow. Edit and push to update on GitHub.
+
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+
+- name: question
+  color: d876e3
+  description: Further information is requested
+
+- name: chore
+  color: cfd3d7
+  description: Maintenance, build, CI, or tooling changes
+
+- name: refactor
+  color: 0366d6
+  description: Code refactoring without behavior change
+
+- name: test
+  color: 04d1c5
+  description: Adding or updating tests
+
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+
+- name: status: blocked
+  color: f9d0c4
+  description: Work cannot proceed until blockers are resolved
+
+- name: status: needs info
+  color: fef2c0
+  description: Awaiting more information from reporter or maintainer
+
+- name: priority: high
+  color: e11d21
+  description: Must be addressed soon
+
+- name: priority: medium
+  color: fbca04
+  description: Important but not urgent
+
+- name: priority: low
+  color: 0e8a16
+  description: Nice to have
+
+- name: release changelog
+  color: c5def5
+  description: Pull requests with release changelog update
+
