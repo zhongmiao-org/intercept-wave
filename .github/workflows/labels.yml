@@ -1,11 +1,6 @@
 name: Sync labels
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - .github/labels.yml
-      - .github/workflows/labels.yml
   workflow_dispatch:
 
 jobs:
@@ -28,4 +23,3 @@ jobs:
           # Set to true to remove labels not in the list
           # (keep false initially to avoid surprises)
           prune: false
-
