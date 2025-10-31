@@ -8,10 +8,18 @@
 ### ✨ Added
 - 🏠 Prefix welcome route: When `stripPrefix=true`, requests to `/<interceptPrefix>` and `/<interceptPrefix>/` now return the same JSON welcome page as `/`, showing only enabled Mock APIs and example URLs. (MockServerService)
 - 🧠 Smart mock input: Mock API editor accepts JS/JSON5-like snippets (single quotes, unquoted keys, trailing commas, comments) pasted from code and converts them to strict JSON before saving. (MockApiDialog)
+- 🧩 Domain events + startup subscriber: Introduced `MockServerEvent` (RequestReceived/MockMatched/ForwardingTo/Forwarded/MatchedPath/AllServers*) with a project-level publisher and a UI subscriber created on startup so first events are visible in the Run tool window.
 
 ### 🔄 Changed
 - 🗜️ Mock data persistence: On save, `mockData` is strictly validated and minified to compact JSON (no spaces or newlines). Invalid JSON is rejected with clear errors; the “Format JSON” button now pretty-prints using a real JSON parser for readability only, storage remains minified. (MockApiDialog)
 - 🔁 Config version stamping: On load or after normalization, the `version` field in `config.json` is automatically updated to the plugin's major.minor (x.y). Patch (z) releases do not change this value, ensuring migration scripts run at intended milestones. (ConfigService)
+- 🧵 Proxy forwarding now uses Java HttpClient, filters hop‑by‑hop and restricted request headers, filters conflicting response headers, and normalizes CORS headers via set (not add) to avoid duplicates.
+- 🎛️ Run/Stop integration: the Run content’s ProcessHandler is kept in sync; “Stop All” delegates to the same stop path; timestamps are dimmed and levels are colorized in the console. Printing no longer implicitly re‑binds a process.
+- 📦 Platform target updated: sinceBuild -> `251`, platformVersion -> `2025.1.5`.
+
+### 🧹 Deprecated/Compat
+- 🔄 Replaced deprecated `ProcessAdapter` with `ProcessListener`.
+- 🔔 Migrated notifications to `NotificationGroupManager` (replacing `Notifications.Bus` / raw `Notification`).
 
 ## [2.2.1] - 2025-10-27
 
