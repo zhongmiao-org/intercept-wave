@@ -1,4 +1,4 @@
-package org.zhongmiao.interceptwave.toolWindow
+package org.zhongmiao.interceptwave.ui
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.zhongmiao.interceptwave.model.MockApiConfig
@@ -61,4 +61,3 @@ class ProxyGroupTabPanelStartStopTest : BasePlatformTestCase() {
         assertFalse(mockServerService.getServerStatus(id))
     }
 }
-

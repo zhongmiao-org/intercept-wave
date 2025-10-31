@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.gradle.process.CommandLineArgumentProvider
 import java.time.Duration
 
 plugins {
@@ -28,6 +29,37 @@ repositories {
     // IntelliJ Platform Gradle Plugin Repositories Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-repositories-extension.html
     intellijPlatform {
         defaultRepositories()
+    }
+}
+
+// Changelog configuration (inlined to avoid DSL resolution issues in applied scripts)
+changelog {
+    groups.empty()
+    repositoryUrl.set(providers.gradleProperty("pluginRepositoryUrl"))
+}
+
+// Kover configuration
+kover {
+    reports {
+        total {
+            xml { onCheck = true }
+            // Exclude UI/adapters from coverage report
+            filters {
+                excludes {
+                    // Entire UI/adapter packages
+                    packages(
+                        "org.zhongmiao.interceptwave.ui",
+                        "org.zhongmiao.interceptwave.listeners",
+                        "org.zhongmiao.interceptwave.startup",
+                        "org.zhongmiao.interceptwave.events"
+                    )
+                    // UI-facing service (wraps IDE Console UI)
+                    classes(
+                        "org.zhongmiao.interceptwave.services.ConsoleService"
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -142,43 +174,8 @@ val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
         }
     }
 
-    plugins {
-        robotServerPlugin()
-    }
+    plugins { robotServerPlugin() }
 }
-
-// Configure Gradle Changelog Plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
-changelog {
-    groups.empty()
-    repositoryUrl = providers.gradleProperty("pluginRepositoryUrl")
-}
-
-// Configure Gradle Kover Plugin - read more: https://github.com/Kotlin/kotlinx-kover#configuration
-kover {
-    reports {
-        total {
-            xml {
-                onCheck = true
-            }
-            // Exclude UI packages from coverage report
-            filters {
-                excludes {
-                    // Entire UI packages
-                    packages(
-                        "org.zhongmiao.interceptwave.ui",
-                        "org.zhongmiao.interceptwave.toolWindow"
-                    )
-                    // UI-facing service (wraps IDE Console UI)
-                    classes(
-                        "org.zhongmiao.interceptwave.services.ConsoleService"
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Note: Kover filters are applied at report level above to exclude UI packages
 
 tasks {
     wrapper {
@@ -189,6 +186,7 @@ tasks {
         dependsOn(patchChangelog)
     }
 
+    // Tests configuration
     test {
         // Use JUnit Platform for both JUnit 4 and JUnit 5 tests
         useJUnitPlatform()
@@ -224,7 +222,7 @@ tasks {
         }
     }
 
-    // Task to run UI tests separately
+    // Separate UI test task
     register<Test>("testUi") {
         description = "Runs UI tests with a running IDE instance"
         group = "verification"
@@ -245,6 +243,6 @@ tasks {
         maxHeapSize = "2048m" // UI tests may need more memory
         timeout.set(Duration.ofMinutes(20)) // UI tests take longer
 
-        shouldRunAfter(test)
+        shouldRunAfter(named<Test>("test"))
     }
 }

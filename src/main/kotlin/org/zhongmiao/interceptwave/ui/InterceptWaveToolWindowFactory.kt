@@ -1,9 +1,10 @@
-package org.zhongmiao.interceptwave.toolWindow
+package org.zhongmiao.interceptwave.ui
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.MockServerService
-import org.zhongmiao.interceptwave.ui.ConfigDialog
+import org.zhongmiao.interceptwave.services.ConsoleService
+import org.zhongmiao.interceptwave.events.*
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
@@ -21,6 +22,7 @@ import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
+import javax.swing.SwingUtilities
 import javax.swing.*
 
 class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
@@ -36,6 +38,7 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
     class InterceptWaveToolWindow(private val project: Project) {
 
         private val mockServerService = project.service<MockServerService>()
+        private val consoleService = project.service<ConsoleService>()
         private val configService = project.service<ConfigService>()
 
         // 使用标签页来切换不同的配置组
@@ -48,17 +51,34 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
 
         init {
             setupTabs()
+            // 订阅领域事件，实时刷新 ToolWindow（仅 UI 更新，无业务逻辑）
+            project.messageBus.connect().subscribe(MOCK_SERVER_TOPIC, MockServerEventListener { event ->
+                SwingUtilities.invokeLater {
+                    when (event) {
+                        is ServerStarted -> {
+                            tabPanels[event.configId]?.updateStatus(true, mockServerService.getServerUrl(event.configId))
+                            updateGlobalButtonStates()
+                        }
+                        is ServerStopped -> {
+                            tabPanels[event.configId]?.updateStatus(false, null)
+                            updateGlobalButtonStates()
+                        }
+                        is AllServersStarted, is AllServersStopped, is AllServersStarting, is ServerStartFailed -> {
+                            refreshAllTabs()
+                        }
+                        is ServerStarting -> updateGlobalButtonStates()
+                        is ErrorOccurred, is RequestReceived, is Forwarded, is MockMatched, is ForwardingTo, is MatchedPath -> { /* 无需状态变更 */ }
+                    }
+                }
+            })
         }
 
         fun getContent(): JComponent {
             val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
             panel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
 
-            // 标题
+            // 顶部容器（仅放置右侧全局按钮，不再显示左侧标题）
             val titlePanel = JPanel(BorderLayout())
-            val titleLabel = JBLabel(message("plugin.name"))
-            titleLabel.font = titleLabel.font.deriveFont(16f)
-            titlePanel.add(titleLabel, BorderLayout.WEST)
 
             // 全局操作按钮
             val globalButtonPanel = JPanel()
@@ -70,7 +90,8 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
             }
 
             stopAllButton = createButton(message("toolwindow.button.stopall"), AllIcons.Debugger.MuteBreakpoints) {
-                mockServerService.stopAllServers()
+                // 通过 ConsoleService 的虚拟进程终止来统一停止逻辑，确保 IDE Stop 按钮一致联动
+                consoleService.terminateConsoleProcess()
                 refreshAllTabs()
             }
 
@@ -243,6 +264,7 @@ class ProxyGroupTabPanel(
 ) {
     private val mockServerService = project.service<MockServerService>()
     private val configService = project.service<ConfigService>()
+    private val consoleService = project.service<ConsoleService>()
 
     private val statusLabel = JBLabel(message("toolwindow.status.stopped"))
     private val urlLabel = JBLabel("")
@@ -404,6 +426,8 @@ class ProxyGroupTabPanel(
      */
     private fun startServer() {
         try {
+            // 先确保唤起 Run 窗口，避免首次订阅者尚未就绪导致不显示
+            consoleService.showConsole()
             val success = mockServerService.startServer(configId)
             if (success) {
                 val url = mockServerService.getServerUrl(configId)

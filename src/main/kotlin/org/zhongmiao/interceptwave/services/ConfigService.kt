@@ -4,17 +4,16 @@ import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.MockConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.model.RootConfig
-import com.intellij.notification.Notification
+import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.notification.Notifications
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.extensions.PluginId
+import kotlinx.serialization.encodeToString
 import org.zhongmiao.interceptwave.util.PluginConstants
 import java.io.File
 import java.util.UUID
@@ -160,17 +159,17 @@ class ConfigService(private val project: Project) {
             val oldConfig = json.decodeFromString(MockConfig.serializer(), oldContent)
 
             // 创建新配置结构
-            val newConfig = RootConfig(
-                version = "2.0",
-                proxyGroups = mutableListOf(
-                    ProxyConfig(
-                        id = UUID.randomUUID().toString(),
-                        name = "默认配置",
-                        port = oldConfig.port,
-                        interceptPrefix = oldConfig.interceptPrefix,
-                        baseUrl = oldConfig.baseUrl,
-                        stripPrefix = oldConfig.stripPrefix,
-                        globalCookie = oldConfig.globalCookie,
+                    val newConfig = RootConfig(
+                        version = "2.0",
+                        proxyGroups = mutableListOf(
+                            ProxyConfig(
+                                id = UUID.randomUUID().toString(),
+                                name = message("config.group.default"),
+                                port = oldConfig.port,
+                                interceptPrefix = oldConfig.interceptPrefix,
+                                baseUrl = oldConfig.baseUrl,
+                                stripPrefix = oldConfig.stripPrefix,
+                                globalCookie = oldConfig.globalCookie,
                         enabled = true,
                         mockApis = oldConfig.mockApis
                     )
@@ -182,15 +181,14 @@ class ConfigService(private val project: Project) {
             thisLogger().info("Config migrated from v1.0 to v2.0 successfully")
 
             // 通知用户
-            Notifications.Bus.notify(
-                Notification(
-                    "Intercept Wave",
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("InterceptWave")
+                .createNotification(
                     message("config.migration.title"),
                     message("config.migration.message"),
                     NotificationType.INFORMATION
-                ),
-                project
-            )
+                )
+                .notify(project)
 
             return newConfig
         } catch (e: Exception) {
@@ -207,7 +205,7 @@ class ConfigService(private val project: Project) {
         val defaultConfig = RootConfig(
             version = "2.0",
             proxyGroups = mutableListOf(
-                createDefaultProxyConfig(0, "默认配置")
+                createDefaultProxyConfig(0, message("config.group.default"))
             )
         )
         saveRootConfig(defaultConfig)
@@ -220,7 +218,7 @@ class ConfigService(private val project: Project) {
     fun createDefaultProxyConfig(index: Int, name: String? = null): ProxyConfig {
         return ProxyConfig(
             id = UUID.randomUUID().toString(),
-            name = name ?: "配置组 ${index + 1}",
+            name = name ?: message("config.group.default.indexed", index + 1),
             port = 8888 + index,
             interceptPrefix = "/api",
             baseUrl = "http://localhost:8080",

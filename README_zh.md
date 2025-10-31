@@ -1,4 +1,4 @@
-<div align="center">
+<div  style="text-align: center;">
   <img src="src/main/resources/META-INF/pluginIcon.svg" alt="Intercept Wave Logo" width="128" height="128">
 
   # Intercept Wave for IntelliJ IDEA
@@ -410,6 +410,51 @@ A: 当前版本仅支持 HTTP，HTTPS 支持在计划中。
 
 ### Q: 全局 Cookie 如何工作？
 A: 在全局配置中设置 Cookie 值后，在 Mock 接口配置中勾选"使用全局Cookie"，响应时会通过 `Set-Cookie` 响应头返回给客户端。
+
+## 测试与覆盖率
+
+### 运行单元测试
+
+- 运行全部测试：`./gradlew test`
+- 运行 UI 测试（Robot）：`./gradlew testUi`（需要插件配置的 IDE 实例）
+
+说明：
+- 平台测试在单个 JVM 中运行并启用 headless 配置。
+- UI 测试单独拆分到 `testUi` 任务，使用 robot-server 插件。
+
+### 覆盖率报告（Kover）
+
+- XML 报告：`./gradlew koverXmlReport` → `build/reports/kover/report.xml`
+- HTML 报告：`./gradlew koverHtmlReport` → `build/reports/kover/html/index.html`
+
+从覆盖率中排除：
+- UI 包：`org.zhongmiao.interceptwave.ui`、`org.zhongmiao.interceptwave.toolWindow`
+- 适配层包：`org.zhongmiao.interceptwave.listeners`、`org.zhongmiao.interceptwave.startup`、`org.zhongmiao.interceptwave.events`
+- UI 相关服务：`org.zhongmiao.interceptwave.services.ConsoleService`
+
+## 项目结构（Gradle）
+
+```
+project/
+├── build.gradle.kts        # 核心构建：插件、依赖、IntelliJ 配置
+├── gradle/
+│   ├── changelog.gradle.kts # Changelog 插件配置
+│   ├── kover.gradle.kts     # 覆盖率配置与排除
+│   ├── test.gradle.kts      # 单元测试任务配置
+│   └── ui-test.gradle.kts   # UI 测试与 robot server 配置
+├── gradle.properties        # 版本、平台、插件坐标
+└── settings.gradle.kts      # Gradle 设置
+```
+
+设计动机：
+- 让 `build.gradle.kts` 聚焦核心配置，易读易维护。
+- 将测试/UI/覆盖率/变更日志配置拆分，减少冲突、提升可读性。
+
+## 项目目录结构
+
+简要的 Gradle 结构见上节“项目结构（Gradle）”。完整的项目目录结构（含模块/包职责）请查看：
+- CONTRIBUTING_zh.md：项目结构
+- CONTRIBUTING.md：Project Structure
 
 ## 开发计划
 

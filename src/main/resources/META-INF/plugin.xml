@@ -3,19 +3,23 @@
     <id>org.zhongmiao.interceptwave</id>
     <name>Intercept Wave</name>
     <vendor>zhongmiao</vendor>
+    <resource-bundle>messages.InterceptWaveBundle</resource-bundle>
 
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
-            factoryClass="org.zhongmiao.interceptwave.toolWindow.InterceptWaveToolWindowFactory"
-            id="Intercept Wave"
+            factoryClass="org.zhongmiao.interceptwave.ui.InterceptWaveToolWindowFactory"
+            id="InterceptWave"
             icon="/icons/interceptWave.svg"
             anchor="right"
             doNotActivateOnStart="false"/>
 
         <!-- Notification Group -->
-        <notificationGroup id="Intercept Wave" displayType="BALLOON"/>
+        <notificationGroup id="InterceptWave" displayType="BALLOON"/>
+
+        <!-- Run after project is opened (replacement for deprecated ProjectManagerListener#projectOpened) -->
+        <postStartupActivity implementation="org.zhongmiao.interceptwave.startup.ConsoleSubscriberStartupActivity"/>
     </extensions>
 
     <projectListeners>

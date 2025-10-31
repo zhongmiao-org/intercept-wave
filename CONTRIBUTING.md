@@ -76,27 +76,42 @@ Or use the command line:
 
 ```
 intercept-wave/
+├── .github/                      # CI workflows, issue templates
+├── .gradle/                      # Gradle local cache (generated)
+├── .idea/                        # IDE project files (local)
+├── build/                        # Build outputs (generated)
+├── gradle/
+│   ├── changelog.gradle.kts      # Changelog plugin config
+│   ├── kover.gradle.kts          # Coverage config and exclusions
+│   ├── test.gradle.kts           # Unit test task configuration
+│   └── ui-test.gradle.kts        # UI test and robot server configuration
 ├── src/
 │   ├── main/
 │   │   ├── kotlin/
 │   │   │   └── org/zhongmiao/interceptwave/
-│   │   │       ├── listeners/        # Event listeners
-│   │   │       ├── model/            # Data models
-│   │   │       ├── services/         # Core services
-│   │   │       ├── toolWindow/       # Tool window factory
-│   │   │       └── ui/               # UI components
+│   │   │       ├── services/     # Core services (MockServer, Config, Console adapter)
+│   │   │       ├── ui/           # Tool window, dialogs, console subscriber
+│   │   │       ├── events/       # Domain events and publisher (MessageBus)
+│   │   │       ├── listeners/    # IDE listeners (e.g., project closing)
+│   │   │       ├── startup/      # Startup activities (subscriber init)
+│   │   │       ├── model/        # Data models (RootConfig, ProxyConfig, MockApiConfig)
+│   │   │       └── util/         # Utilities (JSON normalize, path matching, constants)
 │   │   └── resources/
-│   │       ├── META-INF/
-│   │       │   ├── plugin.xml        # Plugin configuration
-│   │       │   └── pluginIcon.svg    # Plugin icon
-│   │       └── messages/             # Internationalization
+│   │       ├── META-INF/plugin.xml           # Plugin descriptor
+│   │       ├── messages/InterceptWaveBundle*.properties  # i18n resources
+│   │       └── icons/                         # Plugin icons and resources
 │   └── test/
-│       └── kotlin/                   # Unit and UI tests
-├── .intercept-wave/                  # Sample configuration
-├── build.gradle.kts                  # Build configuration
-├── gradle.properties                 # Plugin properties
-├── CHANGELOG.md                      # Change history
-└── README.md                         # User documentation
+│       └── kotlin/
+│           └── org/zhongmiao/interceptwave/
+│               ├── services/     # Service tests (incl. platform tests)
+│               └── ui/           # UI tests (separate `testUi` task)
+├── CHANGELOG.md                  # English changelog
+├── CHANGELOG_zh.md               # Chinese changelog
+├── README.md                     # English docs
+├── README_zh.md                  # Chinese docs
+├── build.gradle.kts              # Core build: plugins, deps, IntelliJ config
+├── gradle.properties             # Versions, platform, plugin coordinates
+└── settings.gradle.kts           # Gradle settings
 ```
 
 ### Key Components

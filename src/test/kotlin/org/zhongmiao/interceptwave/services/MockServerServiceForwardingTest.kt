@@ -132,4 +132,78 @@ class MockServerServiceForwardingTest : BasePlatformTestCase() {
         assertEquals(payload, echoed)
         assertEquals("Bearer token123", echoedAuth)
     }
+
+    fun `test forwarding PUT copies body`() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+
+        val targetPort = 19030
+        val forwardPath = "/api/put"
+        startTargetServer(targetPort, forwardPath, 200, "{}")
+
+        val config = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Forward PUT",
+            port = 19031,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            baseUrl = "http://localhost:$targetPort",
+            enabled = true,
+            mockApis = mutableListOf()
+        )
+
+        val root = configService.getRootConfig()
+        root.proxyGroups.add(config)
+        configService.saveRootConfig(root)
+        mockServerService.startServer(config.id)
+
+        val url = URI("http://localhost:19031$forwardPath").toURL()
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "PUT"
+        conn.doOutput = true
+        val payload = "{\"k\":\"v\"}"
+        conn.outputStream.use { it.write(payload.toByteArray()) }
+
+        val code = conn.responseCode
+        val echoed = conn.inputStream.bufferedReader().readText()
+        assertEquals(200, code)
+        assertEquals(payload, echoed)
+    }
+
+    fun `test forwarding PATCH copies body`() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+
+        val targetPort = 19032
+        val forwardPath = "/api/patch"
+        startTargetServer(targetPort, forwardPath, 202, "{}")
+
+        val config = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Forward PATCH",
+            port = 19033,
+            interceptPrefix = "/api",
+            stripPrefix = true,
+            baseUrl = "http://localhost:$targetPort",
+            enabled = true,
+            mockApis = mutableListOf()
+        )
+
+        val root = configService.getRootConfig()
+        root.proxyGroups.add(config)
+        configService.saveRootConfig(root)
+        mockServerService.startServer(config.id)
+
+        val url = URI("http://localhost:19033$forwardPath").toURL()
+        val conn = url.openConnection() as HttpURLConnection
+        // HttpURLConnection 不支持 PATCH，使用 POST 并通过 Header 模拟覆盖
+        conn.requestMethod = "POST"
+        conn.setRequestProperty("X-HTTP-Method-Override", "PATCH")
+        conn.doOutput = true
+        val payload = "{\"a\":1}"
+        conn.outputStream.use { it.write(payload.toByteArray()) }
+
+        val code = conn.responseCode
+        val echoed = conn.inputStream.bufferedReader().readText()
+        assertEquals(202, code)
+        assertEquals(payload, echoed)
+    }
 }
