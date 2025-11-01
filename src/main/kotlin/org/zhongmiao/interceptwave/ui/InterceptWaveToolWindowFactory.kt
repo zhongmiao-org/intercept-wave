@@ -16,6 +16,7 @@ import java.awt.BorderLayout
 import javax.swing.SwingUtilities
 import javax.swing.*
 
+@Suppress("unused")
 class InterceptWaveToolWindow(private val project: Project) {
 
         private val mockServerService = project.service<MockServerService>()
@@ -54,6 +55,7 @@ class InterceptWaveToolWindow(private val project: Project) {
             })
         }
 
+        @Suppress("unused")
         fun getContent(): JComponent {
             val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
             panel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
