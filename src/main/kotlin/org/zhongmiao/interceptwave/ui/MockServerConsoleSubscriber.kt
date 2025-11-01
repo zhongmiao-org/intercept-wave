@@ -40,7 +40,8 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
     private fun handle(event: MockServerEvent) {
         when (event) {
             is ServerStarting -> {
-                console.showConsole()
+                // 展示 Console，但不附加进程，避免单个服务启动失败时激活 Stop 按钮
+                console.showConsole(attachProcess = false)
                 console.printSeparator()
                 console.printInfo(message("console.starting", event.name))
                 console.printInfo(message("console.port", event.port))
@@ -55,6 +56,8 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 }
             }
             is ServerStarted -> {
+                // 当至少一个服务成功启动时，确保附加进程，激活 Stop 按钮
+                console.ensureProcessAttached()
                 console.printSuccess(message("console.started", event.name))
                 console.printSuccess(message("console.access.url", event.url))
                 // 输出 Mock 接口启用情况
@@ -69,6 +72,8 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 console.printSeparator()
             }
             is ServerStartFailed -> {
+                // 失败也需激活 Run 窗口以提示用户，但不附加进程，避免误激活 Stop
+                console.showConsole(attachProcess = false)
                 console.printError(message("console.start.failed.reason", event.reason ?: "Unknown"))
             }
             is ServerStopped -> {
@@ -86,7 +91,8 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 }
             }
             is AllServersStarting -> {
-                console.showConsole()
+                // 批量启动时先展示 Console，不附加进程
+                console.showConsole(attachProcess = false)
                 // 不再清空，确保多服务并发启动时日志按序追加
                 console.printInfo(message("console.startall"))
             }
@@ -94,6 +100,10 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 console.printSeparator()
                 console.printInfo(message("console.startall.done", event.success, event.total))
                 console.printSeparator()
+                // 至少有 1 个成功时，再附加进程，激活 Stop 按钮
+                if (event.success > 0) {
+                    console.ensureProcessAttached()
+                }
             }
             is AllServersStopped -> {
                 console.printInfo(message("console.allstopped"))

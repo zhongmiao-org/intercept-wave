@@ -249,7 +249,6 @@ class ProxyGroupTabPanel(
 ) {
     private val mockServerService = project.service<MockServerService>()
     private val configService = project.service<ConfigService>()
-    private val consoleService = project.service<ConsoleService>()
 
     private val statusLabel = JBLabel(message("toolwindow.status.stopped"))
     private val urlLabel = JBLabel("")
@@ -411,8 +410,6 @@ class ProxyGroupTabPanel(
      */
     private fun startServer() {
         try {
-            // 先确保唤起 Run 窗口，避免首次订阅者尚未就绪导致不显示
-            consoleService.showConsole()
             val success = mockServerService.startServer(configId)
             if (success) {
                 val url = mockServerService.getServerUrl(configId)

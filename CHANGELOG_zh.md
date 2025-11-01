@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+### 🐛 修复
+
+- Run 窗口 Stop 按钮的激活逻辑
+  - 单个启动失败（如端口占用）时不再激活 IDE 的 Stop 按钮。
+  - 仅当至少有一个服务成功启动（包括批量启动）时才激活 Stop。
+  - 通过延迟绑定 ProcessHandler 实现：在“启动中”事件仅显示 Console（不附加进程），在 `ServerStarted` 或 `AllServersStarted(success > 0)` 时才附加；当无运行服务时主动终止虚拟进程以禁用 Stop。
+
+### 🔄 变更
+
+- 工具窗口工厂重构，降低 Plugin Verifier 噪音
+  - 新增轻量 Java 适配器 `IWToolWindowFactory`（实现 `ToolWindowFactory, DumbAware`），避免 Kotlin 实现接口产生的桥接方法被识别为 deprecated/experimental/internal API 使用。
+  - 更新 `plugin.xml` 使用新的工厂类，并移除已废弃的 `doNotActivateOnStart` 属性（`anchor`/`icon` 仍保持声明式配置）。
+  - 针对目标 IDE 的验证结果保持 Compatible。
+
 ## [3.0.0]
 ### ✨ 新增
 - 🏠 前缀欢迎页：当 `stripPrefix=true` 时，访问 `/<interceptPrefix>` 与 `/<interceptPrefix>/` 会返回与根路径 `/` 相同的欢迎页 JSON，仅展示已启用的 Mock 接口，并附带可直接访问的示例链接。（MockServerService）

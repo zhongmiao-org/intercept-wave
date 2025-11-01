@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- Stop button activation logic in Run tool window
+  - Single start failure (e.g., port in use) no longer enables the IDE Stop button.
+  - Stop is enabled only after at least one server starts successfully (including bulk starts).
+  - Implemented by lazy ProcessHandler binding: show console without attaching on Starting events, attach on `ServerStarted` or `AllServersStarted(success > 0)`. When no servers are running, the virtual process is terminated to disable Stop.
+
+### 🔄 Changed
+
+- Tool window factory refactor to reduce Plugin Verifier noise
+  - Introduced a thin Java adapter `IWToolWindowFactory` implementing `ToolWindowFactory, DumbAware` to avoid Kotlin interface bridge methods that were reported as deprecated/experimental/internal API usages.
+  - Updated `plugin.xml` to use the new factory class and removed deprecated `doNotActivateOnStart` attribute (kept `anchor`/`icon` declarative).
+  - Verification still reports as Compatible for target IDEs.
+
 ## [3.0.0] - 2025-10-31
 
 ### ✨ Added
