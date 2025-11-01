@@ -1,4 +1,4 @@
-<div  style="text-align: center;">
+<div align="center">
   <img src="src/main/resources/META-INF/pluginIcon.svg" alt="Intercept Wave Logo" width="128" height="128">
 
   # Intercept Wave for IntelliJ IDEA
