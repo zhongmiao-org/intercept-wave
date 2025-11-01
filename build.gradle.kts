@@ -89,14 +89,26 @@ dependencies {
     intellijPlatform {
         create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
 
-        // Plugin Dependencies. Uses `platformBundledPlugins` property from the gradle.properties file for bundled IntelliJ Platform plugins.
-        bundledPlugins(providers.gradleProperty("platformBundledPlugins").map { it.split(',') })
+        // Plugin Dependencies. Optional lists backed by gradle.properties; default to empty when not provided
+        bundledPlugins(
+            providers.gradleProperty("platformBundledPlugins")
+                .map { it.split(',').map(String::trim).filter(String::isNotBlank) }
+                .orElse(emptyList())
+        )
 
-        // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file for plugin from JetBrains Marketplace.
-        plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
+        // Marketplace plugin dependencies (optional)
+        plugins(
+            providers.gradleProperty("platformPlugins")
+                .map { it.split(',').map(String::trim).filter(String::isNotBlank) }
+                .orElse(emptyList())
+        )
 
-        // Module Dependencies. Uses `platformBundledModules` property from the gradle.properties file for bundled IntelliJ Platform modules.
-        bundledModules(providers.gradleProperty("platformBundledModules").map { it.split(',') })
+        // Bundled modules (optional)
+        bundledModules(
+            providers.gradleProperty("platformBundledModules")
+                .map { it.split(',').map(String::trim).filter(String::isNotBlank) }
+                .orElse(emptyList())
+        )
 
         testFramework(TestFrameworkType.Platform)
     }

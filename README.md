@@ -66,6 +66,15 @@ Intercept Wave provides the following core functionalities:
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
 <!-- Plugin description end -->
 
+## Compatibility & Dependencies
+
+- IDEs: IntelliJ IDEA Community/Ultimate 2024.1+ (build ≥ 251)
+- JRE: Java 21 (verified with 21.0.8)
+- IntelliJ modules: `com.intellij.modules.platform` (no extra plugins required)
+- Marketplace plugin deps: none
+- Verified against: IU-253.27864.23 (Plugin Verifier recommended set)
+- Dynamic load/unload: supported (no IDE restart needed)
+
 ## Installation
 
 ### Using IDE Built-in Plugin System
