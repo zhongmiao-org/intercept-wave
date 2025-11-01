@@ -57,7 +57,7 @@ class ConsoleService(private val project: Project) {
      * 用于当所有服务停止时，主动结束“运行中”状态。
      */
     fun terminateConsoleProcess() {
-        if (Env.isUnitTestMode()) return
+        if (Env.isNoUi()) return
         if (stopActionInProgress) return
         val ph = processHandler
         if (ph != null && !ph.isProcessTerminated) {
@@ -129,8 +129,8 @@ class ConsoleService(private val project: Project) {
      * 显示Console窗口（使用IDEA原生Run工具窗口）
      */
     fun showConsole() {
-        // 单元测试模式下不创建 UI 组件，避免 Editor 资源泄漏
-        if (Env.isUnitTestMode()) return
+        // 无 UI 环境下不创建 UI 组件，避免资源泄漏
+        if (Env.isNoUi()) return
 
         // 若 Run 标签被关闭或首次打开，重建 Console 与 Descriptor
         val needRecreate = consoleView == null || (contentDescriptor?.component?.isDisplayable != true)
@@ -165,7 +165,7 @@ class ConsoleService(private val project: Project) {
      * 打印信息日志
      */
     fun printInfo(message: String) {
-        if (Env.isUnitTestMode()) {
+        if (Env.isNoUi()) {
             thisLogger().info(message)
             return
         }
@@ -180,7 +180,7 @@ class ConsoleService(private val project: Project) {
      * 打印成功日志（绿色）
      */
     fun printSuccess(message: String) {
-        if (Env.isUnitTestMode()) {
+        if (Env.isNoUi()) {
             thisLogger().info("SUCCESS: $message")
             return
         }
@@ -195,7 +195,7 @@ class ConsoleService(private val project: Project) {
      * 打印警告日志（黄色）
      */
     fun printWarning(message: String) {
-        if (Env.isUnitTestMode()) {
+        if (Env.isNoUi()) {
             thisLogger().warn(message)
             return
         }
@@ -210,7 +210,7 @@ class ConsoleService(private val project: Project) {
      * 打印错误日志（红色）
      */
     fun printError(message: String) {
-        if (Env.isUnitTestMode()) {
+        if (Env.isNoUi()) {
             // 避免 TestLogger 在单测中因 error 级别抛出断言
             thisLogger().warn("ERROR: $message")
             return
@@ -225,7 +225,7 @@ class ConsoleService(private val project: Project) {
      * 打印调试日志（灰色）
      */
     fun printDebug(message: String) {
-        if (Env.isUnitTestMode()) {
+        if (Env.isNoUi()) {
             thisLogger().debug(message)
             return
         }
@@ -240,7 +240,7 @@ class ConsoleService(private val project: Project) {
      * 清空Console
      */
     fun clear() {
-        if (Env.isUnitTestMode()) return
+        if (Env.isNoUi()) return
         consoleView?.clear()
     }
 
@@ -248,7 +248,7 @@ class ConsoleService(private val project: Project) {
      * 打印分隔线
      */
     fun printSeparator() {
-        if (Env.isUnitTestMode()) return
+        if (Env.isNoUi()) return
         val console = getOrCreateConsole()
         // 分隔符使用弱化颜色
         console.print("${"=".repeat(80)}\n", tsType)

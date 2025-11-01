@@ -89,7 +89,7 @@ class ConfigService(private val project: Project) {
                 withVersion
             }
         } catch (e: Exception) {
-            if (Env.isUnitTestMode()) {
+            if (Env.isNoUi()) {
                 thisLogger().warn("Failed to load config", e)
             } else {
                 thisLogger().error("Failed to load config", e)
@@ -185,27 +185,31 @@ class ConfigService(private val project: Project) {
             saveRootConfig(newConfig)
             thisLogger().info("Config migrated from v1.0 to v2.0 successfully")
 
-            // 通知用户（在单测或缺少 UI 环境时静默忽略，不影响迁移结果）
-            runCatching {
-                NotificationGroupManager.getInstance()
-                    .getNotificationGroup("InterceptWave")
-                    .createNotification(
-                        message("config.migration.title"),
-                        message("config.migration.message"),
-                        NotificationType.INFORMATION
-                    )
-                    .notify(project)
-            }.onFailure { t ->
-                if (Env.isUnitTestMode()) {
-                    thisLogger().info("Skip showing migration notification in tests: ${t.message}")
-                } else {
-                    thisLogger().warn("Failed to show migration notification: ${t.message}")
+            // 通知用户：在无 UI 或 CI 环境跳过，仅记录日志
+            if (!Env.isNoUi()) {
+                runCatching {
+                    NotificationGroupManager.getInstance()
+                        .getNotificationGroup("InterceptWave")
+                        .createNotification(
+                            message("config.migration.title"),
+                            message("config.migration.message"),
+                            NotificationType.INFORMATION
+                        )
+                        .notify(project)
+                }.onFailure { t ->
+                    if (Env.isNoUi()) {
+                        thisLogger().info("Skip showing migration notification in tests: ${t.message}")
+                    } else {
+                        thisLogger().warn("Failed to show migration notification: ${t.message}")
+                    }
                 }
+            } else {
+                thisLogger().info("Skip migration notification in headless/CI environment")
             }
 
             return newConfig
         } catch (e: Exception) {
-            if (Env.isUnitTestMode()) {
+            if (Env.isNoUi()) {
                 thisLogger().warn("Failed to migrate config from v1.0", e)
             } else {
                 thisLogger().error("Failed to migrate config from v1.0", e)
@@ -256,7 +260,7 @@ class ConfigService(private val project: Project) {
             rootConfig = versioned
             thisLogger().info("Root config saved successfully")
         } catch (e: Exception) {
-            if (Env.isUnitTestMode()) {
+            if (Env.isNoUi()) {
                 thisLogger().warn("Failed to save root config", e)
             } else {
                 thisLogger().error("Failed to save root config", e)

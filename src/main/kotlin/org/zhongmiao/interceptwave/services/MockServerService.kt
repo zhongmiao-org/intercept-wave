@@ -399,8 +399,8 @@ class MockServerService(private val project: Project) {
 
             // 在单元测试模式下，默认不进行真实转发，避免连接被拒绝导致的错误日志
             // 如需在测试中允许真实转发，可设置 -Dinterceptwave.allowForwardInTests=true
-            if (Env.isUnitTestMode() && System.getProperty("interceptwave.allowForwardInTests") != "true") {
-                sendErrorResponse(exchange, 502, "Forwarding disabled in tests: $targetUrl")
+            if (Env.isNoUi() && System.getProperty("interceptwave.allowForwardInTests") != "true") {
+                sendErrorResponse(exchange, 502, "Forwarding disabled in tests/headless/CI: $targetUrl")
                 return
             }
 
@@ -478,7 +478,7 @@ class MockServerService(private val project: Project) {
     }
 
     private fun logForwardError(t: Throwable) {
-        if (Env.isUnitTestMode()) {
+        if (Env.isNoUi()) {
             thisLogger().warn("Error forwarding request", t)
         } else {
             thisLogger().error("Error forwarding request", t)

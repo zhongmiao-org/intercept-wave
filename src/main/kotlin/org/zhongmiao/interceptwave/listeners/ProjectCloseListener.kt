@@ -5,6 +5,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManagerListener
+import org.zhongmiao.interceptwave.util.Env
 
 /**
  * 项目关闭监听器
@@ -21,7 +22,11 @@ class ProjectCloseListener : ProjectManagerListener {
                 mockServerService.stopAllServers()
             }
         } catch (e: Exception) {
-            thisLogger().error("Error stopping mock servers on project close", e)
+            if (Env.isNoUi()) {
+                thisLogger().warn("Error stopping mock servers on project close", e)
+            } else {
+                thisLogger().error("Error stopping mock servers on project close", e)
+            }
         }
     }
 }
