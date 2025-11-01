@@ -3,7 +3,6 @@ package org.zhongmiao.interceptwave.services
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.events.*
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
@@ -11,6 +10,7 @@ import com.intellij.openapi.project.Project
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.util.Env
 import java.net.BindException
 import java.net.InetSocketAddress
 import java.net.URI
@@ -399,8 +399,8 @@ class MockServerService(private val project: Project) {
 
             // 在单元测试模式下，默认不进行真实转发，避免连接被拒绝导致的错误日志
             // 如需在测试中允许真实转发，可设置 -Dinterceptwave.allowForwardInTests=true
-            if (isUnitTestMode() && System.getProperty("interceptwave.allowForwardInTests") != "true") {
-                sendErrorResponse(exchange, 502, "Forwarding disabled in tests: $targetUrl")
+            if (Env.isNoUi() && System.getProperty("interceptwave.allowForwardInTests") != "true") {
+                sendErrorResponse(exchange, 502, "Forwarding disabled in tests/headless/CI: $targetUrl")
                 return
             }
 
@@ -477,14 +477,8 @@ class MockServerService(private val project: Project) {
         }
     }
 
-    private fun isUnitTestMode(): Boolean = try {
-        ApplicationManager.getApplication()?.isUnitTestMode == true
-    } catch (_: Throwable) {
-        false
-    }
-
     private fun logForwardError(t: Throwable) {
-        if (isUnitTestMode()) {
+        if (Env.isNoUi()) {
             thisLogger().warn("Error forwarding request", t)
         } else {
             thisLogger().error("Error forwarding request", t)
