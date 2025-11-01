@@ -10,7 +10,6 @@ import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.icons.AllIcons
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
@@ -19,6 +18,7 @@ import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.ui.JBColor
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.util.Env
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.io.OutputStream
@@ -57,7 +57,7 @@ class ConsoleService(private val project: Project) {
      * 用于当所有服务停止时，主动结束“运行中”状态。
      */
     fun terminateConsoleProcess() {
-        if (isUnitTestMode()) return
+        if (Env.isUnitTestMode()) return
         if (stopActionInProgress) return
         val ph = processHandler
         if (ph != null && !ph.isProcessTerminated) {
@@ -130,7 +130,7 @@ class ConsoleService(private val project: Project) {
      */
     fun showConsole() {
         // 单元测试模式下不创建 UI 组件，避免 Editor 资源泄漏
-        if (isUnitTestMode()) return
+        if (Env.isUnitTestMode()) return
 
         // 若 Run 标签被关闭或首次打开，重建 Console 与 Descriptor
         val needRecreate = consoleView == null || (contentDescriptor?.component?.isDisplayable != true)
@@ -165,7 +165,7 @@ class ConsoleService(private val project: Project) {
      * 打印信息日志
      */
     fun printInfo(message: String) {
-        if (isUnitTestMode()) {
+        if (Env.isUnitTestMode()) {
             thisLogger().info(message)
             return
         }
@@ -180,7 +180,7 @@ class ConsoleService(private val project: Project) {
      * 打印成功日志（绿色）
      */
     fun printSuccess(message: String) {
-        if (isUnitTestMode()) {
+        if (Env.isUnitTestMode()) {
             thisLogger().info("SUCCESS: $message")
             return
         }
@@ -195,7 +195,7 @@ class ConsoleService(private val project: Project) {
      * 打印警告日志（黄色）
      */
     fun printWarning(message: String) {
-        if (isUnitTestMode()) {
+        if (Env.isUnitTestMode()) {
             thisLogger().warn(message)
             return
         }
@@ -210,7 +210,7 @@ class ConsoleService(private val project: Project) {
      * 打印错误日志（红色）
      */
     fun printError(message: String) {
-        if (isUnitTestMode()) {
+        if (Env.isUnitTestMode()) {
             // 避免 TestLogger 在单测中因 error 级别抛出断言
             thisLogger().warn("ERROR: $message")
             return
@@ -225,7 +225,7 @@ class ConsoleService(private val project: Project) {
      * 打印调试日志（灰色）
      */
     fun printDebug(message: String) {
-        if (isUnitTestMode()) {
+        if (Env.isUnitTestMode()) {
             thisLogger().debug(message)
             return
         }
@@ -240,7 +240,7 @@ class ConsoleService(private val project: Project) {
      * 清空Console
      */
     fun clear() {
-        if (isUnitTestMode()) return
+        if (Env.isUnitTestMode()) return
         consoleView?.clear()
     }
 
@@ -248,15 +248,10 @@ class ConsoleService(private val project: Project) {
      * 打印分隔线
      */
     fun printSeparator() {
-        if (isUnitTestMode()) return
+        if (Env.isUnitTestMode()) return
         val console = getOrCreateConsole()
         // 分隔符使用弱化颜色
         console.print("${"=".repeat(80)}\n", tsType)
     }
 
-    private fun isUnitTestMode(): Boolean = try {
-        ApplicationManager.getApplication()?.isUnitTestMode == true
-    } catch (_: Throwable) {
-        false
-    }
 }
