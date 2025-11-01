@@ -8,16 +8,12 @@ import org.zhongmiao.interceptwave.events.*
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.wm.ToolWindow
-import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
-import com.intellij.ui.content.ContentFactory
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
@@ -25,17 +21,7 @@ import java.awt.GridBagLayout
 import javax.swing.SwingUtilities
 import javax.swing.*
 
-class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
-
-    override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val toolWindowPanel = InterceptWaveToolWindow(project)
-        val content = ContentFactory.getInstance().createContent(toolWindowPanel.getContent(), null, false)
-        toolWindow.contentManager.addContent(content)
-    }
-
-    override fun shouldBeAvailable(project: Project) = true
-
-    class InterceptWaveToolWindow(private val project: Project) {
+class InterceptWaveToolWindow(private val project: Project) {
 
         private val mockServerService = project.service<MockServerService>()
         private val consoleService = project.service<ConsoleService>()
@@ -248,7 +234,6 @@ class InterceptWaveToolWindowFactory : ToolWindowFactory, DumbAware {
                 refreshAllTabs()
             }
         }
-    }
 }
 
 /**
