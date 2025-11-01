@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [3.0.1] - 2025-11-01
+
 ### 🐛 Fixed
 
 - Stop button activation logic in Run tool window
@@ -257,7 +259,8 @@
 - Support for custom Mock data responses
 - Provided visual configuration interface
 
-[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.2.1...v3.0.0
 [2.2.1]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.1.0...v2.2.0
