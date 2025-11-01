@@ -85,8 +85,10 @@ class ConsoleService(private val project: Project) {
     /**
      * 确保 Console 绑定了一个 ProcessHandler，并处于“运行中”状态。
      * 未绑定或已结束时，创建一个轻量的虚拟进程并 startNotify()。
+     * 注意：公开此方法以便在确有至少一个服务成功启动时再激活 Stop 按钮。
      */
-    private fun ensureProcessAttached(console: ConsoleView) {
+    fun ensureProcessAttached() {
+        val console = getOrCreateConsole()
         val needNew = processHandler == null || processHandler!!.isProcessTerminated
         if (needNew) {
             processHandler = object : ProcessHandler() {
@@ -128,7 +130,7 @@ class ConsoleService(private val project: Project) {
     /**
      * 显示Console窗口（使用IDEA原生Run工具窗口）
      */
-    fun showConsole() {
+    fun showConsole(attachProcess: Boolean = false) {
         // 无 UI 环境下不创建 UI 组件，避免资源泄漏
         if (Env.isNoUi()) return
 
@@ -146,8 +148,10 @@ class ConsoleService(private val project: Project) {
             )
         }
 
-        // 关键：确保绑定 ProcessHandler，避免 Run 控制台被判定为已结束而整屏绿色
-        ensureProcessAttached(consoleView!!)
+        // 仅在需要时才绑定 ProcessHandler，从而避免单个服务启动失败时误激活 Stop 按钮
+        if (attachProcess) {
+            ensureProcessAttached()
+        }
 
         // 如果内容未显示（或被关闭），重新添加
         if (contentDescriptor?.component?.isDisplayable != true) {
