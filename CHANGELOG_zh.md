@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+### 🐛 修复
+
+- 启动时注册通知分组缺少资源键导致报错
+  - 在 `messages/InterceptWaveBundle.properties` 与 `_zh_CN.properties` 中补充 `notification.group.interceptwave`。
+- `plugin.xml` 引用了但缺失的工具窗口工厂实现
+  - 新增 `org.zhongmiao.interceptwave.ui.IWToolWindowFactory`，将 `InterceptWaveToolWindow` 正确挂载到工具窗口。
+
 ## [3.0.1]
 
 ### 🐛 修复
