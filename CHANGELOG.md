@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- Startup error due to missing resource key for Notification Group
+
 ## [3.0.1] - 2025-11-01
 
 ### 🐛 Fixed

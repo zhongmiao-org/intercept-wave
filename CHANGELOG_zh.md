@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### 🐛 修复
+
+- 启动时注册通知分组缺少资源键导致报错
+  - 在 `messages/InterceptWaveBundle.properties` 与 `_zh_CN.properties` 中补充 `notification.group.interceptwave`。
+
 ## [3.0.1]
 
 ### 🐛 修复
