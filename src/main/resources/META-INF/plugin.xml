@@ -2,8 +2,7 @@
 <idea-plugin>
     <id>org.zhongmiao.interceptwave</id>
     <name>Intercept Wave</name>
-    <vendor url="https://github.com/zhongmiao-org/intercept-wave">zhongmiao</vendor>
-    <idea-version since-build="251"/>
+    <vendor>zhongmiao</vendor>
     <resource-bundle>messages.InterceptWaveBundle</resource-bundle>
 
     <depends>com.intellij.modules.platform</depends>
@@ -22,12 +21,6 @@
         <!-- Run after project is opened (replacement for deprecated ProjectManagerListener#projectOpened) -->
         <postStartupActivity implementation="org.zhongmiao.interceptwave.startup.ConsoleSubscriberStartupActivity"/>
     </extensions>
-
-    <applicationListeners>
-        <!-- Ensure resources are cleaned up on dynamic unload -->
-        <listener class="org.zhongmiao.interceptwave.listeners.PluginUnloadListener"
-                  topic="com.intellij.ide.plugins.DynamicPluginListener"/>
-    </applicationListeners>
 
     <projectListeners>
         <listener class="org.zhongmiao.interceptwave.listeners.ProjectCloseListener"
