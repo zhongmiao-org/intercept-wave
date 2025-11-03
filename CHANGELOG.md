@@ -9,9 +9,6 @@
 ### 🐛 Fixed
 
 - Startup error due to missing resource key for Notification Group
-  - Added `notification.group.interceptwave` to `messages/InterceptWaveBundle.properties` and `_zh_CN.properties`.
-- Missing tool window factory implementation referenced by plugin.xml
-  - Added `org.zhongmiao.interceptwave.ui.IWToolWindowFactory` that wires `InterceptWaveToolWindow` into the Tool Window.
 
 ## [3.0.1] - 2025-11-01
 
