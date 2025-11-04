@@ -78,7 +78,7 @@ dependencies {
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.0.0")
 
     // JUnit Platform Launcher (required for test execution)
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.1")
 
     // UI Testing with Remote Robot
     testImplementation("com.intellij.remoterobot:remote-robot:0.11.23")
