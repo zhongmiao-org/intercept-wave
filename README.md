@@ -17,7 +17,7 @@
 
 Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It can intelligently intercept HTTP requests, either returning custom mock data or acting as a proxy server to forward real requests to the original server.
 
-### ✨ v2.0 New Features: Multi-Service Proxy
+### ✨ Multi-Service Proxy
 
 - 📑 **Tab-based Interface**: Manage multiple proxy configuration groups in separate tabs
 - 🚀 **Multiple Proxy Groups**: Run multiple mock services simultaneously, each on its own port
@@ -66,6 +66,11 @@ Intercept Wave provides the following core functionalities:
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
 <!-- Plugin description end -->
 
+### What's New in v3.0
+
+- Config version now aligns with the plugin major.minor (e.g., 3.0). Existing v2.x configs load seamlessly and are saved with `"version": "3.0"` automatically — no manual migration needed.
+- Mock JSON normalization and minification: mockData accepts single quotes, comments, unquoted keys, and trailing commas, and is saved as compact JSON. Use "Format JSON" to pretty print when editing.
+
 ## Installation
 
 ### Using IDE Built-in Plugin System
@@ -92,7 +97,7 @@ Download the latest release from [GitHub Releases](https://github.com/zhongmiao-
 2. Click the "Intercept Wave" icon in the left toolbar
 3. The tool window displays all configured proxy groups as tabs
 
-### 2. Manage Configuration Groups (v2.0 New Feature)
+### 2. Manage Configuration Groups
 
 The tool window provides global operations at the top:
 - **Start All**: Start all enabled configuration groups
@@ -187,7 +192,7 @@ After successful service startup:
 
 ## Use Cases
 
-### Case 1: Microservices Development (v2.0 New Feature)
+### Case 1: Microservices Development
 
 Mock multiple microservices simultaneously, each service running on an independent port:
 
@@ -276,11 +281,11 @@ All configurations are saved in the `.intercept-wave` folder in the project root
 └── config.json           # Global configuration and multiple configuration groups
 ```
 
-### config.json Example (v2.0 Format)
+### config.json Example
 
 ```json
 {
-  "version": "2.0",
+  "version": "3.0",
   "proxyGroups": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -328,12 +333,7 @@ All configurations are saved in the `.intercept-wave` folder in the project root
 }
 ```
 
-### Configuration Migration Instructions
-
-**Upgrading from v1.x to v2.0**:
-- Old configuration automatically migrates and is backed up as `config.json.backup`
-- Old configuration is converted to a "Default Config" group in the new structure
-- Migration process is fully automatic, no manual operation required
+ 
 
 ## Advanced Features
 
