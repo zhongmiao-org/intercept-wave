@@ -28,6 +28,7 @@ class MockServerService(private val project: Project) {
     private val serverInstances = ConcurrentHashMap<String, HttpServer>()
     private val serverStatus = ConcurrentHashMap<String, Boolean>()
     private val serverExecutors = ConcurrentHashMap<String, java.util.concurrent.ExecutorService>()
+    private val wsEngines = ConcurrentHashMap<String, org.zhongmiao.interceptwave.services.ws.WsServerEngine>()
 
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
     // 业务输出端口：面向事件发布，不直接依赖任何 UI
@@ -57,12 +58,25 @@ class MockServerService(private val project: Project) {
             return false
         }
 
-        // 分流：WS 组暂提供占位实现（后续引入实际 WS 引擎）
+        // 分流：WS 组使用 WS 引擎
         if (proxyConfig.protocol.equals("WS", ignoreCase = true)) {
+            if (isPortOccupied(proxyConfig.port)) {
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, message("error.port.in.use")))
+                return false
+            }
             output.publish(ServerStarting(configId, proxyConfig.name, proxyConfig.port))
-            // 暂未实现本地 WS 引擎，给出明确提示
-            output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, message("error.ws.not.implemented")))
-            return false
+            val engine = org.zhongmiao.interceptwave.services.ws.WsServerEngine(proxyConfig, output)
+            val ok = engine.start()
+            return if (ok) {
+                wsEngines[configId] = engine
+                serverStatus[configId] = true
+                val urlScheme = if (proxyConfig.wssEnabled) "wss" else "ws"
+                output.publish(ServerStarted(configId, proxyConfig.name, proxyConfig.port, "$urlScheme://localhost:${proxyConfig.port}"))
+                true
+            } else {
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, "WS engine start failed"))
+                false
+            }
         }
 
         return try {
@@ -112,6 +126,16 @@ class MockServerService(private val project: Project) {
         val executor = serverExecutors[configId]
         val proxyConfig = configService.getProxyGroup(configId)
         val configName = proxyConfig?.name ?: configId
+
+        val ws = wsEngines[configId]
+
+        if (ws != null) {
+            runCatching { ws.stop() }
+            wsEngines.remove(configId)
+            serverStatus.remove(configId)
+            output.publish(ServerStopped(configId, configName, proxyConfig?.port ?: -1))
+            return
+        }
 
         if (server != null) {
             // Stop the HTTP server
@@ -190,7 +214,8 @@ class MockServerService(private val project: Project) {
 
         val config = configService.getProxyGroup(configId) ?: return null
         return if (config.protocol.equals("WS", ignoreCase = true)) {
-            "ws://localhost:${config.port}"
+            val scheme = if (config.wssEnabled) "wss" else "ws"
+            "$scheme://localhost:${config.port}"
         } else {
             "http://localhost:${config.port}"
         }
@@ -204,7 +229,8 @@ class MockServerService(private val project: Project) {
             val config = configService.getProxyGroup(configId)
             if (config != null) {
                 val url = if (config.protocol.equals("WS", ignoreCase = true)) {
-                    "ws://localhost:${config.port}"
+                    val scheme = if (config.wssEnabled) "wss" else "ws"
+                    "$scheme://localhost:${config.port}"
                 } else {
                     "http://localhost:${config.port}"
                 }
@@ -223,11 +249,13 @@ class MockServerService(private val project: Project) {
     fun sendWsMessage(configId: String, path: String?, message: String, target: String = "MATCH") {
         val cfg = configService.getProxyGroup(configId) ?: return
         if (!cfg.protocol.equals("WS", ignoreCase = true)) return
-        // 发布出站消息事件（简要）
-        val preview = message.take(512)
-        output.publish(WebSocketMessageOut(configId, cfg.name, path ?: "", message.toByteArray().size, true, preview))
-        // 占位提示（包含目标信息，避免未使用参数告警）
-        output.publish(ErrorOccurred(configId, cfg.name, message("error.ws.send.placeholder"), "target=$target"))
+        val engine = wsEngines[configId]
+        if (engine != null) {
+            engine.send(target, path, message)
+        } else {
+            // 兜底：尚未启动，打印提示
+            output.publish(ErrorOccurred(configId, cfg.name, message("error.ws.send.placeholder")))
+        }
     }
 
     /**

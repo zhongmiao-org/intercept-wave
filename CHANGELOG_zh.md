@@ -8,22 +8,28 @@
 
 ### ✨ 新增
 
-- WebSocket 组基础能力（当前仅 UI/模型/事件，占位实现，暂未引入运行时 WS 引擎）：
+- WebSocket 引擎集成（Java‑WebSocket）与上游转发：
+  - 本地 WS 监听（组内单端口）；可选本地 WSS(TLS) 监听（PKCS#12 keystore）。
+  - 上游转发到 `ws://`/`wss://`，基于 JDK `java.net.http.WebSocket`。
+  - 连接级自动推送：`periodic`（秒级，支持 `onOpenFire`）与 `timeline`（毫秒级，支持 `loop`）。
+  - 工具窗口手动推送（目标：匹配/全部/最近）；手动推送会重置周期任务计时。
+  - 控制台事件：WS 握手/连接/关闭/错误、入站/出站消息、Mock 推送（摘要）。
+- WS 配置与 UI
   - 配置对话框新增“组类型”（HTTP | WS）。
-  - WS 设置面板：`wsBaseUrl`、可选 WS 前缀、启用“手动推送面板”开关。
-- WS 路由/事件匹配的推送规则：模式 `off | periodic | timeline`，`periodSec` 秒级间隔、`message`，时间轴 `atMs/loop/onOpenFire`；新增 `eventKey`（默认 `action`）与 `eventValue` 匹配，以及 `direction`（in/out/both）。
-  - 新数据类：`WsPushRule`、`WsTimelineItem`；`ProxyConfig` 扩展 `protocol`、`wsBaseUrl`、`wsInterceptPrefix`、`wsManualPush`、`wsPushRules`。
-  - 工具窗口 WS 推送面板：规则表 + “发送选中”按钮，自定义发送区域（目标：匹配/全部/最近连接）。
-  - 控制台 WS 事件：Connecting/Connected/Closed/Error 与 Message In/Out/MockPushed（仅摘要）。
-  - 新增中英文本地化文案。
+  - WS 设置：`wsBaseUrl`、可选 WS 前缀、手动推送开关。
+  - WSS 设置：`wssEnabled`、`wssKeystorePath`、`wssKeystorePassword`。
+  - WS 规则（路由/事件匹配）：模式 `off | periodic | timeline`，`periodSec`、`message`、`timeline(atMs/loop/onOpenFire)`、`eventKey`（默认 `action`）、`eventValue`、`direction(in/out/both)`。
+  - 工具窗口 WS 推送面板：规则表（“发送选中”）+ 自定义发送区域（匹配/全部/最近）。
+- 新增中英文本地化文案。
 
 ### 🔄 变更
 
-- 配置服务对 WS 模板与时间轴的 JSON 进行尽力归一化/最小化（非严格 JSON 保留原样），同时保留对 HTTP Mock JSON 的归一化逻辑。
+- 配置服务继续对 HTTP Mock JSON 做归一化，同时对 WS 模板/时间轴 JSON 做“尽力归一化+最小化”（非严格 JSON 原样保留）。
+- 当组类型为 WS 时，在配置对话框和工具窗口隐藏 HTTP 专有字段（拦截前缀、目标地址、剥离前缀、全局 Cookie，以及 HTTP Mock 列表）。
 
-### ⚠️ 说明
+### 📦 依赖
 
-- 本次尚未集成实际 WS 引擎：启动 WS 组会提示“尚未实现”。上游 https/wss 能力按后续集成规划预留，当前版本聚焦 UI/模型/事件与手动发送占位。
+- 新增本地 WS/WSS 引擎依赖：`org.java-websocket:Java-WebSocket:1.5.6`。
 
 ## [3.0.2]
 

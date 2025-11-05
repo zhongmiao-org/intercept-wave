@@ -184,25 +184,26 @@ class ProxyGroupTabPanel(
         val info = buildString {
             appendLine(message("toolwindow.config.name", config.name))
             appendLine(message("toolwindow.config.port", "${config.port}"))
-            appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
-            appendLine(message("toolwindow.config.baseurl", config.baseUrl))
-            appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
-            appendLine(message("toolwindow.config.cookie", config.globalCookie.ifEmpty { message("toolwindow.notset") }))
             if (config.protocol == "WS") {
                 appendLine()
                 appendLine(message("toolwindow.ws.title"))
                 appendLine(message("toolwindow.ws.baseurl", config.wsBaseUrl ?: message("toolwindow.notset")))
                 appendLine(message("toolwindow.ws.prefix", (config.wsInterceptPrefix ?: config.interceptPrefix)))
                 appendLine(message("toolwindow.ws.manualpush", if (config.wsManualPush) message("toolwindow.yes") else message("toolwindow.no")))
-            }
-            appendLine()
-            appendLine(message("toolwindow.config.mocklist"))
-            if (config.mockApis.isEmpty()) {
-                appendLine(message("toolwindow.config.nomock"))
             } else {
-                config.mockApis.forEach { api ->
-                    val status = if (api.enabled) "✓" else "✗"
-                    appendLine("  $status ${api.method.padEnd(6)} ${api.path}")
+                appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
+                appendLine(message("toolwindow.config.baseurl", config.baseUrl))
+                appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
+                appendLine(message("toolwindow.config.cookie", config.globalCookie.ifEmpty { message("toolwindow.notset") }))
+                appendLine()
+                appendLine(message("toolwindow.config.mocklist"))
+                if (config.mockApis.isEmpty()) {
+                    appendLine(message("toolwindow.config.nomock"))
+                } else {
+                    config.mockApis.forEach { api ->
+                        val status = if (api.enabled) "✓" else "✗"
+                        appendLine("  $status ${api.method.padEnd(6)} ${api.path}")
+                    }
                 }
             }
         }

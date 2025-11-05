@@ -268,6 +268,11 @@ class ProxyConfigPanel(
     private val globalCookieField = JBTextField(initialConfig.globalCookie)
     private val enabledCheckbox = JBCheckBox(message("config.group.enabled"), initialConfig.enabled)
 
+    // Labels kept as fields to toggle visibility for WS protocol
+    private val prefixLabel = JBLabel(message("config.group.prefix") + ":")
+    private val baseUrlLabel = JBLabel(message("config.group.baseurl") + ":")
+    private val cookieLabel = JBLabel(message("config.group.cookie") + ":")
+
     private val tableModel = object : DefaultTableModel(
         arrayOf(
             message("config.table.enabled"),
@@ -290,6 +295,9 @@ class ProxyConfigPanel(
     private val wsBaseUrlField = JBTextField(initialConfig.wsBaseUrl ?: "")
     private val wsPrefixField = JBTextField(initialConfig.wsInterceptPrefix ?: "")
     private val wsManualPushCheck = JBCheckBox(message("config.ws.manualpush"), initialConfig.wsManualPush)
+    private val wssEnabledCheck = JBCheckBox(message("config.ws.wss.enabled"), initialConfig.wssEnabled)
+    private val wssKeystorePathField = JBTextField(initialConfig.wssKeystorePath ?: "")
+    private val wssKeystorePasswordField = JBTextField(initialConfig.wssKeystorePassword ?: "")
 
     private val wsRuleModel = object : DefaultTableModel(
         arrayOf(
@@ -343,11 +351,14 @@ class ProxyConfigPanel(
         (centerCard.layout as CardLayout).show(centerCard, (protocolCombo.selectedItem as String))
         mainPanel.add(centerCard, BorderLayout.CENTER)
 
-        // 协议切换时联动中部面板
+        // 协议切换时联动中部面板与全局字段可见性
         protocolCombo.addActionListener {
             val sel = protocolCombo.selectedItem as String
             (centerCard.layout as CardLayout).show(centerCard, sel)
+            updateGlobalVisibility()
         }
+        // 初始化一次
+        updateGlobalVisibility()
 
         return mainPanel
     }
@@ -384,14 +395,14 @@ class ProxyConfigPanel(
 
         // 拦截前缀
         gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.group.prefix") + ":"), gbc)
+        panel.add(prefixLabel, gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
         panel.add(interceptPrefixField, gbc)
 
         // 目标地址（HTTP 组）
         gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.group.baseurl") + ":"), gbc)
+        panel.add(baseUrlLabel, gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         panel.add(baseUrlField, gbc)
@@ -403,7 +414,7 @@ class ProxyConfigPanel(
 
         // 全局Cookie
         gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 1; gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.group.cookie") + ":"), gbc)
+        panel.add(cookieLabel, gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         globalCookieField.toolTipText = message("config.group.cookie.tooltip")
         panel.add(globalCookieField, gbc)
@@ -414,6 +425,17 @@ class ProxyConfigPanel(
         panel.add(enabledCheckbox, gbc)
 
         return panel
+    }
+
+    private fun updateGlobalVisibility() {
+        val isWs = (protocolCombo.selectedItem as? String)?.equals("WS", ignoreCase = true) == true
+        prefixLabel.isVisible = !isWs
+        interceptPrefixField.isVisible = !isWs
+        baseUrlLabel.isVisible = !isWs
+        baseUrlField.isVisible = !isWs
+        stripPrefixCheckbox.isVisible = !isWs
+        cookieLabel.isVisible = !isWs
+        globalCookieField.isVisible = !isWs
     }
 
     private fun createMockListPanel(): JBPanel<JBPanel<*>> {
@@ -479,6 +501,24 @@ class ProxyConfigPanel(
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2
         wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
         top.add(wsManualPushCheck, gbc)
+
+        // WSS(TLS)
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2
+        wssEnabledCheck.toolTipText = message("config.ws.wss.enabled.tooltip")
+        top.add(wssEnabledCheck, gbc)
+
+        gbc.gridwidth = 1
+        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0
+        top.add(JBLabel(message("config.ws.wss.keystore") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        wssKeystorePathField.toolTipText = message("config.ws.wss.keystore.tooltip")
+        top.add(wssKeystorePathField, gbc)
+
+        gbc.gridx = 0; gbc.gridy = 5; gbc.weightx = 0.0
+        top.add(JBLabel(message("config.ws.wss.password") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        wssKeystorePasswordField.toolTipText = message("config.ws.wss.password.tooltip")
+        top.add(wssKeystorePasswordField, gbc)
 
         panel.add(top, BorderLayout.NORTH)
 
@@ -647,6 +687,9 @@ class ProxyConfigPanel(
         config.wsBaseUrl = wsBaseUrlField.text.trim().ifEmpty { null }
         config.wsInterceptPrefix = wsPrefixField.text.trim().ifEmpty { null }
         config.wsManualPush = wsManualPushCheck.isSelected
+        config.wssEnabled = wssEnabledCheck.isSelected
+        config.wssKeystorePath = wssKeystorePathField.text.trim().ifEmpty { null }
+        config.wssKeystorePassword = wssKeystorePasswordField.text.trim().ifEmpty { null }
     }
 
     // =========== WS 规则 CRUD ===========

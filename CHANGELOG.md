@@ -8,22 +8,28 @@
 
 ### ✨ Added
 
-- WS groups groundwork with UI and model (no runtime WS engine yet):
+- WebSocket engine integration (Java-WebSocket) with upstream bridging:
+  - Local `ws://` listener per WS group; optional local `wss://` (TLS) via PKCS#12 keystore.
+  - Upstream bridging to `ws://` or `wss://` using JDK `java.net.http.WebSocket`.
+  - Per-connection auto push: `periodic` (sec, optional `onOpenFire`) and `timeline` (ms, optional `loop`).
+  - Manual push from tool window (targets: matching/all/latest). Manual push resets periodic schedule.
+  - WS lifecycle/message events: Connecting/Connected/Closed/Error and Message In/Out/MockPushed (summaries only).
+- WS configuration/UI
   - Group type selector (HTTP | WS) in Config dialog.
-  - New WS settings panel: `wsBaseUrl`, optional WS prefix, manual push toggle.
-  - WS push rules (route/event matcher): modes `off | periodic | timeline`, `periodSec`, `message`, timeline with `atMs/loop/onOpenFire`; add `eventKey` (default `action`) and `eventValue` matching, plus `direction` (in/out/both).
-  - New data classes: `WsPushRule`, `WsTimelineItem`; `ProxyConfig` extended with `protocol`, `wsBaseUrl`, `wsInterceptPrefix`, `wsManualPush`, `wsPushRules`.
-  - Tool window WS panel: rule table + “Send selected” and custom send area (target: matching/all/latest connections).
-  - Console events for WS: Connecting/Connected/Closed/Error and Message In/Out/MockPushed (summaries only).
-  - i18n resources for all new UI and logs (EN/ZH).
+  - WS settings panel: `wsBaseUrl`, optional WS prefix, manual push toggle.
+  - WSS (TLS) settings: `wssEnabled`, `wssKeystorePath`, `wssKeystorePassword`.
+  - WS push rules with route/event matcher: modes `off | periodic | timeline`, fields `periodSec`, `message`, `timeline(atMs/loop/onOpenFire)`, `eventKey` (default `action`), `eventValue`, `direction(in/out/both)`.
+  - Tool window WS panel: rules table (“Send selected”) + custom send area (target: matching/all/latest).
+- i18n resources for all WS UI and logs (EN/ZH).
 
 ### 🔄 Changed
 
-- ConfigService now normalizes/minifies JSON for WS push templates and timelines (best-effort; non-JSON left as-is), in addition to HTTP mock JSON.
+- ConfigService normalizes/minifies JSON for WS templates and timelines (best-effort; non-JSON left as-is), and continues to normalize HTTP mock JSON.
+- Config dialog and tool window now hide HTTP-specific fields when group type is WS (intercept prefix/base URL/strip prefix/global cookie, and HTTP mock list).
 
-### ⚠️ Notes
+### 📦 Dependencies
 
-- WS engine not yet integrated: starting a WS group will emit a clear “not implemented” message. Upstream `https/wss` remains supported conceptually for future integration; current release focuses on UI/model/events and manual send placeholders.
+- Add `org.java-websocket:Java-WebSocket:1.5.6` for the local WS/WSS server engine.
 
 ## [3.0.2] - 2025-11-03
 

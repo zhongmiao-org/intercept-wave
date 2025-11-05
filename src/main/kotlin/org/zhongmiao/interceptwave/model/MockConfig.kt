@@ -71,6 +71,11 @@ data class ProxyConfig(
 
     // WS 推送规则（用于自动推送与手动模板）
     var wsPushRules: MutableList<WsPushRule> = mutableListOf()
+    ,
+    // WSS(TLS) 本地监听支持
+    var wssEnabled: Boolean = false,
+    var wssKeystorePath: String? = null,
+    var wssKeystorePassword: String? = null
 )
 
 /**
