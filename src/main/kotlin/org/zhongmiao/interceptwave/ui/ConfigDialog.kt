@@ -12,6 +12,7 @@ import com.intellij.ui.components.*
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
+import java.awt.CardLayout
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -258,6 +259,7 @@ class ProxyConfigPanel(
     private val project: Project,
     private val initialConfig: ProxyConfig
 ) {
+    private val protocolCombo = ComboBox(arrayOf("HTTP", "WS"))
     private val nameField = JBTextField(initialConfig.name)
     private val portField = JBTextField(initialConfig.port.toString())
     private val interceptPrefixField = JBTextField(initialConfig.interceptPrefix)
@@ -284,8 +286,33 @@ class ProxyConfigPanel(
 
     private val mockTable = JBTable(tableModel)
 
+    // ============== WS 组相关控件 ==============
+    private val wsBaseUrlField = JBTextField(initialConfig.wsBaseUrl ?: "")
+    private val wsPrefixField = JBTextField(initialConfig.wsInterceptPrefix ?: "")
+    private val wsManualPushCheck = JBCheckBox(message("config.ws.manualpush"), initialConfig.wsManualPush)
+
+    private val wsRuleModel = object : DefaultTableModel(
+        arrayOf(
+            message("config.ws.table.enabled"),
+            message("config.ws.table.matcher"),
+            message("config.ws.table.mode"),
+            message("config.ws.table.period")
+        ),
+        0
+    ) {
+        override fun getColumnClass(column: Int): Class<*> {
+            return if (column == 0) java.lang.Boolean::class.java else String::class.java
+        }
+        override fun isCellEditable(row: Int, column: Int): Boolean = false
+    }
+    private val wsRuleTable = JBTable(wsRuleModel)
+
     init {
+        // 初始化协议类型
+        protocolCombo.selectedItem = initialConfig.protocol
+
         loadMockApisToTable()
+        loadWsRulesToTable()
         setupTableEditors()
     }
 
@@ -306,9 +333,21 @@ class ProxyConfigPanel(
         val globalPanel = createGlobalConfigPanel()
         mainPanel.add(globalPanel, BorderLayout.NORTH)
 
-        // 中部：Mock API 列表
-        val mockListPanel = createMockListPanel()
-        mainPanel.add(mockListPanel, BorderLayout.CENTER)
+        // 中部：根据协议类型切换面板
+        val centerCard = JPanel(CardLayout())
+        val httpPanel = createMockListPanel()
+        val wsPanel = createWsPanel()
+        centerCard.add(httpPanel, "HTTP")
+        centerCard.add(wsPanel, "WS")
+        // 初始显示
+        (centerCard.layout as CardLayout).show(centerCard, (protocolCombo.selectedItem as String))
+        mainPanel.add(centerCard, BorderLayout.CENTER)
+
+        // 协议切换时联动中部面板
+        protocolCombo.addActionListener {
+            val sel = protocolCombo.selectedItem as String
+            (centerCard.layout as CardLayout).show(centerCard, sel)
+        }
 
         return mainPanel
     }
@@ -322,48 +361,55 @@ class ProxyConfigPanel(
             insets = JBUI.insets(5)
         }
 
+        // 组类型
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
+        panel.add(JBLabel(message("config.group.protocol") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        panel.add(protocolCombo, gbc)
+
         // 配置组名称
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
+        gbc.gridy = 1
         panel.add(JBLabel(message("config.group.name") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         nameField.toolTipText = message("config.group.name.tooltip")
         panel.add(nameField, gbc)
 
         // 端口
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.port") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         portField.toolTipText = message("config.group.port.tooltip")
         panel.add(portField, gbc)
 
         // 拦截前缀
-        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.prefix") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
         panel.add(interceptPrefixField, gbc)
 
-        // 目标地址
-        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0
+        // 目标地址（HTTP 组）
+        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.baseurl") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         panel.add(baseUrlField, gbc)
 
         // 剥离前缀
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2
         stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
         panel.add(stripPrefixCheckbox, gbc)
 
         // 全局Cookie
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 1; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 1; gbc.weightx = 0.0
         panel.add(JBLabel(message("config.group.cookie") + ":"), gbc)
         gbc.gridx = 1; gbc.weightx = 1.0
         globalCookieField.toolTipText = message("config.group.cookie.tooltip")
         panel.add(globalCookieField, gbc)
 
         // 启用配置组
-        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2
+        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2
         enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
         panel.add(enabledCheckbox, gbc)
 
@@ -405,6 +451,66 @@ class ProxyConfigPanel(
         return panel
     }
 
+    // WS 组：推送规则与上游设置
+    private fun createWsPanel(): JBPanel<JBPanel<*>> {
+        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
+        panel.border = BorderFactory.createTitledBorder(message("config.ws.title"))
+
+        val top = JBPanel<JBPanel<*>>(GridBagLayout())
+        val gbc = GridBagConstraints().apply {
+            fill = GridBagConstraints.HORIZONTAL
+            insets = JBUI.insets(5)
+        }
+        // WS 上游
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
+        top.add(JBLabel(message("config.ws.baseurl") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        wsBaseUrlField.toolTipText = message("config.ws.baseurl.tooltip")
+        top.add(wsBaseUrlField, gbc)
+
+        // WS 前缀
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
+        top.add(JBLabel(message("config.ws.prefix") + ":"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
+        wsPrefixField.toolTipText = message("config.ws.prefix.tooltip")
+        top.add(wsPrefixField, gbc)
+
+        // 手动推送开关
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2
+        wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
+        top.add(wsManualPushCheck, gbc)
+
+        panel.add(top, BorderLayout.NORTH)
+
+        // 规则表格
+        wsRuleTable.fillsViewportHeight = true
+        panel.add(JBScrollPane(wsRuleTable), BorderLayout.CENTER)
+
+        // 操作按钮
+        val btnPanel = JBPanel<JBPanel<*>>()
+        btnPanel.layout = BoxLayout(btnPanel, BoxLayout.X_AXIS)
+        val addBtn = JButton(message("wsrule.add.button"), AllIcons.General.Add)
+        addBtn.isFocusPainted = false
+        addBtn.addActionListener { addWsRule() }
+
+        val editBtn = JButton(message("wsrule.edit.button"), AllIcons.Actions.Edit)
+        editBtn.isFocusPainted = false
+        editBtn.addActionListener { editWsRule() }
+
+        val delBtn = JButton(message("wsrule.delete.button"), AllIcons.General.Remove)
+        delBtn.isFocusPainted = false
+        delBtn.addActionListener { deleteWsRule() }
+
+        btnPanel.add(addBtn)
+        btnPanel.add(Box.createHorizontalStrut(5))
+        btnPanel.add(editBtn)
+        btnPanel.add(Box.createHorizontalStrut(5))
+        btnPanel.add(delBtn)
+        panel.add(btnPanel, BorderLayout.SOUTH)
+
+        return panel
+    }
+
     private fun loadMockApisToTable() {
         tableModel.rowCount = 0
         initialConfig.mockApis.forEach { api ->
@@ -417,6 +523,15 @@ class ProxyConfigPanel(
                     api.delay.toString()
                 )
             )
+        }
+    }
+
+    private fun loadWsRulesToTable() {
+        wsRuleModel.rowCount = 0
+        initialConfig.wsPushRules.forEach { r ->
+            val period = if (r.mode.equals("periodic", true)) r.periodSec.toString() else "-"
+            val matcher = buildWsMatcherText(r)
+            wsRuleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
         }
     }
 
@@ -486,6 +601,20 @@ class ProxyConfigPanel(
             )
             return false
         }
+        // 当为 WS 组时，校验 wsBaseUrl
+        val protocol = protocolCombo.selectedItem as? String ?: "HTTP"
+        if (protocol == "WS") {
+            val wsUrl = wsBaseUrlField.text.trim()
+            if (wsUrl.isEmpty() || !(wsUrl.startsWith("ws://") || wsUrl.startsWith("wss://"))) {
+                JOptionPane.showMessageDialog(
+                    null,
+                    message("config.ws.baseurl.tooltip"),
+                    message("config.validation.input.error.title"),
+                    JOptionPane.WARNING_MESSAGE
+                )
+                return false
+            }
+        }
         return true
     }
 
@@ -493,6 +622,7 @@ class ProxyConfigPanel(
      * 将UI的修改应用到配置对象
      */
     fun applyChanges(config: ProxyConfig) {
+        config.protocol = (protocolCombo.selectedItem as? String) ?: "HTTP"
         config.name = nameField.text.trim().ifEmpty { message("config.group.default") }
         config.port = portField.text.toIntOrNull() ?: 8888
         config.interceptPrefix = interceptPrefixField.text
@@ -512,5 +642,73 @@ class ProxyConfigPanel(
                 api.delay = (tableModel.getValueAt(i, 4) as String).toLongOrNull() ?: 0L
             }
         }
+
+        // WS 组字段
+        config.wsBaseUrl = wsBaseUrlField.text.trim().ifEmpty { null }
+        config.wsInterceptPrefix = wsPrefixField.text.trim().ifEmpty { null }
+        config.wsManualPush = wsManualPushCheck.isSelected
+    }
+
+    // =========== WS 规则 CRUD ===========
+    private fun addWsRule() {
+        val dialog = WsPushRuleDialog(project, null)
+        if (dialog.showAndGet()) {
+            val rule = dialog.getRule()
+            initialConfig.wsPushRules.add(rule)
+            loadWsRulesToTable()
+        }
+    }
+
+    private fun editWsRule() {
+        val idx = wsRuleTable.selectedRow
+        if (idx < 0) {
+            JOptionPane.showMessageDialog(
+                wsRuleTable,
+                message("wsrule.select.first.edit"),
+                message("config.message.info"),
+                JOptionPane.INFORMATION_MESSAGE
+            )
+            return
+        }
+        val current = initialConfig.wsPushRules[idx]
+        val dialog = WsPushRuleDialog(project, current)
+        if (dialog.showAndGet()) {
+            initialConfig.wsPushRules[idx] = dialog.getRule()
+            loadWsRulesToTable()
+        }
+    }
+
+    private fun deleteWsRule() {
+        val idx = wsRuleTable.selectedRow
+        if (idx < 0) {
+            JOptionPane.showMessageDialog(
+                wsRuleTable,
+                message("wsrule.select.first.delete"),
+                message("config.message.info"),
+                JOptionPane.INFORMATION_MESSAGE
+            )
+            return
+        }
+        val result = JOptionPane.showConfirmDialog(
+            wsRuleTable,
+            message("wsrule.delete.confirm"),
+            message("config.message.confirm.title"),
+            JOptionPane.YES_NO_OPTION
+        )
+        if (result == JOptionPane.YES_OPTION) {
+            initialConfig.wsPushRules.removeAt(idx)
+            loadWsRulesToTable()
+        }
+    }
+
+    private fun buildWsMatcherText(r: org.zhongmiao.interceptwave.model.WsPushRule): String {
+        val parts = mutableListOf<String>()
+        if (r.path.isNotBlank()) parts.add("route: ${r.path}")
+        val key = r.eventKey?.trim().orEmpty()
+        val value = r.eventValue?.trim().orEmpty()
+        if (key.isNotEmpty() && value.isNotEmpty()) parts.add("event: ${key}=${value}")
+        val dir = r.direction.lowercase()
+        if (dir != "both") parts.add("dir: ${dir}")
+        return if (parts.isEmpty()) "-" else parts.joinToString(", ")
     }
 }

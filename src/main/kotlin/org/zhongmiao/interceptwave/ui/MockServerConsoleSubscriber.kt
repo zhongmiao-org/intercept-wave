@@ -130,6 +130,27 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
             is ErrorOccurred -> {
                 console.printError("[${event.configName ?: ""}]   ✗ ${event.message}${event.details?.let { ": $it" } ?: ""}")
             }
+            is WebSocketConnecting -> {
+                console.printInfo(message("console.ws.connecting", event.configName, event.path, event.targetUrl))
+            }
+            is WebSocketConnected -> {
+                console.printSuccess(message("console.ws.connected", event.configName, event.path))
+            }
+            is WebSocketClosed -> {
+                console.printWarning(message("console.ws.closed", event.configName, event.path, event.reason ?: ""))
+            }
+            is WebSocketError -> {
+                console.printError(message("console.ws.error", event.configName, event.path, event.message))
+            }
+            is WebSocketMessageIn -> {
+                console.printInfo(message("console.ws.in", event.configName, event.size, event.path))
+            }
+            is WebSocketMessageOut -> {
+                console.printInfo(message("console.ws.out", event.configName, event.size, event.path))
+            }
+            is WebSocketMockPushed -> {
+                console.printInfo(message("console.ws.mock.pushed", event.configName, event.path, event.mode))
+            }
         }
     }
 

@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+### ✨ 新增
+
+- WebSocket 组基础能力（当前仅 UI/模型/事件，占位实现，暂未引入运行时 WS 引擎）：
+  - 配置对话框新增“组类型”（HTTP | WS）。
+  - WS 设置面板：`wsBaseUrl`、可选 WS 前缀、启用“手动推送面板”开关。
+- WS 路由/事件匹配的推送规则：模式 `off | periodic | timeline`，`periodSec` 秒级间隔、`message`，时间轴 `atMs/loop/onOpenFire`；新增 `eventKey`（默认 `action`）与 `eventValue` 匹配，以及 `direction`（in/out/both）。
+  - 新数据类：`WsPushRule`、`WsTimelineItem`；`ProxyConfig` 扩展 `protocol`、`wsBaseUrl`、`wsInterceptPrefix`、`wsManualPush`、`wsPushRules`。
+  - 工具窗口 WS 推送面板：规则表 + “发送选中”按钮，自定义发送区域（目标：匹配/全部/最近连接）。
+  - 控制台 WS 事件：Connecting/Connected/Closed/Error 与 Message In/Out/MockPushed（仅摘要）。
+  - 新增中英文本地化文案。
+
+### 🔄 变更
+
+- 配置服务对 WS 模板与时间轴的 JSON 进行尽力归一化/最小化（非严格 JSON 保留原样），同时保留对 HTTP Mock JSON 的归一化逻辑。
+
+### ⚠️ 说明
+
+- 本次尚未集成实际 WS 引擎：启动 WS 组会提示“尚未实现”。上游 https/wss 能力按后续集成规划预留，当前版本聚焦 UI/模型/事件与手动发送占位。
+
 ## [3.0.2]
 
 ### 🐛 修复

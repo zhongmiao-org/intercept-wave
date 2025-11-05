@@ -12,6 +12,8 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.table.JBTable
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -43,6 +45,13 @@ class ProxyGroupTabPanel(
         isFocusable = false
     }
     private val configInfoArea = JTextArea()
+    // WS 手动推送控件
+    private val wsCustomMsgArea = JTextArea()
+    private val wsTargetCombo = ComboBox(arrayOf(
+        message("wspanel.target.match"),
+        message("wspanel.target.all"),
+        message("wspanel.target.latest")
+    ))
 
     init {
         updateStatus(mockServerService.getServerStatus(configId), mockServerService.getServerUrl(configId))
@@ -56,9 +65,15 @@ class ProxyGroupTabPanel(
         val statusPanel = createStatusPanel()
         panel.add(statusPanel, BorderLayout.NORTH)
 
-        // 中部：配置信息
+        // 中部：配置信息 +（可选）WS推送面板
+        val center = JPanel(BorderLayout(10, 10))
         val infoPanel = createInfoPanel()
-        panel.add(infoPanel, BorderLayout.CENTER)
+        center.add(infoPanel, BorderLayout.CENTER)
+        val cfg = configService.getProxyGroup(configId)
+        if (cfg != null && cfg.protocol == "WS" && cfg.wsManualPush) {
+            center.add(createWsPushPanel(), BorderLayout.SOUTH)
+        }
+        panel.add(center, BorderLayout.CENTER)
 
         return panel
     }
@@ -173,6 +188,13 @@ class ProxyGroupTabPanel(
             appendLine(message("toolwindow.config.baseurl", config.baseUrl))
             appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
             appendLine(message("toolwindow.config.cookie", config.globalCookie.ifEmpty { message("toolwindow.notset") }))
+            if (config.protocol == "WS") {
+                appendLine()
+                appendLine(message("toolwindow.ws.title"))
+                appendLine(message("toolwindow.ws.baseurl", config.wsBaseUrl ?: message("toolwindow.notset")))
+                appendLine(message("toolwindow.ws.prefix", (config.wsInterceptPrefix ?: config.interceptPrefix)))
+                appendLine(message("toolwindow.ws.manualpush", if (config.wsManualPush) message("toolwindow.yes") else message("toolwindow.no")))
+            }
             appendLine()
             appendLine(message("toolwindow.config.mocklist"))
             if (config.mockApis.isEmpty()) {
@@ -185,6 +207,106 @@ class ProxyGroupTabPanel(
             }
         }
         configInfoArea.text = info
+    }
+
+    /**
+     * WS 手动推送面板
+     */
+    private fun createWsPushPanel(): JPanel {
+        val panel = JPanel(BorderLayout(5, 5))
+        panel.border = BorderFactory.createTitledBorder(message("wspanel.title"))
+
+        val top = JPanel()
+        top.layout = BoxLayout(top, BoxLayout.X_AXIS)
+        top.add(JBLabel(message("wspanel.target")))
+        wsTargetCombo.selectedIndex = 0
+        top.add(Box.createHorizontalStrut(5))
+        top.add(wsTargetCombo)
+        panel.add(top, BorderLayout.NORTH)
+
+        // 规则列表 + 发送选中
+        val cfg = configService.getProxyGroup(configId)
+        val rulesPanel = JPanel(BorderLayout(5, 5))
+        val ruleModel = object : javax.swing.table.DefaultTableModel(arrayOf(
+            message("config.ws.table.enabled"),
+            message("config.ws.table.matcher"),
+            message("config.ws.table.mode"),
+            message("config.ws.table.period")
+        ), 0) {
+            override fun isCellEditable(row: Int, column: Int): Boolean = false
+            override fun getColumnClass(columnIndex: Int): Class<*> = if (columnIndex == 0) java.lang.Boolean::class.java else String::class.java
+        }
+        val ruleTable = JBTable(ruleModel)
+        cfg?.wsPushRules?.forEach { r ->
+            val period = if (r.mode.equals("periodic", true)) r.periodSec.toString() else "-"
+            val matcher = buildRuleMatcherText(r)
+            ruleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
+        }
+        rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
+        val sendSelected = JButton(message("wspanel.send"), AllIcons.Actions.Execute)
+        sendSelected.isFocusPainted = false
+        sendSelected.addActionListener {
+            val row = ruleTable.selectedRow
+            if (row < 0) return@addActionListener
+            val rule = cfg?.wsPushRules?.getOrNull(row) ?: return@addActionListener
+            val target = when (wsTargetCombo.selectedIndex) { 1 -> "ALL"; 2 -> "LATEST"; else -> "MATCH" }
+            mockServerService.sendWsMessage(configId, path = rule.path, message = rule.message, target = target)
+        }
+        val rpSouth = JPanel()
+        rpSouth.layout = BoxLayout(rpSouth, BoxLayout.X_AXIS)
+        rpSouth.add(sendSelected)
+        rulesPanel.add(rpSouth, BorderLayout.SOUTH)
+        panel.add(rulesPanel, BorderLayout.CENTER)
+
+        wsCustomMsgArea.lineWrap = true
+        wsCustomMsgArea.wrapStyleWord = true
+        wsCustomMsgArea.rows = 4
+        panel.add(JBScrollPane(wsCustomMsgArea), BorderLayout.SOUTH)
+
+        val btnBar = JPanel()
+        btnBar.layout = BoxLayout(btnBar, BoxLayout.X_AXIS)
+        val sendBtn = JButton(message("wspanel.send"), AllIcons.Actions.Execute)
+        sendBtn.isFocusPainted = false
+        sendBtn.addActionListener { sendWsCustomMessage() }
+        val clearBtn = JButton(message("wspanel.clear"), AllIcons.Actions.GC)
+        clearBtn.isFocusPainted = false
+        clearBtn.addActionListener { wsCustomMsgArea.text = "" }
+        btnBar.add(sendBtn)
+        btnBar.add(Box.createHorizontalStrut(5))
+        btnBar.add(clearBtn)
+        // 按钮置于自定义输入区域下方
+        val southWrap = JPanel(BorderLayout())
+        southWrap.add(btnBar, BorderLayout.CENTER)
+        panel.add(southWrap, BorderLayout.PAGE_END)
+
+        return panel
+    }
+
+    private fun sendWsCustomMessage() {
+        val cfg = configService.getProxyGroup(configId) ?: return
+        if (cfg.protocol != "WS") return
+        val msg = wsCustomMsgArea.text ?: return
+        val target = when (wsTargetCombo.selectedIndex) {
+            1 -> "ALL"
+            2 -> "LATEST"
+            else -> "MATCH"
+        }
+        try {
+            mockServerService.sendWsMessage(configId, path = null, message = msg, target = target)
+        } catch (e: Exception) {
+            thisLogger().warn("Send WS message failed", e)
+        }
+    }
+
+    private fun buildRuleMatcherText(r: org.zhongmiao.interceptwave.model.WsPushRule): String {
+        val parts = mutableListOf<String>()
+        if (r.path.isNotBlank()) parts.add("route: ${r.path}")
+        val key = r.eventKey?.trim().orEmpty()
+        val value = r.eventValue?.trim().orEmpty()
+        if (key.isNotEmpty() && value.isNotEmpty()) parts.add("event: ${key}=${value}")
+        val dir = r.direction.lowercase()
+        if (dir != "both") parts.add("dir: ${dir}")
+        return if (parts.isEmpty()) "-" else parts.joinToString(", ")
     }
 
     /**
@@ -240,4 +362,3 @@ class ProxyGroupTabPanel(
         }
     }
 }
-

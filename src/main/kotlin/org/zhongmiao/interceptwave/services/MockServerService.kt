@@ -57,6 +57,14 @@ class MockServerService(private val project: Project) {
             return false
         }
 
+        // 分流：WS 组暂提供占位实现（后续引入实际 WS 引擎）
+        if (proxyConfig.protocol.equals("WS", ignoreCase = true)) {
+            output.publish(ServerStarting(configId, proxyConfig.name, proxyConfig.port))
+            // 暂未实现本地 WS 引擎，给出明确提示
+            output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, message("error.ws.not.implemented")))
+            return false
+        }
+
         return try {
             // 检查端口是否已被占用
             if (isPortOccupied(proxyConfig.port)) {
@@ -181,7 +189,11 @@ class MockServerService(private val project: Project) {
         if (!isRunning) return null
 
         val config = configService.getProxyGroup(configId) ?: return null
-        return "http://localhost:${config.port}"
+        return if (config.protocol.equals("WS", ignoreCase = true)) {
+            "ws://localhost:${config.port}"
+        } else {
+            "http://localhost:${config.port}"
+        }
     }
 
     /**
@@ -191,11 +203,31 @@ class MockServerService(private val project: Project) {
         return serverStatus.filter { it.value }.mapNotNull { (configId, _) ->
             val config = configService.getProxyGroup(configId)
             if (config != null) {
-                configId to "http://localhost:${config.port}"
+                val url = if (config.protocol.equals("WS", ignoreCase = true)) {
+                    "ws://localhost:${config.port}"
+                } else {
+                    "http://localhost:${config.port}"
+                }
+                configId to url
             } else {
                 null
             }
         }
+    }
+
+    // ================= WS 辅助 API（占位实现） =================
+    /**
+     * 发送 WS 消息（手动推送）。实际推送将在 WS 引擎实现后完成；当前仅发布事件供 Console 展示。
+     * @param target 目标：MATCH/ALL/LATEST
+     */
+    fun sendWsMessage(configId: String, path: String?, message: String, target: String = "MATCH") {
+        val cfg = configService.getProxyGroup(configId) ?: return
+        if (!cfg.protocol.equals("WS", ignoreCase = true)) return
+        // 发布出站消息事件（简要）
+        val preview = message.take(512)
+        output.publish(WebSocketMessageOut(configId, cfg.name, path ?: "", message.toByteArray().size, true, preview))
+        // 占位提示（包含目标信息，避免未使用参数告警）
+        output.publish(ErrorOccurred(configId, cfg.name, message("error.ws.send.placeholder"), "target=$target"))
     }
 
     /**

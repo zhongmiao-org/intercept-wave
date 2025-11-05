@@ -107,6 +107,7 @@ class ConfigService(private val project: Project) {
     private fun normalizeAndMinifyMockData(root: RootConfig): Pair<Boolean, RootConfig> {
         var changed = false
         val normalizedGroups = root.proxyGroups.map { group ->
+            // HTTP Mock 的 JSON 归一化
             val newApis = group.mockApis.map { api ->
                 val original = api.mockData
                 try {
@@ -121,7 +122,40 @@ class ConfigService(private val project: Project) {
                     api
                 }
             }.toMutableList()
-            group.copy(mockApis = newApis)
+
+            // WS Push 模板与时间轴的 JSON 归一化（若为合法 JSON 则最小化，不强制要求）
+            val newWsRules = group.wsPushRules.map { rule ->
+                var ruleChanged = false
+                var newMessage = rule.message
+                // 尝试最小化 message
+                runCatching {
+                    val min = org.zhongmiao.interceptwave.util.JsonNormalizeUtil.minifyJson(rule.message)
+                    if (min != rule.message) {
+                        ruleChanged = true
+                        newMessage = min
+                    }
+                }.onFailure {
+                    // 不是严格 JSON 时忽略，允许发送纯文本
+                }
+
+                // 尝试最小化 timeline 每条 message
+                val newTimeline = rule.timeline.map { item ->
+                    var m = item.message
+                    runCatching {
+                        val min = org.zhongmiao.interceptwave.util.JsonNormalizeUtil.minifyJson(item.message)
+                        if (min != item.message) {
+                            ruleChanged = true
+                            m = min
+                        }
+                    }
+                    org.zhongmiao.interceptwave.model.WsTimelineItem(item.atMs, m)
+                }.toMutableList()
+
+                if (ruleChanged) changed = true
+                rule.copy(message = newMessage, timeline = newTimeline)
+            }.toMutableList()
+
+            group.copy(mockApis = newApis, wsPushRules = newWsRules)
         }.toMutableList()
 
         return changed to root.copy(proxyGroups = normalizedGroups)
