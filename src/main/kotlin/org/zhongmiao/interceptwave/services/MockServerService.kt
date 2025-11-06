@@ -70,11 +70,12 @@ class MockServerService(private val project: Project) {
             return if (ok) {
                 wsEngines[configId] = engine
                 serverStatus[configId] = true
-                val urlScheme = if (proxyConfig.wssEnabled) "wss" else "ws"
-                output.publish(ServerStarted(configId, proxyConfig.name, proxyConfig.port, "$urlScheme://localhost:${proxyConfig.port}"))
+                // WSS is currently disabled in UI; always report ws://
+                output.publish(ServerStarted(configId, proxyConfig.name, proxyConfig.port, "ws://localhost:${proxyConfig.port}"))
                 true
             } else {
-                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, "WS engine start failed"))
+                val reason = engine.lastError?.takeIf { it.isNotBlank() } ?: "WS engine start failed"
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, reason))
                 false
             }
         }
@@ -214,8 +215,8 @@ class MockServerService(private val project: Project) {
 
         val config = configService.getProxyGroup(configId) ?: return null
         return if (config.protocol.equals("WS", ignoreCase = true)) {
-            val scheme = if (config.wssEnabled) "wss" else "ws"
-            "$scheme://localhost:${config.port}"
+            // Report ws:// while WSS is not supported in UI
+            "ws://localhost:${config.port}"
         } else {
             "http://localhost:${config.port}"
         }
@@ -229,8 +230,8 @@ class MockServerService(private val project: Project) {
             val config = configService.getProxyGroup(configId)
             if (config != null) {
                 val url = if (config.protocol.equals("WS", ignoreCase = true)) {
-                    val scheme = if (config.wssEnabled) "wss" else "ws"
-                    "$scheme://localhost:${config.port}"
+                    // Report ws:// while WSS is not supported in UI
+                    "ws://localhost:${config.port}"
                 } else {
                     "http://localhost:${config.port}"
                 }

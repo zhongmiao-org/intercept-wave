@@ -13,3 +13,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+  # Maintain Docker image tags used in docker-compose
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"

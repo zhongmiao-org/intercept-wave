@@ -49,9 +49,17 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
-                        console.printInfo(message("console.prefix", cfg.interceptPrefix))
-                        console.printInfo(message("console.baseurl", cfg.baseUrl))
-                        console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                        if (cfg.protocol.equals("WS", ignoreCase = true)) {
+                            val wsPrefix = cfg.wsInterceptPrefix ?: cfg.interceptPrefix
+                            val wsBase = cfg.wsBaseUrl ?: message("toolwindow.notset")
+                            console.printInfo(message("console.prefix", wsPrefix))
+                            console.printInfo(message("console.baseurl", wsBase))
+                            console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                        } else {
+                            console.printInfo(message("console.prefix", cfg.interceptPrefix))
+                            console.printInfo(message("console.baseurl", cfg.baseUrl))
+                            console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                        }
                     }
                 }
             }
@@ -64,9 +72,15 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
-                        val total = cfg.mockApis.size
-                        val enabled = cfg.mockApis.count { it.enabled }
-                        console.printInfo(message("console.mockapis.enabled", enabled, total))
+                        if (cfg.protocol.equals("WS", ignoreCase = true)) {
+                            val total = cfg.wsPushRules.size
+                            val enabled = cfg.wsPushRules.count { it.enabled }
+                            console.printInfo(message("console.wsrules.enabled", enabled, total))
+                        } else {
+                            val total = cfg.mockApis.size
+                            val enabled = cfg.mockApis.count { it.enabled }
+                            console.printInfo(message("console.mockapis.enabled", enabled, total))
+                        }
                     }
                 }
                 console.printSeparator()

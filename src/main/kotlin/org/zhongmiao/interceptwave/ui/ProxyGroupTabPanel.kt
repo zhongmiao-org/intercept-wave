@@ -171,8 +171,8 @@ class ProxyGroupTabPanel(
 
         val scrollPane = JBScrollPane(configInfoArea)
         if (compact) {
-            // 限制高度以在 WS 场景下为下方推送面板腾出空间
-            val h = 140
+            // 提高高度以减少内部滚动，同时仍为下方推送面板预留空间
+            val h = 220
             panel.preferredSize = java.awt.Dimension(10, h)
             scrollPane.preferredSize = java.awt.Dimension(10, h - 40)
         }
@@ -254,8 +254,9 @@ class ProxyGroupTabPanel(
             ruleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
         }
         rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
-        val sendSelected = JButton(message("wspanel.send"), AllIcons.Actions.Execute)
+        val sendSelected = JButton(message("wspanel.send.selected"), AllIcons.Actions.Execute)
         sendSelected.isFocusPainted = false
+        sendSelected.toolTipText = message("wspanel.send.selected.tooltip")
         sendSelected.addActionListener {
             val row = ruleTable.selectedRow
             if (row < 0) return@addActionListener
@@ -276,8 +277,9 @@ class ProxyGroupTabPanel(
 
         val btnBar = JPanel()
         btnBar.layout = BoxLayout(btnBar, BoxLayout.X_AXIS)
-        val sendBtn = JButton(message("wspanel.send"), AllIcons.Actions.Execute)
+        val sendBtn = JButton(message("wspanel.send.custom"), AllIcons.Actions.Execute)
         sendBtn.isFocusPainted = false
+        sendBtn.toolTipText = message("wspanel.send.custom.tooltip")
         sendBtn.addActionListener { sendWsCustomMessage() }
         val clearBtn = JButton(message("wspanel.clear"), AllIcons.Actions.GC)
         clearBtn.isFocusPainted = false

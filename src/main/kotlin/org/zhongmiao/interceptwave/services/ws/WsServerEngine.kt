@@ -33,6 +33,10 @@ class WsServerEngine(
 ) {
     private val log = Logger.getInstance(WsServerEngine::class.java)
 
+    @Volatile
+    var lastError: String? = null
+        private set
+
     private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
     private val client: HttpClient = HttpClient.newBuilder().build()
 
@@ -53,7 +57,8 @@ class WsServerEngine(
 
     fun start(): Boolean {
         try {
-            server = object : WebSocketServer(InetSocketAddress("127.0.0.1", config.port), 0, listOf(Draft_6455())) {
+            // Java-WebSocket requires decoders >= 1; using 1 here.
+            server = object : WebSocketServer(InetSocketAddress("127.0.0.1", config.port), 1, listOf(Draft_6455())) {
                 override fun onStart() {
                     log.info("WS server started on :${config.port}")
                 }
@@ -111,13 +116,18 @@ class WsServerEngine(
             }
 
             if (config.wssEnabled) {
-                val ssl = buildSslContext() ?: throw IllegalStateException("WSS enabled but SSLContext init failed")
-                server.setWebSocketFactory(DefaultSSLWebSocketServerFactory(ssl))
+                val ssl = buildSslContext()
+                if (ssl != null) {
+                    server.setWebSocketFactory(DefaultSSLWebSocketServerFactory(ssl))
+                } else {
+                    log.warn("WSS enabled but SSLContext init failed; falling back to ws:// without TLS")
+                }
             }
 
             server.start()
             return true
         } catch (t: Throwable) {
+            lastError = t.message ?: t::class.java.simpleName
             log.warn("Failed to start WS server", t)
             return false
         }

@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  upstream:
+    image: ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.1.1
+    container_name: iw-upstream
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+      - "9002:9002"
+      - "9003:9003"
+      - "9004:9004"
+      - "9005:9005"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+

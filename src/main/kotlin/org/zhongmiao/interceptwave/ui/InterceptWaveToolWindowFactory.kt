@@ -12,9 +12,11 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.components.JBScrollPane
 import java.awt.BorderLayout
 import javax.swing.SwingUtilities
 import javax.swing.*
+import javax.swing.ScrollPaneConstants
 
 @Suppress("unused")
 class InterceptWaveToolWindow(private val project: Project) {
@@ -185,8 +187,13 @@ class InterceptWaveToolWindow(private val project: Project) {
                     )
                     tabPanels[config.id] = tabPanel
 
-                    // 添加标签页，标签名称显示配置组名称
-                    tabbedPane.addTab(config.name, tabPanel.getPanel())
+                    // 添加标签页，标签名称显示配置组名称；为内容添加纵向滚动条
+                    val scroll = JBScrollPane(tabPanel.getPanel()).apply {
+                        verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+                        horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+                        border = null
+                    }
+                    tabbedPane.addTab(config.name, scroll)
                 }
 
                 // 添加 "+" 标签用于快速新增配置

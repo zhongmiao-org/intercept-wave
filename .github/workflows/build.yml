@@ -82,6 +82,8 @@ jobs:
     name: Test
     needs: [ build ]
     runs-on: ubuntu-latest
+    env:
+      UPSTREAM_COMPOSE_FILE: docker-compose.upstream.yml
     steps:
 
       # Free GitHub Actions Environment Disk Space
@@ -108,6 +110,16 @@ jobs:
         with:
           cache-read-only: false
 
+      # Start upstream test services (9000-9005)
+      - name: Start Upstream Services
+        run: |
+          docker compose -f "$UPSTREAM_COMPOSE_FILE" up -d
+          echo "Waiting for upstream health..."
+          for i in {1..60}; do
+            if curl -fsS http://localhost:9000/health >/dev/null 2>&1; then
+              echo "Upstream is healthy"; break; fi; sleep 2; done
+          curl -fsS http://localhost:9000/health || (echo "Upstream failed to become healthy" && docker compose -f "$UPSTREAM_COMPOSE_FILE" logs --no-log-prefix && exit 1)
+
       # Clean all caches to prevent index version conflicts
       - name: Clean Test Environment
         run: |
@@ -122,6 +134,12 @@ jobs:
         env:
           CI: "true"
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
+
+      # Always stop upstream
+      - name: Stop Upstream Services
+        if: ${{ always() }}
+        run: |
+          docker compose -f "$UPSTREAM_COMPOSE_FILE" down -v --remove-orphans || true
 
       # Collect Tests Result of failed tests
       - name: Collect Tests Result
