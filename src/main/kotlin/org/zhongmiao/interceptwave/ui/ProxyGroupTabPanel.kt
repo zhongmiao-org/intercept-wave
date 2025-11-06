@@ -67,11 +67,15 @@ class ProxyGroupTabPanel(
 
         // 中部：配置信息 +（可选）WS推送面板
         val center = JPanel(BorderLayout(10, 10))
-        val infoPanel = createInfoPanel()
-        center.add(infoPanel, BorderLayout.CENTER)
         val cfg = configService.getProxyGroup(configId)
         if (cfg != null && cfg.protocol == "WS" && cfg.wsManualPush) {
-            center.add(createWsPushPanel(), BorderLayout.SOUTH)
+            // WS 组：配置信息区域收缩到顶部，给推送面板更多空间
+            val infoPanel = createInfoPanel(compact = true)
+            center.add(infoPanel, BorderLayout.NORTH)
+            center.add(createWsPushPanel(), BorderLayout.CENTER)
+        } else {
+            val infoPanel = createInfoPanel()
+            center.add(infoPanel, BorderLayout.CENTER)
         }
         panel.add(center, BorderLayout.CENTER)
 
@@ -155,7 +159,7 @@ class ProxyGroupTabPanel(
     /**
      * 创建配置信息面板
      */
-    private fun createInfoPanel(): JPanel {
+    private fun createInfoPanel(compact: Boolean = false): JPanel {
         val panel = JPanel(BorderLayout())
         panel.border = BorderFactory.createTitledBorder(message("toolwindow.config.title"))
 
@@ -166,6 +170,12 @@ class ProxyGroupTabPanel(
         updateConfigInfo()
 
         val scrollPane = JBScrollPane(configInfoArea)
+        if (compact) {
+            // 限制高度以在 WS 场景下为下方推送面板腾出空间
+            val h = 140
+            panel.preferredSize = java.awt.Dimension(10, h)
+            scrollPane.preferredSize = java.awt.Dimension(10, h - 40)
+        }
         panel.add(scrollPane, BorderLayout.CENTER)
 
         return panel
