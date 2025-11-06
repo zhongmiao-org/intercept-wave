@@ -49,7 +49,20 @@ class InterceptWaveToolWindow(private val project: Project) {
                             refreshAllTabs()
                         }
                         is ServerStarting -> updateGlobalButtonStates()
-                        is ErrorOccurred, is RequestReceived, is Forwarded, is MockMatched, is ForwardingTo, is MatchedPath -> { /* 无需状态变更 */ }
+                        is ErrorOccurred,
+                        is RequestReceived,
+                        is Forwarded,
+                        is MockMatched,
+                        is ForwardingTo,
+                        is MatchedPath,
+                        // WebSocket runtime events do not affect ToolWindow buttons/tabs
+                        is WebSocketClosed,
+                        is WebSocketConnected,
+                        is WebSocketConnecting,
+                        is WebSocketError,
+                        is WebSocketMessageIn,
+                        is WebSocketMessageOut,
+                        is WebSocketMockPushed -> { /* 无需状态变更 */ }
                     }
                 }
             })
