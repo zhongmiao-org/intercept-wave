@@ -502,23 +502,8 @@ class ProxyConfigPanel(
         wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
         top.add(wsManualPushCheck, gbc)
 
-        // WSS(TLS)
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2
-        wssEnabledCheck.toolTipText = message("config.ws.wss.enabled.tooltip")
-        top.add(wssEnabledCheck, gbc)
-
-        gbc.gridwidth = 1
-        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0
-        top.add(JBLabel(message("config.ws.wss.keystore") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
-        wssKeystorePathField.toolTipText = message("config.ws.wss.keystore.tooltip")
-        top.add(wssKeystorePathField, gbc)
-
-        gbc.gridx = 0; gbc.gridy = 5; gbc.weightx = 0.0
-        top.add(JBLabel(message("config.ws.wss.password") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
-        wssKeystorePasswordField.toolTipText = message("config.ws.wss.password.tooltip")
-        top.add(wssKeystorePasswordField, gbc)
+        // WSS(TLS) UI 暂不支持：隐藏不展示，避免用户误勾选
+        // 保留字段定义以兼容已有配置，但不在 UI 中渲染
 
         panel.add(top, BorderLayout.NORTH)
 

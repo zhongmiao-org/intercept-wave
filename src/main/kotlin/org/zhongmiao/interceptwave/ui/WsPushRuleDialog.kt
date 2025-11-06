@@ -14,6 +14,7 @@ import org.zhongmiao.interceptwave.model.WsPushRule
 import org.zhongmiao.interceptwave.model.WsTimelineItem
 import org.zhongmiao.interceptwave.util.JsonNormalizeUtil
 import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import javax.swing.*
@@ -26,12 +27,26 @@ class WsPushRuleDialog(
     existing: WsPushRule?
 ) : DialogWrapper(project) {
 
+    private data class Labeled<T>(val value: T, val label: String) {
+        override fun toString(): String = label
+    }
+
     private val enabledCheck = JCheckBox(message("wsrule.enabled"), existing?.enabled ?: true)
     private val pathField = JBTextField(existing?.path ?: "")
-    private val modeCombo = ComboBox(arrayOf("off", "periodic", "timeline"))
+    private val modeItems = arrayOf(
+        Labeled("off", message("wsrule.mode.off")),
+        Labeled("periodic", message("wsrule.mode.periodic")),
+        Labeled("timeline", message("wsrule.mode.timeline"))
+    )
+    private val modeCombo: ComboBox<Labeled<String>> = ComboBox(modeItems)
     private val eventKeyField = JBTextField(existing?.eventKey ?: "action")
     private val eventValueField = JBTextField(existing?.eventValue ?: "")
-    private val directionCombo = ComboBox(arrayOf("both", "in", "out"))
+    private val directionItems = arrayOf(
+        Labeled("both", message("wsrule.direction.both")),
+        Labeled("in", message("wsrule.direction.in")),
+        Labeled("out", message("wsrule.direction.out"))
+    )
+    private val directionCombo: ComboBox<Labeled<String>> = ComboBox(directionItems)
     private val onOpenCheck = JCheckBox(message("wsrule.onopen"), existing?.onOpenFire ?: false)
 
     // periodic
@@ -48,14 +63,18 @@ class WsPushRuleDialog(
     init {
         init()
         title = if (existing == null) message("wsrule.dialog.title.add") else message("wsrule.dialog.title.edit")
-        existing?.let {
-            modeCombo.selectedItem = it.mode
-            it.timeline.forEach { item -> tlModel.addRow(arrayOf(item.atMs.toString(), item.message)) }
+        existing?.let { ex ->
+            modeCombo.selectedItem = modeItems.firstOrNull { item -> item.value.equals(ex.mode, ignoreCase = true) } ?: modeItems.first()
+            directionCombo.selectedItem = directionItems.firstOrNull { item -> item.value.equals(ex.direction, ignoreCase = true) } ?: directionItems.first()
+            ex.timeline.forEach { item -> tlModel.addRow(arrayOf(item.atMs.toString(), item.message)) }
         }
     }
 
     override fun createCenterPanel(): JComponent {
-        val panel = JPanel(BorderLayout(10, 10))
+        val panel = JPanel(BorderLayout(10, 10)).apply {
+            // Dialog felt too narrow; increase default width
+            preferredSize = Dimension(820, 560)
+        }
         val top = JPanel(GridBagLayout())
         val gbc = GridBagConstraints().apply {
             fill = GridBagConstraints.HORIZONTAL
@@ -162,8 +181,8 @@ class WsPushRuleDialog(
         cards.add(JPanel(), "off")
         cards.add(periodicPanel, "periodic")
         cards.add(tlPanel, "timeline")
-        (cards.layout as CardLayout).show(cards, modeCombo.selectedItem as String)
-        modeCombo.addActionListener { (cards.layout as CardLayout).show(cards, modeCombo.selectedItem as String) }
+        (cards.layout as CardLayout).show(cards, modeItems[modeCombo.selectedIndex].value)
+        modeCombo.addActionListener { (cards.layout as CardLayout).show(cards, modeItems[modeCombo.selectedIndex].value) }
 
         panel.add(top, BorderLayout.NORTH)
         panel.add(cards, BorderLayout.CENTER)
@@ -213,7 +232,7 @@ class WsPushRuleDialog(
     }
 
     fun getRule(): WsPushRule {
-        val mode = modeCombo.selectedItem as String
+        val mode = modeItems[modeCombo.selectedIndex].value
         val timeline = mutableListOf<WsTimelineItem>()
         for (i in 0 until tlModel.rowCount) {
             val at = (tlModel.getValueAt(i, 0) as String).toIntOrNull() ?: 0
@@ -225,7 +244,7 @@ class WsPushRuleDialog(
             path = pathField.text.trim(),
             eventKey = eventKeyField.text.trim().ifEmpty { null },
             eventValue = eventValueField.text.trim().ifEmpty { null },
-            direction = (directionCombo.selectedItem as String),
+            direction = directionItems[directionCombo.selectedIndex].value,
             mode = mode,
             periodSec = periodField.text.toIntOrNull() ?: 5,
             message = periodicMsgArea.text.trim(),
@@ -243,7 +262,7 @@ class WsPushRuleDialog(
         val hasEvent = evKey.isNotEmpty() && evVal.isNotEmpty()
         if (!hasPath && !hasEvent) return ValidationInfo(message("wsrule.validation.matcher.empty"), pathField)
         if (hasPath && !path.startsWith("/")) return ValidationInfo(message("wsrule.validation.path"), pathField)
-        val mode = modeCombo.selectedItem as String
+        val mode = modeItems[modeCombo.selectedIndex].value
         if (mode == "periodic") {
             val sec = periodField.text.toIntOrNull()
             if (sec == null || sec < 1) return ValidationInfo(message("wsrule.validation.period"), periodField)
