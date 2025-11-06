@@ -168,14 +168,18 @@ class ConfigService(private val project: Project) {
     private fun currentMajorMinor(existing: String? = null): String {
         val fallbackExisting = existing ?: "2.0"
         val fallback = fallbackExisting.split('.').let { if (it.size >= 2) it[0] + "." + it[1] else "2.0" }
+        // Prefer explicit system property override for tests/headless
+        val sys = runCatching { System.getProperty("intercept.wave.version") }.getOrNull()
+        val sysParts = sys?.split('.')
+        if (sysParts != null && sysParts.size >= 2) return sysParts[0] + "." + sysParts[1]
+
         return try {
             val ver = PluginManagerCore.getPlugin(PluginId.getId(PluginConstants.PLUGIN_ID))?.version
             val parts = ver?.split('.')
             if (parts != null && parts.size >= 2) parts[0] + "." + parts[1] else fallback
         } catch (_: Throwable) {
-            val sys = try { System.getProperty("intercept.wave.version") } catch (_: Throwable) { null }
-            val parts = sys?.split('.')
-            if (parts != null && parts.size >= 2) parts[0] + "." + parts[1] else fallback
+            // Fallback to sys or provided existing
+            if (sysParts != null && sysParts.size >= 2) sysParts[0] + "." + sysParts[1] else fallback
         }
     }
 
