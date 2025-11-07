@@ -184,7 +184,8 @@ class MockServerService(private val project: Project) {
      * 停止所有服务器
      */
     fun stopAllServers() {
-        val configIds = serverInstances.keys.toList()
+        // Collect both HTTP and WS running IDs
+        val configIds = (serverInstances.keys + wsEngines.keys).toSet().toList()
         if (configIds.isEmpty()) {
             // 即使没有运行中的服务，也发布 AllServersStopped 事件，
             // 以便上层（Console 联动/抑制标志消费）能完成一次完整的停止周期。
