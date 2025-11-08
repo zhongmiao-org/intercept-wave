@@ -89,7 +89,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         wsRuleModel.rowCount = 0
         config.wsPushRules.forEach { r ->
             val period = if (r.mode.equals("periodic", true)) r.periodSec.toString() else "-"
-            val matcher = buildWsMatcherText(r)
+            val matcher = org.zhongmiao.interceptwave.util.formatWsRuleMatcher(r)
             wsRuleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
         }
     }
@@ -144,16 +144,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         }
     }
 
-    private fun buildWsMatcherText(r: org.zhongmiao.interceptwave.model.WsPushRule): String {
-        val parts = mutableListOf<String>()
-        if (r.path.isNotBlank()) parts.add("route: ${r.path}")
-        val key = r.eventKey?.trim().orEmpty()
-        val value = r.eventValue?.trim().orEmpty()
-        if (key.isNotEmpty() && value.isNotEmpty()) parts.add("event: ${key}=${value}")
-        val dir = r.direction.lowercase()
-        if (dir != "both") parts.add("dir: ${dir}")
-        return if (parts.isEmpty()) "-" else parts.joinToString(", ")
-    }
+    // formatting logic extracted to util: formatWsRuleMatcher
 
     fun getWsBaseUrl(): String = wsBaseUrlField.text
 
@@ -164,4 +155,3 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         // WSS 字段不在 UI 中编辑，保持原值
     }
 }
-

@@ -250,7 +250,7 @@ class ProxyGroupTabPanel(
         val ruleTable = JBTable(ruleModel)
         cfg?.wsPushRules?.forEach { r ->
             val period = if (r.mode.equals("periodic", true)) r.periodSec.toString() else "-"
-            val matcher = buildRuleMatcherText(r)
+            val matcher = org.zhongmiao.interceptwave.util.formatWsRuleMatcher(r)
             ruleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
         }
         rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
@@ -311,16 +311,7 @@ class ProxyGroupTabPanel(
         }
     }
 
-    private fun buildRuleMatcherText(r: org.zhongmiao.interceptwave.model.WsPushRule): String {
-        val parts = mutableListOf<String>()
-        if (r.path.isNotBlank()) parts.add("route: ${r.path}")
-        val key = r.eventKey?.trim().orEmpty()
-        val value = r.eventValue?.trim().orEmpty()
-        if (key.isNotEmpty() && value.isNotEmpty()) parts.add("event: ${key}=${value}")
-        val dir = r.direction.lowercase()
-        if (dir != "both") parts.add("dir: ${dir}")
-        return if (parts.isEmpty()) "-" else parts.joinToString(", ")
-    }
+    // formatting logic extracted to util: formatWsRuleMatcher
 
     /**
      * 启动服务器
