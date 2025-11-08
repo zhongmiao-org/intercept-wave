@@ -94,7 +94,12 @@ class InterceptWaveToolWindow(private val project: Project) {
             }
 
             val configButton = createButton(message("toolwindow.button.config"), AllIcons.General.Settings) {
-                openConfigDialog()
+                // Open config dialog focusing on the currently selected group (if any)
+                val selected = tabbedPane.selectedIndex
+                // Exclude the trailing "+" tab when present
+                val maxGroupIndex = (tabbedPane.tabCount - 2).coerceAtLeast(0)
+                val initialIndex = if (selected in 0..maxGroupIndex) selected else 0
+                openConfigDialog(initialSelectedIndex = initialIndex, autoAddNew = false)
             }
 
             globalButtonPanel.add(startAllButton)
@@ -207,11 +212,11 @@ class InterceptWaveToolWindow(private val project: Project) {
                 // 监听 "+" 标签被点击
                 tabbedPane.addChangeListener {
                     if (tabbedPane.selectedIndex == tabbedPane.tabCount - 1) {
-                        // 点击了 "+" 标签
-                        openConfigDialog()
-                        // 切回到第一个标签
+                        // 点击了 "+" 标签：打开配置对话框并直接新增一个配置组
+                        openConfigDialog(initialSelectedIndex = null, autoAddNew = true)
+                        // 新建后刷新完 tabs，选中新建的组（倒数第二个标签为新组）
                         if (tabbedPane.tabCount > 1) {
-                            tabbedPane.selectedIndex = 0
+                            tabbedPane.selectedIndex = tabbedPane.tabCount - 2
                         }
                     }
                 }
@@ -234,17 +239,25 @@ class InterceptWaveToolWindow(private val project: Project) {
         /**
          * 打开配置对话框
          */
-        private fun openConfigDialog() {
+        private fun openConfigDialog(initialSelectedIndex: Int? = null, autoAddNew: Boolean = false) {
             val wasRunning = mockServerService.getRunningServers().isNotEmpty()
             if (wasRunning) {
                 mockServerService.stopAllServers()
             }
 
-            val dialog = ConfigDialog(project)
+            val dialog = ConfigDialog(project, initialSelectedIndex = initialSelectedIndex, autoAddOnOpen = autoAddNew)
             if (dialog.showAndGet()) {
                 // 配置已保存，重新设置标签页
                 setupTabs()
                 refreshAllTabs()
+                // 若是从“+”入口新增，选中新建的组（最后一个组）
+                if (autoAddNew && tabbedPane.tabCount > 1) {
+                    tabbedPane.selectedIndex = tabbedPane.tabCount - 2
+                } else if (initialSelectedIndex != null) {
+                    // 普通打开：尽量保持原选中
+                    val maxIdx = (tabbedPane.tabCount - 2).coerceAtLeast(0)
+                    tabbedPane.selectedIndex = initialSelectedIndex.coerceAtMost(maxIdx)
+                }
             } else if (wasRunning) {
                 // 用户取消了配置，恢复服务
                 mockServerService.startAllServers()
