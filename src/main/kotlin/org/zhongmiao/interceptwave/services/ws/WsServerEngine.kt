@@ -225,9 +225,14 @@ class WsServerEngine(
     }
 
     private fun computeForwardPath(resource: String): String {
-        // For upstream bridging, DO NOT strip WS prefix; forward original resource (path + query)
-        // Example: client /ws/echo?x=1 with wsInterceptPrefix=/ws should reach upstream /ws/echo?x=1
-        return resource
+        // 按 stripPrefix 规则生成用于上游转发的路径（与 HTTP 一致）：
+        // - 当 stripPrefix=true 且前缀匹配时，去掉前缀转发；
+        // - 否则保留原路径。
+        // 如上游需要保留 /ws，可将 wsBaseUrl 配置为包含 /ws（例如 ws://host:port/ws），则拼接后仍为 /ws/...。
+        val requestPath = resource.substringBefore('?')
+        val query = resource.substringAfter('?', "")
+        val path = computeMatchPath(requestPath)
+        return if (query.isEmpty()) path else "$path?${query}"
     }
 
     private fun attachUpstream(ctx: ConnCtx, upstreamUrl: String) {
