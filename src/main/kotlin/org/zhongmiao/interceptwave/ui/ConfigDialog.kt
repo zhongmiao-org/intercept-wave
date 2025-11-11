@@ -33,6 +33,9 @@ class ConfigDialog(
     // 存储每个标签页的UI组件
     private val tabPanels = mutableMapOf<Int, ProxyConfigPanel>()
 
+    // 统一校验与保存逻辑标志位：避免重复弹窗
+    private var isSaving = false
+
     init {
         init()
         title = message("config.dialog.title")
@@ -89,6 +92,18 @@ class ConfigDialog(
     }
 
     /**
+     * 将当前各 Tab 面板中的未保存修改写入工作副本 proxyGroups。
+     * 在新增/删除/移动 Tab 或保存前调用，避免用户输入丢失。
+     */
+    private fun snapshotEditsIntoWorkingCopy() {
+        tabPanels.forEach { (index, panel) ->
+            if (index in proxyGroups.indices) {
+                panel.applyChanges(proxyGroups[index])
+            }
+        }
+    }
+
+    /**
      * 创建底部按钮面板
      */
     private fun createBottomButtonPanel(): JBPanel<JBPanel<*>> {
@@ -129,6 +144,8 @@ class ConfigDialog(
      * 添加新配置组
      */
     private fun addNewProxyGroup() {
+        // 先缓存当前编辑中的更改，避免重新构建 Tab 时丢失
+        snapshotEditsIntoWorkingCopy()
         val newConfig = configService.createDefaultProxyConfig(
             proxyGroups.size,
             message("config.group.default.indexed", proxyGroups.size + 1)
@@ -176,6 +193,8 @@ class ConfigDialog(
         )
 
         if (result == JOptionPane.YES_OPTION) {
+            // 删除前先缓存各面板修改
+            snapshotEditsIntoWorkingCopy()
             proxyGroups.removeAt(currentIndex)
             setupTabbedPane()
 
@@ -201,6 +220,8 @@ class ConfigDialog(
             return
         }
 
+        // 交换前先缓存各面板修改
+        snapshotEditsIntoWorkingCopy()
         // 交换配置组位置
         val temp = proxyGroups[currentIndex]
         proxyGroups[currentIndex] = proxyGroups[newIndex]
@@ -210,38 +231,37 @@ class ConfigDialog(
         tabbedPane.selectedIndex = newIndex
     }
 
-    override fun doOKAction() {
+    private fun validateAll(): Boolean {
+        var hasError = false
+        tabPanels.forEach { (_, panel) ->
+            if (!panel.validateInput()) {
+                hasError = true
+            }
+        }
+        if (hasError) {
+            JOptionPane.showMessageDialog(
+                contentPane,
+                message("config.validation.input.error"),
+                message("config.validation.input.error.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
+            return false
+        }
+        return true
+    }
+
+    private fun performSave(closeOnSuccess: Boolean) {
+        if (isSaving) return
+        isSaving = true
         try {
-            // 验证端口号
-            var hasError = false
-            tabPanels.forEach { (_, panel) ->
-                if (!panel.validateInput()) {
-                    hasError = true
-                }
-            }
-
-            if (hasError) {
-                JOptionPane.showMessageDialog(
-                    contentPane,
-                    message("config.validation.input.error"),
-                    message("config.validation.input.error.title"),
-                    JOptionPane.WARNING_MESSAGE
-                )
-                return
-            }
-
-            // 从各个面板收集配置
-            tabPanels.forEach { (index, panel) ->
-                panel.applyChanges(proxyGroups[index])
-            }
-
+            if (!validateAll()) return
+            // 收集当前 UI 到工作副本
+            snapshotEditsIntoWorkingCopy()
             // 保存到 RootConfig
             rootConfig.proxyGroups.clear()
             rootConfig.proxyGroups.addAll(proxyGroups)
             configService.saveRootConfig(rootConfig)
-
-            // 调用父类方法关闭对话框
-            super.doOKAction()
+            if (closeOnSuccess) super.doOKAction()
         } catch (e: Exception) {
             e.printStackTrace()
             JOptionPane.showMessageDialog(
@@ -250,8 +270,22 @@ class ConfigDialog(
                 message("config.save.error.title"),
                 JOptionPane.ERROR_MESSAGE
             )
-            // 不要调用 super.doOKAction()，让对话框保持打开状态
+        } finally {
+            isSaving = false
         }
+    }
+
+    override fun doOKAction() {
+        performSave(closeOnSuccess = true)
+    }
+
+    override fun createActions(): Array<Action> {
+        val applyAction = object : DialogWrapperAction(message("config.button.apply")) {
+            override fun doAction(e: java.awt.event.ActionEvent?) {
+                performSave(closeOnSuccess = false)
+            }
+        }
+        return arrayOf(okAction, applyAction, cancelAction)
     }
 }
 

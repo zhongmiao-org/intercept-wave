@@ -20,6 +20,7 @@ import java.security.KeyStore
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import java.util.concurrent.*
+import org.zhongmiao.interceptwave.util.WsRuleMatchUtil
 
 /**
  * Lightweight WS server engine per group using Java-WebSocket.
@@ -91,7 +92,17 @@ class WsServerEngine(
                     val ctx = this@WsServerEngine.connections[conn]
                     if (ctx != null) {
                         output.publish(WebSocketMessageIn(config.id, config.name, ctx.pathOnly, message.toByteArray().size, true, message.take(128)))
-                        ctx.upstream?.sendText(message, true)
+                        if (shouldInterceptClientText(ctx, message)) {
+                            // Intercept client->upstream; optionally immediate reply using matched rule's message
+                            findMatchingInterceptRuleClientText(ctx, message)?.let { rule ->
+                                val reply = rule.message
+                                if (reply.isNotBlank()) {
+                                    sendAuto(ctx, reply, "intercept")
+                                }
+                            }
+                        } else {
+                            ctx.upstream?.sendText(message, true)
+                        }
                     }
                 }
 
@@ -99,9 +110,11 @@ class WsServerEngine(
                     val ctx = this@WsServerEngine.connections[conn]
                     if (ctx != null) {
                         output.publish(WebSocketMessageIn(config.id, config.name, ctx.pathOnly, message.remaining(), false, null))
-                        val bytes = ByteArray(message.remaining())
-                        message.get(bytes)
-                        ctx.upstream?.sendBinary(ByteBuffer.wrap(bytes), true)
+                        if (!shouldInterceptClientBinary(ctx)) {
+                            val bytes = ByteArray(message.remaining())
+                            message.get(bytes)
+                            ctx.upstream?.sendBinary(ByteBuffer.wrap(bytes), true)
+                        }
                     }
                 }
 
@@ -114,6 +127,9 @@ class WsServerEngine(
                     super.onWebsocketPing(conn, f)
                 }
             }
+
+            // Prefer quick rebind on restart
+            runCatching { this.server.setReuseAddr(true) }
 
             if (config.wssEnabled) {
                 val ssl = buildSslContext()
@@ -170,6 +186,24 @@ class WsServerEngine(
         }
     }
 
+    // Small wrappers to make call sites explicit without constant-argument warnings
+    private fun shouldInterceptClientText(ctx: ConnCtx, text: String): Boolean =
+        shouldIntercept(ctx, inbound = true, isText = true, text = text)
+    private fun shouldInterceptClientBinary(ctx: ConnCtx): Boolean =
+        shouldIntercept(ctx, inbound = true, isText = false, text = null)
+    private fun shouldInterceptServerText(ctx: ConnCtx, text: String): Boolean =
+        shouldIntercept(ctx, inbound = false, isText = true, text = text)
+    private fun shouldInterceptServerBinary(ctx: ConnCtx): Boolean =
+        shouldIntercept(ctx, inbound = false, isText = false, text = null)
+
+    private fun findMatchingInterceptRuleClientText(ctx: ConnCtx, text: String): org.zhongmiao.interceptwave.model.WsPushRule? =
+        config.wsPushRules.firstOrNull { r -> WsRuleMatchUtil.matches(r, ctx.pathOnly, clientToUpstream = true, isText = true, text = text) }
+
+    private fun shouldIntercept(ctx: ConnCtx, inbound: Boolean, isText: Boolean, text: String?): Boolean =
+        config.wsPushRules.any { r -> WsRuleMatchUtil.matches(r, ctx.pathOnly, clientToUpstream = inbound, isText = isText, text = text) }
+
+    
+
     private fun cleanupCtx(ctx: ConnCtx) {
         ctx.periodicTasks.forEach { runCatching { it.cancel(true) } }
         ctx.timelineTasks.forEach { runCatching { it.cancel(true) } }
@@ -183,18 +217,17 @@ class WsServerEngine(
     }
 
     private fun computeMatchPath(requestPath: String): String {
-        val prefix = config.wsInterceptPrefix ?: config.interceptPrefix
+        // For WS, do NOT inherit HTTP prefix when WS prefix is empty
+        val prefix = (config.wsInterceptPrefix ?: "")
         return if (config.stripPrefix && prefix.isNotEmpty() && requestPath.startsWith(prefix)) {
             requestPath.removePrefix(prefix).ifEmpty { "/" }
         } else requestPath
     }
 
     private fun computeForwardPath(resource: String): String {
-        // resource includes query; only strip path portion
-        val requestPath = resource.substringBefore('?')
-        val query = resource.substringAfter('?', "")
-        val path = computeMatchPath(requestPath)
-        return if (query.isEmpty()) path else "$path?${query}"
+        // For upstream bridging, DO NOT strip WS prefix; forward original resource (path + query)
+        // Example: client /ws/echo?x=1 with wsInterceptPrefix=/ws should reach upstream /ws/echo?x=1
+        return resource
     }
 
     private fun attachUpstream(ctx: ConnCtx, upstreamUrl: String) {
@@ -202,27 +235,40 @@ class WsServerEngine(
             val listener = object : Listener {
                 override fun onOpen(webSocket: java.net.http.WebSocket) {
                     ctx.upstream = webSocket
+                    // Start demand for incoming messages
+                    runCatching { webSocket.request(1) }
                 }
                 override fun onText(webSocket: java.net.http.WebSocket, data: CharSequence, last: Boolean): CompletionStage<*> {
                     val text = data.toString()
                     output.publish(WebSocketMessageOut(config.id, config.name, ctx.pathOnly, text.toByteArray().size, true, text.take(128)))
-                    ctx.conn.send(text)
+                    if (!shouldInterceptServerText(ctx, text)) {
+                        ctx.conn.send(text)
+                    }
+                    // Request next message
+                    runCatching { webSocket.request(1) }
                     return CompletableFuture.completedFuture(null)
                 }
                 override fun onBinary(webSocket: java.net.http.WebSocket, data: ByteBuffer, last: Boolean): CompletionStage<*> {
                     output.publish(WebSocketMessageOut(config.id, config.name, ctx.pathOnly, data.remaining(), false, null))
-                    ctx.conn.send(data)
+                    if (!shouldInterceptServerBinary(ctx)) {
+                        ctx.conn.send(data)
+                    }
+                    runCatching { webSocket.request(1) }
                     return CompletableFuture.completedFuture(null)
                 }
                 override fun onPing(webSocket: java.net.http.WebSocket, message: ByteBuffer): CompletionStage<*> {
                     // Java-WebSocket handles ping/pong internally; no explicit forward needed
+                    runCatching { webSocket.request(1) }
                     return CompletableFuture.completedFuture(null)
                 }
                 override fun onPong(webSocket: java.net.http.WebSocket, message: ByteBuffer): CompletionStage<*> {
+                    runCatching { webSocket.request(1) }
                     return CompletableFuture.completedFuture(null)
                 }
                 override fun onClose(webSocket: java.net.http.WebSocket, statusCode: Int, reason: String?): CompletionStage<*> {
-                    ctx.conn.close(statusCode, reason)
+                    // Keep local connection open so manual push can still work
+                    ctx.upstream = null
+                    output.publish(WebSocketError(config.id, config.name, ctx.pathOnly, "Upstream closed: $statusCode ${reason ?: ""}"))
                     return CompletableFuture.completedFuture(null)
                 }
                 override fun onError(webSocket: java.net.http.WebSocket, error: Throwable) {

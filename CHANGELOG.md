@@ -2,7 +2,7 @@
 
 # Intercept Wave Changelog
 
-> [中文更新日志](./CHANGELOG_zh.md) | [Chinese Changelog](./CHANGELOG_zh.md)
+>English Changelog | [中文更新日志](./CHANGELOG_zh.md) 
 
 ## [Unreleased]
 
@@ -21,11 +21,19 @@
   - WS push rules with route/event matcher: modes `off | periodic | timeline`, fields `periodSec`, `message`, `timeline(atMs/loop/onOpenFire)`, `eventKey` (default `action`), `eventValue`, `direction(in/out/both)`.
   - Tool window WS panel: rules table (“Send selected”) + custom send area (target: matching/all/latest).
 - i18n resources for all WS UI and logs (EN/ZH).
+ - WS rules: per-rule "Block forwarding when matched" option to intercept messages (direction-aware, optional JSON event key/value matching).
+ - Config dialog: Added "Apply" button next to OK; validates and saves to disk without closing the dialog. Save/validate logic extracted to a shared function.
 
 ### 🔄 Changed
 
 - ConfigService normalizes/minifies JSON for WS templates and timelines (best-effort; non-JSON left as-is), and continues to normalize HTTP mock JSON.
 - Config dialog and tool window now hide HTTP-specific fields when group type is WS (intercept prefix/base URL/strip prefix/global cookie, and HTTP mock list).
+ - WS prefix semantics: when WS prefix is empty, it no longer inherits the HTTP intercept prefix; tooltip and displays updated (show as "Not set").
+ - WS rule dialog: when mode is "Off", keep the message input visible as the template for manual sending.
+
+### 🐛 Fixed
+
+- Config dialog: when adding a new group while editing another, unsaved inputs could be lost due to tab rebuild. Now the dialog snapshots current edits into the working copy before add/delete/move, preserving user inputs.
 
 ### 📦 Dependencies
 

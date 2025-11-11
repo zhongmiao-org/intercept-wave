@@ -198,7 +198,8 @@ class ProxyGroupTabPanel(
                 appendLine()
                 appendLine(message("toolwindow.ws.title"))
                 appendLine(message("toolwindow.ws.baseurl", config.wsBaseUrl ?: message("toolwindow.notset")))
-                appendLine(message("toolwindow.ws.prefix", (config.wsInterceptPrefix ?: config.interceptPrefix)))
+                val wsPrefixDisplay = config.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
+                appendLine(message("toolwindow.ws.prefix", wsPrefixDisplay))
                 appendLine(message("toolwindow.ws.manualpush", if (config.wsManualPush) message("toolwindow.yes") else message("toolwindow.no")))
             } else {
                 appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
@@ -254,15 +255,37 @@ class ProxyGroupTabPanel(
             ruleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
         }
         rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
+        // 当用户选择规则时，将其消息填充到下方自定义输入区域，便于直接点击“发送”按钮
+        ruleTable.selectionModel.addListSelectionListener {
+            if (!it.valueIsAdjusting) {
+                val row = ruleTable.selectedRow
+                val latest = configService.getProxyGroup(configId)
+                val rule = latest?.wsPushRules?.getOrNull(row)
+                if (row >= 0 && rule != null) {
+                    wsCustomMsgArea.text = rule.message
+                }
+            }
+        }
         val sendSelected = JButton(message("wspanel.send.selected"), AllIcons.Actions.Execute)
         sendSelected.isFocusPainted = false
         sendSelected.toolTipText = message("wspanel.send.selected.tooltip")
         sendSelected.addActionListener {
             val row = ruleTable.selectedRow
             if (row < 0) return@addActionListener
-            val rule = cfg?.wsPushRules?.getOrNull(row) ?: return@addActionListener
+            val latest = configService.getProxyGroup(configId)
+            val rule = latest?.wsPushRules?.getOrNull(row) ?: return@addActionListener
+            val msgTrimmed = rule.message.trim()
+            if (msgTrimmed.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                    null,
+                    message("wspanel.send.rule.empty.warn"),
+                    message("config.message.info"),
+                    JOptionPane.WARNING_MESSAGE
+                )
+                return@addActionListener
+            }
             val target = when (wsTargetCombo.selectedIndex) { 1 -> "ALL"; 2 -> "LATEST"; else -> "MATCH" }
-            mockServerService.sendWsMessage(configId, path = rule.path, message = rule.message, target = target)
+            mockServerService.sendWsMessage(configId, path = rule.path, message = msgTrimmed, target = target)
         }
         val rpSouth = JPanel()
         rpSouth.layout = BoxLayout(rpSouth, BoxLayout.X_AXIS)
@@ -270,10 +293,12 @@ class ProxyGroupTabPanel(
         rulesPanel.add(rpSouth, BorderLayout.SOUTH)
         panel.add(rulesPanel, BorderLayout.CENTER)
 
+        // 底部：自定义输入 + 按钮栏 放在同一 SOUTH 子容器，避免覆盖
         wsCustomMsgArea.lineWrap = true
         wsCustomMsgArea.wrapStyleWord = true
         wsCustomMsgArea.rows = 4
-        panel.add(JBScrollPane(wsCustomMsgArea), BorderLayout.SOUTH)
+        val southContainer = JPanel(BorderLayout(5, 5))
+        southContainer.add(JBScrollPane(wsCustomMsgArea), BorderLayout.CENTER)
 
         val btnBar = JPanel()
         btnBar.layout = BoxLayout(btnBar, BoxLayout.X_AXIS)
@@ -287,10 +312,8 @@ class ProxyGroupTabPanel(
         btnBar.add(sendBtn)
         btnBar.add(Box.createHorizontalStrut(5))
         btnBar.add(clearBtn)
-        // 按钮置于自定义输入区域下方
-        val southWrap = JPanel(BorderLayout())
-        southWrap.add(btnBar, BorderLayout.CENTER)
-        panel.add(southWrap, BorderLayout.PAGE_END)
+        southContainer.add(btnBar, BorderLayout.SOUTH)
+        panel.add(southContainer, BorderLayout.SOUTH)
 
         return panel
     }
@@ -298,7 +321,17 @@ class ProxyGroupTabPanel(
     private fun sendWsCustomMessage() {
         val cfg = configService.getProxyGroup(configId) ?: return
         if (cfg.protocol != "WS") return
-        val msg = wsCustomMsgArea.text ?: return
+        val raw = wsCustomMsgArea.text ?: return
+        val msg = raw.trim()
+        if (msg.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                null,
+                message("ws.send.empty.warn"),
+                message("config.message.info"),
+                JOptionPane.WARNING_MESSAGE
+            )
+            return
+        }
         val target = when (wsTargetCombo.selectedIndex) {
             1 -> "ALL"
             2 -> "LATEST"

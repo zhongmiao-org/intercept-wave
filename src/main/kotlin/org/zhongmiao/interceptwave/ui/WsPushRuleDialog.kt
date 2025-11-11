@@ -48,10 +48,12 @@ class WsPushRuleDialog(
     )
     private val directionCombo: ComboBox<Labeled<String>> = ComboBox(directionItems)
     private val onOpenCheck = JCheckBox(message("wsrule.onopen"), existing?.onOpenFire ?: false)
+    private val interceptCheck = JCheckBox(message("wsrule.intercept"), existing?.intercept ?: false)
 
     // periodic
     private val periodField = JBTextField((existing?.periodSec ?: 5).toString())
     private val periodicMsgArea = JTextArea(existing?.message ?: "{}")
+    private val offMsgArea = JTextArea(existing?.message ?: "{}")
 
     // timeline
     private val tlModel = object : DefaultTableModel(arrayOf(message("wsrule.timeline.atms"), message("wsrule.timeline.message")), 0) {
@@ -127,6 +129,12 @@ class WsPushRuleDialog(
         top.add(onOpenCheck, gbc)
         gbc.gridwidth = 1
 
+        // intercept
+        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2
+        interceptCheck.toolTipText = message("wsrule.intercept.tooltip")
+        top.add(interceptCheck, gbc)
+        gbc.gridwidth = 1
+
         // periodic subform
         val periodicPanel = JPanel(GridBagLayout())
         val pgbc = GridBagConstraints().apply {
@@ -176,9 +184,38 @@ class WsPushRuleDialog(
         tlPanel.add(tBtns, BorderLayout.SOUTH)
         tlPanel.add(loopCheck, BorderLayout.NORTH)
 
+        // off subform (manual template only)
+        val offPanel = JPanel(GridBagLayout())
+        val ogbc = GridBagConstraints().apply {
+            fill = GridBagConstraints.HORIZONTAL
+            insets = JBUI.insets(5)
+        }
+        ogbc.gridx = 0; ogbc.gridy = 0
+        offPanel.add(JBLabel(message("wsrule.message")), ogbc)
+        ogbc.gridx = 1; ogbc.weightx = 1.0; ogbc.weighty = 1.0; ogbc.fill = GridBagConstraints.BOTH
+        offMsgArea.lineWrap = true
+        offMsgArea.wrapStyleWord = true
+        offMsgArea.font = UIManager.getFont("TextArea.font")
+        val offScroll = JBScrollPane(offMsgArea)
+        offPanel.add(offScroll, ogbc)
+        ogbc.gridy = 1; ogbc.fill = GridBagConstraints.NONE; ogbc.weighty = 0.0; ogbc.anchor = GridBagConstraints.EAST
+        val offFmtBtn = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
+        offFmtBtn.addActionListener {
+            runCatching { offMsgArea.text = JsonNormalizeUtil.prettyJson(offMsgArea.text) }
+                .onFailure {
+                    JOptionPane.showMessageDialog(
+                        offPanel,
+                        message("mockapi.message.json.error", it.message ?: ""),
+                        message("config.message.error"),
+                        JOptionPane.ERROR_MESSAGE
+                    )
+                }
+        }
+        offPanel.add(offFmtBtn, ogbc)
+
         // center: cards by mode
         val cards = JPanel(CardLayout())
-        cards.add(JPanel(), "off")
+        cards.add(offPanel, "off")
         cards.add(periodicPanel, "periodic")
         cards.add(tlPanel, "timeline")
         (cards.layout as CardLayout).show(cards, modeItems[modeCombo.selectedIndex].value)
@@ -239,15 +276,20 @@ class WsPushRuleDialog(
             val msg = tlModel.getValueAt(i, 1) as String
             timeline.add(WsTimelineItem(at, msg))
         }
+        val msgValue = when (mode) {
+            "periodic" -> periodicMsgArea.text.trim()
+            else -> offMsgArea.text.trim()
+        }
         return WsPushRule(
             enabled = enabledCheck.isSelected,
             path = pathField.text.trim(),
             eventKey = eventKeyField.text.trim().ifEmpty { null },
             eventValue = eventValueField.text.trim().ifEmpty { null },
             direction = directionItems[directionCombo.selectedIndex].value,
+            intercept = interceptCheck.isSelected,
             mode = mode,
             periodSec = periodField.text.toIntOrNull() ?: 5,
-            message = periodicMsgArea.text.trim(),
+            message = msgValue,
             timeline = timeline,
             loop = loopCheck.isSelected,
             onOpenFire = onOpenCheck.isSelected

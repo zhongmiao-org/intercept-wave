@@ -50,7 +50,7 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
                         if (cfg.protocol.equals("WS", ignoreCase = true)) {
-                            val wsPrefix = cfg.wsInterceptPrefix ?: cfg.interceptPrefix
+                            val wsPrefix = cfg.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
                             val wsBase = cfg.wsBaseUrl ?: message("toolwindow.notset")
                             console.printInfo(message("console.prefix", wsPrefix))
                             console.printInfo(message("console.baseurl", wsBase))

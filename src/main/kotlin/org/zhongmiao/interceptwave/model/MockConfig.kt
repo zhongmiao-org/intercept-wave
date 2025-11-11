@@ -151,6 +151,8 @@ data class WsPushRule(
     var eventValue: String? = null,
     // 匹配方向：in（上游→客户端）、out（客户端→上游）、both（双向）
     var direction: String = "both",
+    // 命中时是否拦截转发（不向对端转发消息）
+    var intercept: Boolean = false,
     // 推送模式：off | periodic | timeline
     var mode: String = "off",
     // 周期（秒），仅当 mode=periodic 时有效，取值 >= 1
