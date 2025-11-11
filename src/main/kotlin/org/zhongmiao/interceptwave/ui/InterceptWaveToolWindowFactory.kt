@@ -240,28 +240,33 @@ class InterceptWaveToolWindow(private val project: Project) {
          * 打开配置对话框
          */
         private fun openConfigDialog(initialSelectedIndex: Int? = null, autoAddNew: Boolean = false) {
-            val wasRunning = mockServerService.getRunningServers().isNotEmpty()
-            if (wasRunning) {
+            // 记录打开前正在运行的配置组，仅恢复这些，避免“全部启动”
+            val previouslyRunning = mockServerService.getRunningServers().map { it.first }.toSet()
+            if (previouslyRunning.isNotEmpty()) {
                 mockServerService.stopAllServers()
             }
 
             val dialog = ConfigDialog(project, initialSelectedIndex = initialSelectedIndex, autoAddOnOpen = autoAddNew)
-            if (dialog.showAndGet()) {
-                // 配置已保存，重新设置标签页
+            val saved = dialog.showAndGet()
+
+            if (saved) {
+                // 配置已保存，刷新标签
                 setupTabs()
-                refreshAllTabs()
-                // 若是从“+”入口新增，选中新建的组（最后一个组）
+                // 保持选中
                 if (autoAddNew && tabbedPane.tabCount > 1) {
                     tabbedPane.selectedIndex = tabbedPane.tabCount - 2
                 } else if (initialSelectedIndex != null) {
-                    // 普通打开：尽量保持原选中
                     val maxIdx = (tabbedPane.tabCount - 2).coerceAtLeast(0)
                     tabbedPane.selectedIndex = initialSelectedIndex.coerceAtMost(maxIdx)
                 }
-            } else if (wasRunning) {
-                // 用户取消了配置，恢复服务
-                mockServerService.startAllServers()
-                refreshAllTabs()
             }
+
+            // 无论保存或取消，按打开前的运行集合逐个恢复
+            if (previouslyRunning.isNotEmpty()) {
+                previouslyRunning.forEach { id ->
+                    runCatching { mockServerService.startServer(id) }
+                }
+            }
+            refreshAllTabs()
         }
 }

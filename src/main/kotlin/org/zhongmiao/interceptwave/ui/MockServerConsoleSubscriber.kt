@@ -44,7 +44,8 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 console.showConsole(attachProcess = false)
                 console.printSeparator()
                 console.printInfo(message("console.starting", event.name))
-                console.printInfo(message("console.port", event.port))
+                // 避免端口号按本地化分组（例如 8,891），改为字符串
+                console.printInfo(message("console.port", event.port.toString()))
                 // 附加详细配置
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)

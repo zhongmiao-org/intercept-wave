@@ -201,6 +201,7 @@ class ProxyGroupTabPanel(
                 val wsPrefixDisplay = config.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
                 appendLine(message("toolwindow.ws.prefix", wsPrefixDisplay))
                 appendLine(message("toolwindow.ws.manualpush", if (config.wsManualPush) message("toolwindow.yes") else message("toolwindow.no")))
+                appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
             } else {
                 appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
                 appendLine(message("toolwindow.config.baseurl", config.baseUrl))

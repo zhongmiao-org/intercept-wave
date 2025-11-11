@@ -138,7 +138,8 @@ class ProxyConfigPanel(
         interceptPrefixField.isVisible = !isWs
         baseUrlLabel.isVisible = !isWs
         baseUrlField.isVisible = !isWs
-        stripPrefixCheckbox.isVisible = !isWs
+//        // 剥离前缀在 WS 组同样生效（针对 WS 前缀），因此在 WS 组也显示该选项
+//        stripPrefixCheckbox.isVisible = true
         cookieLabel.isVisible = !isWs
         globalCookieField.isVisible = !isWs
     }
