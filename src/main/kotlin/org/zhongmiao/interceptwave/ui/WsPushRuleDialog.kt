@@ -191,23 +191,9 @@ class WsPushRuleDialog(
      * 会在传入的 gbc 所在行放置标签与文本域，并将下一行用于放置格式化按钮。
      */
     private fun addMessageEditor(parent: JPanel, gbc: GridBagConstraints, area: JTextArea) {
-        // Label at (x=0, y=current)
-        parent.add(JBLabel(message("wsrule.message")), gbc)
-
-        // TextArea with scroll at (x=1, y=current)
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        gbc.weighty = 1.0
-        gbc.fill = GridBagConstraints.BOTH
-        area.lineWrap = true
-        area.wrapStyleWord = true
-        area.font = UIManager.getFont("TextArea.font")
-        parent.add(JBScrollPane(area), gbc)
-
-        // Format button at next row
-        gbc.gridy += 1
-        gbc.fill = GridBagConstraints.NONE
-        gbc.weighty = 0.0
+        // build label + scroll text area via shared util
+        UiFormUtil.addLabeledScrollTextArea(parent, gbc, "wsrule.message", area)
+        // place format button on next row
         gbc.anchor = GridBagConstraints.EAST
         val fmtBtn = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
         fmtBtn.addActionListener {

@@ -5,12 +5,11 @@ import org.zhongmiao.interceptwave.model.ProxyConfig
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.components.*
-import com.intellij.util.ui.JBUI
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import java.awt.BorderLayout
 import java.awt.CardLayout
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
-import javax.swing.BorderFactory
+import javax.swing.JComponent
 import javax.swing.JPanel
 
 /**
@@ -49,8 +48,8 @@ class ProxyConfigPanel(
     fun getPanel(): JBPanel<JBPanel<*>> {
         val mainPanel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
 
-        // 上部：全局配置
-        val globalPanel = createGlobalConfigPanel()
+        // 上部：全局配置（UI DSL）
+        val globalPanel = buildGlobalConfigPanelDsl()
         mainPanel.add(globalPanel, BorderLayout.NORTH)
 
         // 中部：HTTP/WS 内容
@@ -71,67 +70,53 @@ class ProxyConfigPanel(
         return mainPanel
     }
 
-    private fun createGlobalConfigPanel(): JBPanel<JBPanel<*>> {
-        val panel = JBPanel<JBPanel<*>>(GridBagLayout())
-        panel.border = BorderFactory.createTitledBorder(message("config.group.settings"))
-
-        val gbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
-        }
-
-        // 组类型
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.group.protocol") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
-        panel.add(protocolCombo, gbc)
-
-        // 组名称
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.group.name") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
+    private fun buildGlobalConfigPanelDsl(): JComponent {
+        // 工具提示
         nameField.toolTipText = message("config.group.name.tooltip")
-        panel.add(nameField, gbc)
-
-        // 端口
-        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0
-        panel.add(JBLabel(message("config.group.port") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
         portField.toolTipText = message("config.group.port.tooltip")
-        panel.add(portField, gbc)
-
-        // 拦截前缀
-        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0
-        panel.add(prefixLabel, gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
         interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
-        panel.add(interceptPrefixField, gbc)
-
-        // 目标地址
-        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0
-        panel.add(baseUrlLabel, gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
         baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
-        panel.add(baseUrlField, gbc)
-
-        // 剥离前缀
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2
         stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
-        panel.add(stripPrefixCheckbox, gbc)
-
-        // 全局 Cookie
-        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 1; gbc.weightx = 0.0
-        panel.add(cookieLabel, gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
         globalCookieField.toolTipText = message("config.group.cookie.tooltip")
-        panel.add(globalCookieField, gbc)
-
-        // 启用
-        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2
         enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
-        panel.add(enabledCheckbox, gbc)
 
-        return panel
+        // DSL 面板，复用现有组件，便于与现有逻辑/监听兼容
+        return panel {
+            group(message("config.group.settings")) {
+                row(message("config.group.protocol") + ":") {
+                    cell(protocolCombo).align(AlignX.FILL)
+                }
+                row(message("config.group.name") + ":") {
+                    cell(nameField).align(AlignX.FILL)
+                }
+                row(message("config.group.port") + ":") {
+                    cell(portField).align(AlignX.FILL)
+                }
+                // 拦截前缀（HTTP 可见）
+                row {
+                    cell(prefixLabel)
+                    cell(interceptPrefixField).align(AlignX.FILL)
+                }
+                // 目标地址（HTTP 可见）
+                row {
+                    cell(baseUrlLabel)
+                    cell(baseUrlField).align(AlignX.FILL)
+                }
+                // 剥离前缀（全宽）
+                row {
+                    cell(stripPrefixCheckbox)
+                }
+                // 全局 Cookie（HTTP 可见）
+                row {
+                    cell(cookieLabel)
+                    cell(globalCookieField).align(AlignX.FILL)
+                }
+                // 启用开关（全宽）
+                row {
+                    cell(enabledCheckbox)
+                }
+            }
+        }
     }
 
     private fun updateGlobalVisibility() {

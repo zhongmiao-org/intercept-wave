@@ -45,17 +45,17 @@ class WsServerEngineTest {
         assertEquals("/chat", match)
 
         val fwd = invokePrivate(engine, "computeForwardPath", "/ws/chat?token=1") as String
-        assertEquals("/chat?token=1", fwd)
+        assertEquals("/ws/chat?token=1", fwd)
 
-        val upstream = invokePrivate(engine, "buildUpstreamUrl", "/chat?token=1") as String
-        // base ends with '/', forward starts with '/' => single slash join
-        assertEquals("ws://upstream/service/chat?token=1", upstream)
+        val upstream = invokePrivate(engine, "buildUpstreamUrl", "/ws/chat?token=1") as String
+        // base ends with '/', forward starts with '/' => single slash join (no double slash)
+        assertEquals("ws://upstream/service/ws/chat?token=1", upstream)
 
         // base without trailing slash
         val cfg2 = cfg.copy(wsBaseUrl = "ws://upstream/service")
         val engine2 = WsServerEngine(cfg2, out)
-        val upstream2 = invokePrivate(engine2, "buildUpstreamUrl", "/chat?x=1") as String
-        assertEquals("ws://upstream/service/chat?x=1", upstream2)
+        val upstream2 = invokePrivate(engine2, "buildUpstreamUrl", "/ws/chat?x=1") as String
+        assertEquals("ws://upstream/service/ws/chat?x=1", upstream2)
     }
 
     @Test
@@ -71,4 +71,3 @@ class WsServerEngineTest {
         assertFalse(bad)
     }
 }
-

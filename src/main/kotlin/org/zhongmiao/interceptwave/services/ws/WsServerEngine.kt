@@ -225,14 +225,10 @@ class WsServerEngine(
     }
 
     private fun computeForwardPath(resource: String): String {
-        // 按 stripPrefix 规则生成用于上游转发的路径（与 HTTP 一致）：
-        // - 当 stripPrefix=true 且前缀匹配时，去掉前缀转发；
-        // - 否则保留原路径。
-        // 如上游需要保留 /ws，可将 wsBaseUrl 配置为包含 /ws（例如 ws://host:port/ws），则拼接后仍为 /ws/...。
+        // 新策略：WS 转发保留原始路径前缀；stripPrefix 仅用于匹配与展示
         val requestPath = resource.substringBefore('?')
         val query = resource.substringAfter('?', "")
-        val path = computeMatchPath(requestPath)
-        return if (query.isEmpty()) path else "$path?${query}"
+        return if (query.isEmpty()) requestPath else "$requestPath?${query}"
     }
 
     private fun attachUpstream(ctx: ConnCtx, upstreamUrl: String) {
