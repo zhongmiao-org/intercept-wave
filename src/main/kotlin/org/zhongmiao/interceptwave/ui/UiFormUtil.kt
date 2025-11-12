@@ -38,7 +38,7 @@ object UiFormUtil {
         parent.add(JBScrollPane(area), gbc)
 
         // Move to next row; keep at right column for possible trailing controls
-        gbc.gridy = gbc.gridy + 1
+        gbc.gridy += 1
         gbc.gridx = 1
         gbc.weighty = 0.0
         gbc.fill = GridBagConstraints.NONE
