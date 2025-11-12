@@ -12,6 +12,8 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.table.JBTable
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -43,6 +45,13 @@ class ProxyGroupTabPanel(
         isFocusable = false
     }
     private val configInfoArea = JTextArea()
+    // WS 手动推送控件
+    private val wsCustomMsgArea = JTextArea()
+    private val wsTargetCombo = ComboBox(arrayOf(
+        message("wspanel.target.match"),
+        message("wspanel.target.all"),
+        message("wspanel.target.latest")
+    ))
 
     init {
         updateStatus(mockServerService.getServerStatus(configId), mockServerService.getServerUrl(configId))
@@ -56,9 +65,19 @@ class ProxyGroupTabPanel(
         val statusPanel = createStatusPanel()
         panel.add(statusPanel, BorderLayout.NORTH)
 
-        // 中部：配置信息
-        val infoPanel = createInfoPanel()
-        panel.add(infoPanel, BorderLayout.CENTER)
+        // 中部：配置信息 +（可选）WS推送面板
+        val center = JPanel(BorderLayout(10, 10))
+        val cfg = configService.getProxyGroup(configId)
+        if (cfg != null && cfg.protocol == "WS" && cfg.wsManualPush) {
+            // WS 组：配置信息区域收缩到顶部，给推送面板更多空间
+            val infoPanel = createInfoPanel(compact = true)
+            center.add(infoPanel, BorderLayout.NORTH)
+            center.add(createWsPushPanel(), BorderLayout.CENTER)
+        } else {
+            val infoPanel = createInfoPanel()
+            center.add(infoPanel, BorderLayout.CENTER)
+        }
+        panel.add(center, BorderLayout.CENTER)
 
         return panel
     }
@@ -140,7 +159,7 @@ class ProxyGroupTabPanel(
     /**
      * 创建配置信息面板
      */
-    private fun createInfoPanel(): JPanel {
+    private fun createInfoPanel(compact: Boolean = false): JPanel {
         val panel = JPanel(BorderLayout())
         panel.border = BorderFactory.createTitledBorder(message("toolwindow.config.title"))
 
@@ -151,6 +170,12 @@ class ProxyGroupTabPanel(
         updateConfigInfo()
 
         val scrollPane = JBScrollPane(configInfoArea)
+        if (compact) {
+            // 提高高度以减少内部滚动，同时仍为下方推送面板预留空间
+            val h = 220
+            panel.preferredSize = java.awt.Dimension(10, h)
+            scrollPane.preferredSize = java.awt.Dimension(10, h - 40)
+        }
         panel.add(scrollPane, BorderLayout.CENTER)
 
         return panel
@@ -169,23 +194,146 @@ class ProxyGroupTabPanel(
         val info = buildString {
             appendLine(message("toolwindow.config.name", config.name))
             appendLine(message("toolwindow.config.port", "${config.port}"))
-            appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
-            appendLine(message("toolwindow.config.baseurl", config.baseUrl))
-            appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
-            appendLine(message("toolwindow.config.cookie", config.globalCookie.ifEmpty { message("toolwindow.notset") }))
-            appendLine()
-            appendLine(message("toolwindow.config.mocklist"))
-            if (config.mockApis.isEmpty()) {
-                appendLine(message("toolwindow.config.nomock"))
+            if (config.protocol == "WS") {
+                appendLine()
+                appendLine(message("toolwindow.ws.title"))
+                appendLine(message("toolwindow.ws.baseurl", config.wsBaseUrl ?: message("toolwindow.notset")))
+                val wsPrefixDisplay = config.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
+                appendLine(message("toolwindow.ws.prefix", wsPrefixDisplay))
+                appendLine(message("toolwindow.ws.manualpush", if (config.wsManualPush) message("toolwindow.yes") else message("toolwindow.no")))
+                appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
             } else {
-                config.mockApis.forEach { api ->
-                    val status = if (api.enabled) "✓" else "✗"
-                    appendLine("  $status ${api.method.padEnd(6)} ${api.path}")
+                appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
+                appendLine(message("toolwindow.config.baseurl", config.baseUrl))
+                appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
+                appendLine(message("toolwindow.config.cookie", config.globalCookie.ifEmpty { message("toolwindow.notset") }))
+                appendLine()
+                appendLine(message("toolwindow.config.mocklist"))
+                if (config.mockApis.isEmpty()) {
+                    appendLine(message("toolwindow.config.nomock"))
+                } else {
+                    config.mockApis.forEach { api ->
+                        val status = if (api.enabled) "✓" else "✗"
+                        appendLine("  $status ${api.method.padEnd(6)} ${api.path}")
+                    }
                 }
             }
         }
         configInfoArea.text = info
     }
+
+    /**
+     * WS 手动推送面板
+     */
+    private fun createWsPushPanel(): JPanel {
+        val panel = JPanel(BorderLayout(5, 5))
+        panel.border = BorderFactory.createTitledBorder(message("wspanel.title"))
+
+        val top = JPanel()
+        top.layout = BoxLayout(top, BoxLayout.X_AXIS)
+        top.add(JBLabel(message("wspanel.target")))
+        wsTargetCombo.selectedIndex = 0
+        top.add(Box.createHorizontalStrut(5))
+        top.add(wsTargetCombo)
+        panel.add(top, BorderLayout.NORTH)
+
+        // 规则列表 + 发送选中
+        val cfg = configService.getProxyGroup(configId)
+        val rulesPanel = JPanel(BorderLayout(5, 5))
+        val ruleModel = createWsRuleTableModel()
+        val ruleTable = JBTable(ruleModel)
+        appendWsRuleRows(ruleModel, cfg?.wsPushRules ?: emptyList())
+        rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
+        // 当用户选择规则时，将其消息填充到下方自定义输入区域，便于直接点击“发送”按钮
+        ruleTable.selectionModel.addListSelectionListener {
+            if (!it.valueIsAdjusting) {
+                val row = ruleTable.selectedRow
+                val latest = configService.getProxyGroup(configId)
+                val rule = latest?.wsPushRules?.getOrNull(row)
+                if (row >= 0 && rule != null) {
+                    wsCustomMsgArea.text = rule.message
+                }
+            }
+        }
+        val sendSelected = JButton(message("wspanel.send.selected"), AllIcons.Actions.Execute)
+        sendSelected.isFocusPainted = false
+        sendSelected.toolTipText = message("wspanel.send.selected.tooltip")
+        sendSelected.addActionListener {
+            val row = ruleTable.selectedRow
+            if (row < 0) return@addActionListener
+            val latest = configService.getProxyGroup(configId)
+            val rule = latest?.wsPushRules?.getOrNull(row) ?: return@addActionListener
+            val msgTrimmed = rule.message.trim()
+            if (msgTrimmed.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                    null,
+                    message("wspanel.send.rule.empty.warn"),
+                    message("config.message.info"),
+                    JOptionPane.WARNING_MESSAGE
+                )
+                return@addActionListener
+            }
+            val target = when (wsTargetCombo.selectedIndex) { 1 -> "ALL"; 2 -> "LATEST"; else -> "MATCH" }
+            mockServerService.sendWsMessage(configId, path = rule.path, message = msgTrimmed, target = target)
+        }
+        val rpSouth = JPanel()
+        rpSouth.layout = BoxLayout(rpSouth, BoxLayout.X_AXIS)
+        rpSouth.add(sendSelected)
+        rulesPanel.add(rpSouth, BorderLayout.SOUTH)
+        panel.add(rulesPanel, BorderLayout.CENTER)
+
+        // 底部：自定义输入 + 按钮栏 放在同一 SOUTH 子容器，避免覆盖
+        wsCustomMsgArea.lineWrap = true
+        wsCustomMsgArea.wrapStyleWord = true
+        wsCustomMsgArea.rows = 4
+        val southContainer = JPanel(BorderLayout(5, 5))
+        southContainer.add(JBScrollPane(wsCustomMsgArea), BorderLayout.CENTER)
+
+        val btnBar = JPanel()
+        btnBar.layout = BoxLayout(btnBar, BoxLayout.X_AXIS)
+        val sendBtn = JButton(message("wspanel.send.custom"), AllIcons.Actions.Execute)
+        sendBtn.isFocusPainted = false
+        sendBtn.toolTipText = message("wspanel.send.custom.tooltip")
+        sendBtn.addActionListener { sendWsCustomMessage() }
+        val clearBtn = JButton(message("wspanel.clear"), AllIcons.Actions.GC)
+        clearBtn.isFocusPainted = false
+        clearBtn.addActionListener { wsCustomMsgArea.text = "" }
+        btnBar.add(sendBtn)
+        btnBar.add(Box.createHorizontalStrut(5))
+        btnBar.add(clearBtn)
+        southContainer.add(btnBar, BorderLayout.SOUTH)
+        panel.add(southContainer, BorderLayout.SOUTH)
+
+        return panel
+    }
+
+    private fun sendWsCustomMessage() {
+        val cfg = configService.getProxyGroup(configId) ?: return
+        if (cfg.protocol != "WS") return
+        val raw = wsCustomMsgArea.text ?: return
+        val msg = raw.trim()
+        if (msg.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                null,
+                message("ws.send.empty.warn"),
+                message("config.message.info"),
+                JOptionPane.WARNING_MESSAGE
+            )
+            return
+        }
+        val target = when (wsTargetCombo.selectedIndex) {
+            1 -> "ALL"
+            2 -> "LATEST"
+            else -> "MATCH"
+        }
+        try {
+            mockServerService.sendWsMessage(configId, path = null, message = msg, target = target)
+        } catch (e: Exception) {
+            thisLogger().warn("Send WS message failed", e)
+        }
+    }
+
+    // formatting logic extracted to util: formatWsRuleMatcher
 
     /**
      * 启动服务器
@@ -240,4 +388,3 @@ class ProxyGroupTabPanel(
         }
     }
 }
-

@@ -12,9 +12,11 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.components.JBScrollPane
 import java.awt.BorderLayout
 import javax.swing.SwingUtilities
 import javax.swing.*
+import javax.swing.ScrollPaneConstants
 
 @Suppress("unused")
 class InterceptWaveToolWindow(private val project: Project) {
@@ -49,7 +51,20 @@ class InterceptWaveToolWindow(private val project: Project) {
                             refreshAllTabs()
                         }
                         is ServerStarting -> updateGlobalButtonStates()
-                        is ErrorOccurred, is RequestReceived, is Forwarded, is MockMatched, is ForwardingTo, is MatchedPath -> { /* 无需状态变更 */ }
+                        is ErrorOccurred,
+                        is RequestReceived,
+                        is Forwarded,
+                        is MockMatched,
+                        is ForwardingTo,
+                        is MatchedPath,
+                        // WebSocket runtime events do not affect ToolWindow buttons/tabs
+                        is WebSocketClosed,
+                        is WebSocketConnected,
+                        is WebSocketConnecting,
+                        is WebSocketError,
+                        is WebSocketMessageIn,
+                        is WebSocketMessageOut,
+                        is WebSocketMockPushed -> { /* 无需状态变更 */ }
                     }
                 }
             })
@@ -79,7 +94,12 @@ class InterceptWaveToolWindow(private val project: Project) {
             }
 
             val configButton = createButton(message("toolwindow.button.config"), AllIcons.General.Settings) {
-                openConfigDialog()
+                // Open config dialog focusing on the currently selected group (if any)
+                val selected = tabbedPane.selectedIndex
+                // Exclude the trailing "+" tab when present
+                val maxGroupIndex = (tabbedPane.tabCount - 2).coerceAtLeast(0)
+                val initialIndex = if (selected in 0..maxGroupIndex) selected else 0
+                openConfigDialog(initialSelectedIndex = initialIndex, autoAddNew = false)
             }
 
             globalButtonPanel.add(startAllButton)
@@ -172,8 +192,13 @@ class InterceptWaveToolWindow(private val project: Project) {
                     )
                     tabPanels[config.id] = tabPanel
 
-                    // 添加标签页，标签名称显示配置组名称
-                    tabbedPane.addTab(config.name, tabPanel.getPanel())
+                    // 添加标签页，标签名称显示配置组名称；为内容添加纵向滚动条
+                    val scroll = JBScrollPane(tabPanel.getPanel()).apply {
+                        verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+                        horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+                        border = null
+                    }
+                    tabbedPane.addTab(config.name, scroll)
                 }
 
                 // 添加 "+" 标签用于快速新增配置
@@ -187,11 +212,11 @@ class InterceptWaveToolWindow(private val project: Project) {
                 // 监听 "+" 标签被点击
                 tabbedPane.addChangeListener {
                     if (tabbedPane.selectedIndex == tabbedPane.tabCount - 1) {
-                        // 点击了 "+" 标签
-                        openConfigDialog()
-                        // 切回到第一个标签
+                        // 点击了 "+" 标签：打开配置对话框并直接新增一个配置组
+                        openConfigDialog(initialSelectedIndex = null, autoAddNew = true)
+                        // 新建后刷新完 tabs，选中新建的组（倒数第二个标签为新组）
                         if (tabbedPane.tabCount > 1) {
-                            tabbedPane.selectedIndex = 0
+                            tabbedPane.selectedIndex = tabbedPane.tabCount - 2
                         }
                     }
                 }
@@ -214,21 +239,34 @@ class InterceptWaveToolWindow(private val project: Project) {
         /**
          * 打开配置对话框
          */
-        private fun openConfigDialog() {
-            val wasRunning = mockServerService.getRunningServers().isNotEmpty()
-            if (wasRunning) {
+        private fun openConfigDialog(initialSelectedIndex: Int? = null, autoAddNew: Boolean = false) {
+            // 记录打开前正在运行的配置组，仅恢复这些，避免“全部启动”
+            val previouslyRunning = mockServerService.getRunningServers().map { it.first }.toSet()
+            if (previouslyRunning.isNotEmpty()) {
                 mockServerService.stopAllServers()
             }
 
-            val dialog = ConfigDialog(project)
-            if (dialog.showAndGet()) {
-                // 配置已保存，重新设置标签页
+            val dialog = ConfigDialog(project, initialSelectedIndex = initialSelectedIndex, autoAddOnOpen = autoAddNew)
+            val saved = dialog.showAndGet()
+
+            if (saved) {
+                // 配置已保存，刷新标签
                 setupTabs()
-                refreshAllTabs()
-            } else if (wasRunning) {
-                // 用户取消了配置，恢复服务
-                mockServerService.startAllServers()
-                refreshAllTabs()
+                // 保持选中
+                if (autoAddNew && tabbedPane.tabCount > 1) {
+                    tabbedPane.selectedIndex = tabbedPane.tabCount - 2
+                } else if (initialSelectedIndex != null) {
+                    val maxIdx = (tabbedPane.tabCount - 2).coerceAtLeast(0)
+                    tabbedPane.selectedIndex = initialSelectedIndex.coerceAtMost(maxIdx)
+                }
             }
+
+            // 无论保存或取消，按打开前的运行集合逐个恢复
+            if (previouslyRunning.isNotEmpty()) {
+                previouslyRunning.forEach { id ->
+                    runCatching { mockServerService.startServer(id) }
+                }
+            }
+            refreshAllTabs()
         }
 }

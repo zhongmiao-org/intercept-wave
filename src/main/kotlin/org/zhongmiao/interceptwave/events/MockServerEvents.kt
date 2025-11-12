@@ -118,3 +118,60 @@ interface MockServerOutput {
     /** 发布领域事件 */
     fun publish(event: MockServerEvent)
 }
+
+// ================= WebSocket 相关运行时事件 =================
+
+/** WS 握手与连接生命周期 */
+data class WebSocketConnecting(
+    override val configId: String,
+    val configName: String,
+    val path: String,
+    val targetUrl: String
+) : MockServerEvent
+
+data class WebSocketConnected(
+    override val configId: String,
+    val configName: String,
+    val path: String
+) : MockServerEvent
+
+data class WebSocketClosed(
+    override val configId: String,
+    val configName: String,
+    val path: String,
+    val reason: String?
+) : MockServerEvent
+
+data class WebSocketError(
+    override val configId: String,
+    val configName: String,
+    val path: String,
+    val message: String
+) : MockServerEvent
+
+/** WS 帧级摘要（为控噪只输出简要信息） */
+data class WebSocketMessageIn(
+    override val configId: String,
+    val configName: String,
+    val path: String,
+    val size: Int,
+    val isText: Boolean,
+    val preview: String?
+) : MockServerEvent
+
+data class WebSocketMessageOut(
+    override val configId: String,
+    val configName: String,
+    val path: String,
+    val size: Int,
+    val isText: Boolean,
+    val preview: String?
+) : MockServerEvent
+
+/** WS 自动推送触发提示 */
+data class WebSocketMockPushed(
+    override val configId: String,
+    val configName: String,
+    val path: String,
+    val mode: String
+) : MockServerEvent

@@ -2,9 +2,42 @@
 
 # Intercept Wave 更新日志
 
-> [English Changelog](./CHANGELOG.md) | [英文更新日志](./CHANGELOG.md)
+> [English Changelog](./CHANGELOG.md) | 中文更新日志
 
 ## [Unreleased]
+
+### ✨ 新增
+
+- WebSocket 引擎集成（Java‑WebSocket）与上游转发：
+  - 本地 WS 监听（组内单端口）；可选本地 WSS(TLS) 监听（PKCS#12 keystore）。
+  - 上游转发到 `ws://`/`wss://`，基于 JDK `java.net.http.WebSocket`。
+  - 连接级自动推送：`periodic`（秒级，支持 `onOpenFire`）与 `timeline`（毫秒级，支持 `loop`）。
+  - 工具窗口手动推送（目标：匹配/全部/最近）；手动推送会重置周期任务计时。
+  - 控制台事件：WS 握手/连接/关闭/错误、入站/出站消息、Mock 推送（摘要）。
+- WS 配置与 UI
+  - 配置对话框新增“组类型”（HTTP | WS）。
+  - WS 设置：`wsBaseUrl`、可选 WS 前缀、手动推送开关。
+  - WSS 设置：`wssEnabled`、`wssKeystorePath`、`wssKeystorePassword`。
+  - WS 规则（路由/事件匹配）：模式 `off | periodic | timeline`，`periodSec`、`message`、`timeline(atMs/loop/onOpenFire)`、`eventKey`（默认 `action`）、`eventValue`、`direction(in/out/both)`。
+  - 工具窗口 WS 推送面板：规则表（“发送选中”）+ 自定义发送区域（匹配/全部/最近）。
+- 新增中英文本地化文案。
+ - WS 规则：新增“命中拦截转发”选项，可按方向（入/出/双向）并可选使用 JSON 顶层事件键值进行匹配，命中则不再向对端转发消息。
+ - 配置对话框：在“确定”旁新增“应用”按钮；同样校验并保存到磁盘但不关闭对话框。保存/校验逻辑抽取为公共函数。
+
+### 🔄 变更
+
+- 配置服务继续对 HTTP Mock JSON 做归一化，同时对 WS 模板/时间轴 JSON 做“尽力归一化+最小化”（非严格 JSON 原样保留）。
+- 当组类型为 WS 时，在配置对话框和工具窗口隐藏 HTTP 专有字段（拦截前缀、目标地址、剥离前缀、全局 Cookie，以及 HTTP Mock 列表）。
+ - WS 前缀语义调整：WS 前缀留空时不再继承 HTTP 前缀；提示与展示同步更新（显示“未设置”）。
+ - WS 规则对话框：当模式为“关闭”时，仍展示消息输入区，作为手动发送模板使用。
+
+### 🐛 修复
+
+- 配置对话框：在编辑已有组时直接点击“添加配置组”，会因重建标签页导致已填写内容丢失。现已在新增/删除/移动前先缓存当前编辑内容到工作副本，避免丢失。
+
+### 📦 依赖
+
+- 新增本地 WS/WSS 引擎依赖：`org.java-websocket:Java-WebSocket:1.5.6`。
 
 ## [3.0.2]
 

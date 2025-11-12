@@ -44,14 +44,23 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 console.showConsole(attachProcess = false)
                 console.printSeparator()
                 console.printInfo(message("console.starting", event.name))
-                console.printInfo(message("console.port", event.port))
+                // 避免端口号按本地化分组（例如 8,891），改为字符串
+                console.printInfo(message("console.port", event.port.toString()))
                 // 附加详细配置
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
-                        console.printInfo(message("console.prefix", cfg.interceptPrefix))
-                        console.printInfo(message("console.baseurl", cfg.baseUrl))
-                        console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                        if (cfg.protocol.equals("WS", ignoreCase = true)) {
+                            val wsPrefix = cfg.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
+                            val wsBase = cfg.wsBaseUrl ?: message("toolwindow.notset")
+                            console.printInfo(message("console.prefix", wsPrefix))
+                            console.printInfo(message("console.baseurl", wsBase))
+                            console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                        } else {
+                            console.printInfo(message("console.prefix", cfg.interceptPrefix))
+                            console.printInfo(message("console.baseurl", cfg.baseUrl))
+                            console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                        }
                     }
                 }
             }
@@ -64,9 +73,15 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                 runCatching {
                     val cfg = configService.getProxyGroup(event.configId)
                     if (cfg != null) {
-                        val total = cfg.mockApis.size
-                        val enabled = cfg.mockApis.count { it.enabled }
-                        console.printInfo(message("console.mockapis.enabled", enabled, total))
+                        if (cfg.protocol.equals("WS", ignoreCase = true)) {
+                            val total = cfg.wsPushRules.size
+                            val enabled = cfg.wsPushRules.count { it.enabled }
+                            console.printInfo(message("console.wsrules.enabled", enabled, total))
+                        } else {
+                            val total = cfg.mockApis.size
+                            val enabled = cfg.mockApis.count { it.enabled }
+                            console.printInfo(message("console.mockapis.enabled", enabled, total))
+                        }
                     }
                 }
                 console.printSeparator()
@@ -129,6 +144,27 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
             }
             is ErrorOccurred -> {
                 console.printError("[${event.configName ?: ""}]   ✗ ${event.message}${event.details?.let { ": $it" } ?: ""}")
+            }
+            is WebSocketConnecting -> {
+                console.printInfo(message("console.ws.connecting", event.configName, event.path, event.targetUrl))
+            }
+            is WebSocketConnected -> {
+                console.printSuccess(message("console.ws.connected", event.configName, event.path))
+            }
+            is WebSocketClosed -> {
+                console.printWarning(message("console.ws.closed", event.configName, event.path, event.reason ?: ""))
+            }
+            is WebSocketError -> {
+                console.printError(message("console.ws.error", event.configName, event.path, event.message))
+            }
+            is WebSocketMessageIn -> {
+                console.printInfo(message("console.ws.in", event.configName, event.size, event.path))
+            }
+            is WebSocketMessageOut -> {
+                console.printInfo(message("console.ws.out", event.configName, event.size, event.path))
+            }
+            is WebSocketMockPushed -> {
+                console.printInfo(message("console.ws.mock.pushed", event.configName, event.path, event.mode))
             }
         }
     }

@@ -2,9 +2,42 @@
 
 # Intercept Wave Changelog
 
-> [中文更新日志](./CHANGELOG_zh.md) | [Chinese Changelog](./CHANGELOG_zh.md)
+>English Changelog | [中文更新日志](./CHANGELOG_zh.md) 
 
 ## [Unreleased]
+
+### ✨ Added
+
+- WebSocket engine integration (Java-WebSocket) with upstream bridging:
+  - Local `ws://` listener per WS group; optional local `wss://` (TLS) via PKCS#12 keystore.
+  - Upstream bridging to `ws://` or `wss://` using JDK `java.net.http.WebSocket`.
+  - Per-connection auto push: `periodic` (sec, optional `onOpenFire`) and `timeline` (ms, optional `loop`).
+  - Manual push from tool window (targets: matching/all/latest). Manual push resets periodic schedule.
+  - WS lifecycle/message events: Connecting/Connected/Closed/Error and Message In/Out/MockPushed (summaries only).
+- WS configuration/UI
+  - Group type selector (HTTP | WS) in Config dialog.
+  - WS settings panel: `wsBaseUrl`, optional WS prefix, manual push toggle.
+  - WSS (TLS) settings: `wssEnabled`, `wssKeystorePath`, `wssKeystorePassword`.
+  - WS push rules with route/event matcher: modes `off | periodic | timeline`, fields `periodSec`, `message`, `timeline(atMs/loop/onOpenFire)`, `eventKey` (default `action`), `eventValue`, `direction(in/out/both)`.
+  - Tool window WS panel: rules table (“Send selected”) + custom send area (target: matching/all/latest).
+- i18n resources for all WS UI and logs (EN/ZH).
+ - WS rules: per-rule "Block forwarding when matched" option to intercept messages (direction-aware, optional JSON event key/value matching).
+ - Config dialog: Added "Apply" button next to OK; validates and saves to disk without closing the dialog. Save/validate logic extracted to a shared function.
+
+### 🔄 Changed
+
+- ConfigService normalizes/minifies JSON for WS templates and timelines (best-effort; non-JSON left as-is), and continues to normalize HTTP mock JSON.
+- Config dialog and tool window now hide HTTP-specific fields when group type is WS (intercept prefix/base URL/strip prefix/global cookie, and HTTP mock list).
+ - WS prefix semantics: when WS prefix is empty, it no longer inherits the HTTP intercept prefix; tooltip and displays updated (show as "Not set").
+ - WS rule dialog: when mode is "Off", keep the message input visible as the template for manual sending.
+
+### 🐛 Fixed
+
+- Config dialog: when adding a new group while editing another, unsaved inputs could be lost due to tab rebuild. Now the dialog snapshots current edits into the working copy before add/delete/move, preserving user inputs.
+
+### 📦 Dependencies
+
+- Add `org.java-websocket:Java-WebSocket:1.5.6` for the local WS/WSS server engine.
 
 ## [3.0.2] - 2025-11-03
 

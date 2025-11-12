@@ -26,6 +26,9 @@ data class ProxyConfig(
     // 配置组名称（用户自定义）
     var name: String = "默认配置",
 
+    // 组类型：本地监听协议。HTTP=仅处理HTTP；WS=仅处理WebSocket
+    var protocol: String = "HTTP",
+
     // Mock服务的本地端口
     var port: Int = 8888,
 
@@ -53,8 +56,26 @@ data class ProxyConfig(
     // 是否启用该配置组
     var enabled: Boolean = true,
 
-    // Mock接口配置列表
-    var mockApis: MutableList<MockApiConfig> = mutableListOf()
+    // Mock接口配置列表（HTTP 组使用）
+    var mockApis: MutableList<MockApiConfig> = mutableListOf(),
+
+    // ================= WS 组相关（当 protocol=WS 时） =================
+    // 上游 WebSocket 地址（支持 ws:// 或 wss://）。当为 WS 组时建议填写。
+    var wsBaseUrl: String? = null,
+
+    // WS 的拦截前缀（为空则复用 interceptPrefix）
+    var wsInterceptPrefix: String? = null,
+
+    // 是否在工具窗口显示手动推送面板
+    var wsManualPush: Boolean = true,
+
+    // WS 推送规则（用于自动推送与手动模板）
+    var wsPushRules: MutableList<WsPushRule> = mutableListOf()
+    ,
+    // WSS(TLS) 本地监听支持
+    var wssEnabled: Boolean = false,
+    var wssKeystorePath: String? = null,
+    var wssKeystorePassword: String? = null
 )
 
 /**
@@ -113,4 +134,41 @@ data class MockApiConfig(
 
     // 延迟时间（毫秒）
     var delay: Long = 0
+)
+
+/**
+ * WebSocket 推送规则（适用于 WS 组）。
+ * 可用于自动推送（periodic/timeline）与手动发送的模板。
+ */
+@Serializable
+data class WsPushRule(
+    var enabled: Boolean = true,
+    // 路径模式，支持 * 与 **，与 HTTP Mock 的 path 规则一致
+    var path: String,
+    // 事件字段键（例如 action/type/event），为空表示不基于事件匹配；默认使用 action
+    var eventKey: String? = "action",
+    // 事件字段的值（可为通配符表达式），为空表示不基于事件值匹配
+    var eventValue: String? = null,
+    // 匹配方向：in（上游→客户端）、out（客户端→上游）、both（双向）
+    var direction: String = "both",
+    // 命中时是否拦截转发（不向对端转发消息）
+    var intercept: Boolean = false,
+    // 推送模式：off | periodic | timeline
+    var mode: String = "off",
+    // 周期（秒），仅当 mode=periodic 时有效，取值 >= 1
+    var periodSec: Int = 5,
+    // 周期模式下发送的消息内容。也作为该规则的手动发送模板
+    var message: String = "{}",
+    // 时间轴模式：按毫秒时间点发送多条消息
+    var timeline: MutableList<WsTimelineItem> = mutableListOf(),
+    // 时间轴是否循环
+    var loop: Boolean = false,
+    // 连接建立后是否立即发送一条 message（对 periodic 模式有意义）
+    var onOpenFire: Boolean = false
+)
+
+@Serializable
+data class WsTimelineItem(
+    var atMs: Int,
+    var message: String
 )

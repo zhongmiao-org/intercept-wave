@@ -7,3 +7,5 @@
 build
 
 .gradle-home/
+
+.gradle-local

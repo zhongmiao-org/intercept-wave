@@ -10,7 +10,6 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import java.awt.Dimension
@@ -129,17 +128,7 @@ class MockApiDialog(
         gbc.gridy = row
         gbc.weightx = 0.0
         gbc.anchor = GridBagConstraints.NORTHWEST
-        panel.add(JBLabel(message("mockapi.mockdata")), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        gbc.weighty = 1.0
-        gbc.fill = GridBagConstraints.BOTH
-        mockDataArea.lineWrap = true
-        mockDataArea.wrapStyleWord = true
-        mockDataArea.font = UIManager.getFont("TextArea.font")
-        val scrollPane = JBScrollPane(mockDataArea)
-        panel.add(scrollPane, gbc)
+        UiFormUtil.addLabeledScrollTextArea(panel, gbc, "mockapi.mockdata", mockDataArea)
         row++
 
         // 添加格式化按钮（用于辅助校验与可读性查看，不影响保存策略）

@@ -28,6 +28,7 @@ class MockServerService(private val project: Project) {
     private val serverInstances = ConcurrentHashMap<String, HttpServer>()
     private val serverStatus = ConcurrentHashMap<String, Boolean>()
     private val serverExecutors = ConcurrentHashMap<String, java.util.concurrent.ExecutorService>()
+    private val wsEngines = ConcurrentHashMap<String, org.zhongmiao.interceptwave.services.ws.WsServerEngine>()
 
     private val configService: ConfigService by lazy { project.service<ConfigService>() }
     // 业务输出端口：面向事件发布，不直接依赖任何 UI
@@ -55,6 +56,28 @@ class MockServerService(private val project: Project) {
             thisLogger().warn("Config $configId is disabled")
             output.publish(ErrorOccurred(configId, proxyConfig.name, message("error.config.disabled")))
             return false
+        }
+
+        // 分流：WS 组使用 WS 引擎
+        if (proxyConfig.protocol.equals("WS", ignoreCase = true)) {
+            if (isPortOccupied(proxyConfig.port)) {
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, message("error.port.in.use")))
+                return false
+            }
+            output.publish(ServerStarting(configId, proxyConfig.name, proxyConfig.port))
+            val engine = org.zhongmiao.interceptwave.services.ws.WsServerEngine(proxyConfig, output)
+            val ok = engine.start()
+            return if (ok) {
+                wsEngines[configId] = engine
+                serverStatus[configId] = true
+                // WSS is currently disabled in UI; always report ws://
+                output.publish(ServerStarted(configId, proxyConfig.name, proxyConfig.port, "ws://localhost:${proxyConfig.port}"))
+                true
+            } else {
+                val reason = engine.lastError?.takeIf { it.isNotBlank() } ?: "WS engine start failed"
+                output.publish(ServerStartFailed(configId, proxyConfig.name, proxyConfig.port, reason))
+                false
+            }
         }
 
         return try {
@@ -105,6 +128,16 @@ class MockServerService(private val project: Project) {
         val proxyConfig = configService.getProxyGroup(configId)
         val configName = proxyConfig?.name ?: configId
 
+        val ws = wsEngines[configId]
+
+        if (ws != null) {
+            runCatching { ws.stop() }
+            wsEngines.remove(configId)
+            serverStatus.remove(configId)
+            output.publish(ServerStopped(configId, configName, proxyConfig?.port ?: -1))
+            return
+        }
+
         if (server != null) {
             // Stop the HTTP server
             server.stop(0)
@@ -151,7 +184,8 @@ class MockServerService(private val project: Project) {
      * 停止所有服务器
      */
     fun stopAllServers() {
-        val configIds = serverInstances.keys.toList()
+        // Collect both HTTP and WS running IDs
+        val configIds = (serverInstances.keys + wsEngines.keys).toSet().toList()
         if (configIds.isEmpty()) {
             // 即使没有运行中的服务，也发布 AllServersStopped 事件，
             // 以便上层（Console 联动/抑制标志消费）能完成一次完整的停止周期。
@@ -181,7 +215,12 @@ class MockServerService(private val project: Project) {
         if (!isRunning) return null
 
         val config = configService.getProxyGroup(configId) ?: return null
-        return "http://localhost:${config.port}"
+        return if (config.protocol.equals("WS", ignoreCase = true)) {
+            // Report ws:// while WSS is not supported in UI
+            "ws://localhost:${config.port}"
+        } else {
+            "http://localhost:${config.port}"
+        }
     }
 
     /**
@@ -191,10 +230,33 @@ class MockServerService(private val project: Project) {
         return serverStatus.filter { it.value }.mapNotNull { (configId, _) ->
             val config = configService.getProxyGroup(configId)
             if (config != null) {
-                configId to "http://localhost:${config.port}"
+                val url = if (config.protocol.equals("WS", ignoreCase = true)) {
+                    // Report ws:// while WSS is not supported in UI
+                    "ws://localhost:${config.port}"
+                } else {
+                    "http://localhost:${config.port}"
+                }
+                configId to url
             } else {
                 null
             }
+        }
+    }
+
+    // ================= WS 辅助 API（占位实现） =================
+    /**
+     * 发送 WS 消息（手动推送）。实际推送将在 WS 引擎实现后完成；当前仅发布事件供 Console 展示。
+     * @param target 目标：MATCH/ALL/LATEST
+     */
+    fun sendWsMessage(configId: String, path: String?, message: String, target: String = "MATCH") {
+        val cfg = configService.getProxyGroup(configId) ?: return
+        if (!cfg.protocol.equals("WS", ignoreCase = true)) return
+        val engine = wsEngines[configId]
+        if (engine != null) {
+            engine.send(target, path, message)
+        } else {
+            // 兜底：尚未启动，打印提示
+            output.publish(ErrorOccurred(configId, cfg.name, message("error.ws.send.placeholder")))
         }
     }
 
@@ -324,8 +386,9 @@ class MockServerService(private val project: Project) {
                 }
             """.trimIndent()
 
-            exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
-            exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
+            // Response headers
+            exchange.responseHeaders.set("Content-Type", "application/json; charset=UTF-8")
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
             val responseBytes = welcomeJson.toByteArray(Charsets.UTF_8)
             exchange.sendResponseHeaders(200, responseBytes.size.toLong())
@@ -361,12 +424,10 @@ class MockServerService(private val project: Project) {
 
             // 设置响应头（使用 set 确保唯一值，避免浏览器报重复 CORS 值）
             exchange.responseHeaders.set("Content-Type", "application/json; charset=UTF-8")
-            exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
-            exchange.responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
-            // 处理OPTIONS请求
-            if (exchange.requestMethod.equals("OPTIONS", ignoreCase = true)) {
+            // 处理OPTIONS请求（CORS预检）
+            if (org.zhongmiao.interceptwave.util.HttpServerUtil.isPreflight(exchange)) {
                 exchange.sendResponseHeaders(200, -1)
                 exchange.close()
                 return
@@ -434,20 +495,11 @@ class MockServerService(private val project: Project) {
 
             val response = client.send(requestBuilder.build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray())
 
-            // 复制响应头（过滤不安全与 CORS 相关头，CORS 在下方统一 set 保证唯一值）
-            response.headers().map().forEach { (key, values) ->
-                val k = key.lowercase()
-                if (k != "transfer-encoding" && k != "content-length" &&
-                    k != "access-control-allow-origin" && k != "access-control-allow-methods" &&
-                    k != "access-control-allow-headers") {
-                    values.forEach { value -> exchange.responseHeaders.add(key, value) }
-                }
-            }
-
-            // 添加/覆盖 CORS 头，使用 set 确保不会出现重复值
-            exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
-            exchange.responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            // 复制安全响应头并添加 CORS 头
+            org.zhongmiao.interceptwave.util.HttpServerUtil.copySafeResponseHeaders(
+                response.headers().map(), exchange.responseHeaders
+            )
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
             val respBytes = response.body()
             exchange.sendResponseHeaders(response.statusCode(), respBytes.size.toLong())
@@ -466,15 +518,7 @@ class MockServerService(private val project: Project) {
      * 发送错误响应
      */
     private fun sendErrorResponse(exchange: HttpExchange, statusCode: Int, message: String) {
-        try {
-            val errorJson = """{"error": "$message"}"""
-            val responseBytes = errorJson.toByteArray(Charsets.UTF_8)
-            exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
-            exchange.sendResponseHeaders(statusCode, responseBytes.size.toLong())
-            exchange.responseBody.use { it.write(responseBytes) }
-        } catch (e: Exception) {
-            thisLogger().error("Error sending error response", e)
-        }
+        org.zhongmiao.interceptwave.util.HttpServerUtil.sendJsonError(exchange, statusCode, message)
     }
 
     private fun logForwardError(t: Throwable) {
