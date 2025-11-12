@@ -26,10 +26,21 @@
 
 ### 🔄 Changed
 
+
 - ConfigService normalizes/minifies JSON for WS templates and timelines (best-effort; non-JSON left as-is), and continues to normalize HTTP mock JSON.
 - Config dialog and tool window now hide HTTP-specific fields when group type is WS (intercept prefix/base URL/strip prefix/global cookie, and HTTP mock list).
- - WS prefix semantics: when WS prefix is empty, it no longer inherits the HTTP intercept prefix; tooltip and displays updated (show as "Not set").
- - WS rule dialog: when mode is "Off", keep the message input visible as the template for manual sending.
+- WS prefix semantics: when WS prefix is empty, it no longer inherits the HTTP intercept prefix; tooltip and displays updated (show as "Not set").
+- WS rule dialog: when mode is "Off", keep the message input visible as the template for manual sending.
+- UI migration to IntelliJ UI DSL (long-term plan):
+  - Config dialog sections (HTTP/WS top fields), button rows (Add/Edit/Delete), and tool window subpanels migrated to UI DSL rows/groups for consistent spacing and validation/focus behavior.
+  - MockApiDialog and WsPushRuleDialog: top forms migrated to DSL; message editor areas changed to large multi-line fields; "Format JSON" moved to the dialog bottom-left; tooltips added; removed "(JSON)" suffix from labels.
+  - Tool window: empty-state and "+" tabs now built with DSL; status/config/WS push panels use DSL groups instead of titled borders (consistent paddings).
+- Tool window "Current Configuration" layout aligned between HTTP and WS:
+  - HTTP shows name, port, strip prefix (under port), upstream, prefix, global cookie, then a read-only 2-column table (Enabled, Path) for Mock APIs.
+  - WS shows "WS Settings" (upstream, prefix, manual push) and overall structure mirrors HTTP; both views expand by content without artificial height limits.
+- Tables visual tweaks:
+  - Fixed "Enabled" column width to 40 (HiDPI-scaled) across all tables (config dialog, tool window, dialogs).
+  - WS rules "Mode" and "Period" columns narrowed (config dialog and tool window), improving readability.
 
 ### 🐛 Fixed
 
@@ -37,7 +48,7 @@
 
 ### 📦 Dependencies
 
-- Add `org.java-websocket:Java-WebSocket:1.5.6` for the local WS/WSS server engine.
+- Add `org.java-websocket:Java-WebSocket` for the local WS/WSS server engine.
 
 ## [3.0.2] - 2025-11-03
 
