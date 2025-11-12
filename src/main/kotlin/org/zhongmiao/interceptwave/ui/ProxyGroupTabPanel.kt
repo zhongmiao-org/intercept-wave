@@ -240,21 +240,9 @@ class ProxyGroupTabPanel(
         // 规则列表 + 发送选中
         val cfg = configService.getProxyGroup(configId)
         val rulesPanel = JPanel(BorderLayout(5, 5))
-        val ruleModel = object : javax.swing.table.DefaultTableModel(arrayOf(
-            message("config.ws.table.enabled"),
-            message("config.ws.table.matcher"),
-            message("config.ws.table.mode"),
-            message("config.ws.table.period")
-        ), 0) {
-            override fun isCellEditable(row: Int, column: Int): Boolean = false
-            override fun getColumnClass(columnIndex: Int): Class<*> = if (columnIndex == 0) java.lang.Boolean::class.java else String::class.java
-        }
+        val ruleModel = createWsRuleTableModel()
         val ruleTable = JBTable(ruleModel)
-        cfg?.wsPushRules?.forEach { r ->
-            val period = if (r.mode.equals("periodic", true)) r.periodSec.toString() else "-"
-            val matcher = org.zhongmiao.interceptwave.util.formatWsRuleMatcher(r)
-            ruleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
-        }
+        appendWsRuleRows(ruleModel, cfg?.wsPushRules ?: emptyList())
         rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
         // 当用户选择规则时，将其消息填充到下方自定义输入区域，便于直接点击“发送”按钮
         ruleTable.selectionModel.addListSelectionListener {

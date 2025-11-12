@@ -16,18 +16,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
     private val wsPrefixField = JBTextField(config.wsInterceptPrefix ?: "")
     private val wsManualPushCheck = JBCheckBox(message("config.ws.manualpush"), config.wsManualPush)
 
-    private val wsRuleModel = object : javax.swing.table.DefaultTableModel(
-        arrayOf(
-            message("config.ws.table.enabled"),
-            message("config.ws.table.matcher"),
-            message("config.ws.table.mode"),
-            message("config.ws.table.period")
-        ),
-        0
-    ) {
-        override fun getColumnClass(column: Int): Class<*> = if (column == 0) java.lang.Boolean::class.java else String::class.java
-        override fun isCellEditable(row: Int, column: Int): Boolean = false
-    }
+    private val wsRuleModel = createWsRuleTableModel()
     private val wsRuleTable = com.intellij.ui.table.JBTable(wsRuleModel)
 
     fun panel(): JBPanel<JBPanel<*>> {
@@ -87,11 +76,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
 
     private fun loadRules() {
         wsRuleModel.rowCount = 0
-        config.wsPushRules.forEach { r ->
-            val period = if (r.mode.equals("periodic", true)) r.periodSec.toString() else "-"
-            val matcher = org.zhongmiao.interceptwave.util.formatWsRuleMatcher(r)
-            wsRuleModel.addRow(arrayOf<Any>(r.enabled, matcher, r.mode.uppercase(), period))
-        }
+        appendWsRuleRows(wsRuleModel, config.wsPushRules)
     }
 
     private fun addRule() {

@@ -146,27 +146,7 @@ class WsPushRuleDialog(
         pgbc.gridx = 1
         periodicPanel.add(periodField, pgbc)
         pgbc.gridx = 0; pgbc.gridy = 1
-        periodicPanel.add(JBLabel(message("wsrule.message")), pgbc)
-        pgbc.gridx = 1; pgbc.weightx = 1.0; pgbc.weighty = 1.0; pgbc.fill = GridBagConstraints.BOTH
-        periodicMsgArea.lineWrap = true
-        periodicMsgArea.wrapStyleWord = true
-        periodicMsgArea.font = UIManager.getFont("TextArea.font")
-        val pscroll = JBScrollPane(periodicMsgArea)
-        periodicPanel.add(pscroll, pgbc)
-        pgbc.gridy = 2; pgbc.fill = GridBagConstraints.NONE; pgbc.weighty = 0.0; pgbc.anchor = GridBagConstraints.EAST
-        val fmtBtn = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
-        fmtBtn.addActionListener {
-            runCatching { periodicMsgArea.text = JsonNormalizeUtil.prettyJson(periodicMsgArea.text) }
-                .onFailure {
-                    JOptionPane.showMessageDialog(
-                        periodicPanel,
-                        message("mockapi.message.json.error", it.message ?: ""),
-                        message("config.message.error"),
-                        JOptionPane.ERROR_MESSAGE
-                    )
-                }
-        }
-        periodicPanel.add(fmtBtn, pgbc)
+        addMessageEditor(periodicPanel, pgbc, periodicMsgArea)
 
         // timeline subform
         val tlPanel = JPanel(BorderLayout(5, 5))
@@ -191,27 +171,7 @@ class WsPushRuleDialog(
             insets = JBUI.insets(5)
         }
         ogbc.gridx = 0; ogbc.gridy = 0
-        offPanel.add(JBLabel(message("wsrule.message")), ogbc)
-        ogbc.gridx = 1; ogbc.weightx = 1.0; ogbc.weighty = 1.0; ogbc.fill = GridBagConstraints.BOTH
-        offMsgArea.lineWrap = true
-        offMsgArea.wrapStyleWord = true
-        offMsgArea.font = UIManager.getFont("TextArea.font")
-        val offScroll = JBScrollPane(offMsgArea)
-        offPanel.add(offScroll, ogbc)
-        ogbc.gridy = 1; ogbc.fill = GridBagConstraints.NONE; ogbc.weighty = 0.0; ogbc.anchor = GridBagConstraints.EAST
-        val offFmtBtn = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
-        offFmtBtn.addActionListener {
-            runCatching { offMsgArea.text = JsonNormalizeUtil.prettyJson(offMsgArea.text) }
-                .onFailure {
-                    JOptionPane.showMessageDialog(
-                        offPanel,
-                        message("mockapi.message.json.error", it.message ?: ""),
-                        message("config.message.error"),
-                        JOptionPane.ERROR_MESSAGE
-                    )
-                }
-        }
-        offPanel.add(offFmtBtn, ogbc)
+        addMessageEditor(offPanel, ogbc, offMsgArea)
 
         // center: cards by mode
         val cards = JPanel(CardLayout())
@@ -224,6 +184,44 @@ class WsPushRuleDialog(
         panel.add(top, BorderLayout.NORTH)
         panel.add(cards, BorderLayout.CENTER)
         return panel
+    }
+
+    /**
+     * 追加“消息编辑区”一组控件：Label + Scroll TextArea + 格式化按钮。
+     * 会在传入的 gbc 所在行放置标签与文本域，并将下一行用于放置格式化按钮。
+     */
+    private fun addMessageEditor(parent: JPanel, gbc: GridBagConstraints, area: JTextArea) {
+        // Label at (x=0, y=current)
+        parent.add(JBLabel(message("wsrule.message")), gbc)
+
+        // TextArea with scroll at (x=1, y=current)
+        gbc.gridx = 1
+        gbc.weightx = 1.0
+        gbc.weighty = 1.0
+        gbc.fill = GridBagConstraints.BOTH
+        area.lineWrap = true
+        area.wrapStyleWord = true
+        area.font = UIManager.getFont("TextArea.font")
+        parent.add(JBScrollPane(area), gbc)
+
+        // Format button at next row
+        gbc.gridy = gbc.gridy + 1
+        gbc.fill = GridBagConstraints.NONE
+        gbc.weighty = 0.0
+        gbc.anchor = GridBagConstraints.EAST
+        val fmtBtn = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
+        fmtBtn.addActionListener {
+            runCatching { area.text = JsonNormalizeUtil.prettyJson(area.text) }
+                .onFailure {
+                    JOptionPane.showMessageDialog(
+                        parent,
+                        message("mockapi.message.json.error", it.message ?: ""),
+                        message("config.message.error"),
+                        JOptionPane.ERROR_MESSAGE
+                    )
+                }
+        }
+        parent.add(fmtBtn, gbc)
     }
 
     private fun addTimelineItem() {

@@ -386,8 +386,9 @@ class MockServerService(private val project: Project) {
                 }
             """.trimIndent()
 
-            exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
-            exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
+            // Response headers
+            exchange.responseHeaders.set("Content-Type", "application/json; charset=UTF-8")
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
             val responseBytes = welcomeJson.toByteArray(Charsets.UTF_8)
             exchange.sendResponseHeaders(200, responseBytes.size.toLong())
@@ -423,12 +424,10 @@ class MockServerService(private val project: Project) {
 
             // 设置响应头（使用 set 确保唯一值，避免浏览器报重复 CORS 值）
             exchange.responseHeaders.set("Content-Type", "application/json; charset=UTF-8")
-            exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
-            exchange.responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
-            // 处理OPTIONS请求
-            if (exchange.requestMethod.equals("OPTIONS", ignoreCase = true)) {
+            // 处理OPTIONS请求（CORS预检）
+            if (org.zhongmiao.interceptwave.util.HttpServerUtil.isPreflight(exchange)) {
                 exchange.sendResponseHeaders(200, -1)
                 exchange.close()
                 return
@@ -496,20 +495,11 @@ class MockServerService(private val project: Project) {
 
             val response = client.send(requestBuilder.build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray())
 
-            // 复制响应头（过滤不安全与 CORS 相关头，CORS 在下方统一 set 保证唯一值）
-            response.headers().map().forEach { (key, values) ->
-                val k = key.lowercase()
-                if (k != "transfer-encoding" && k != "content-length" &&
-                    k != "access-control-allow-origin" && k != "access-control-allow-methods" &&
-                    k != "access-control-allow-headers") {
-                    values.forEach { value -> exchange.responseHeaders.add(key, value) }
-                }
-            }
-
-            // 添加/覆盖 CORS 头，使用 set 确保不会出现重复值
-            exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
-            exchange.responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            // 复制安全响应头并添加 CORS 头
+            org.zhongmiao.interceptwave.util.HttpServerUtil.copySafeResponseHeaders(
+                response.headers().map(), exchange.responseHeaders
+            )
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
             val respBytes = response.body()
             exchange.sendResponseHeaders(response.statusCode(), respBytes.size.toLong())
@@ -528,15 +518,7 @@ class MockServerService(private val project: Project) {
      * 发送错误响应
      */
     private fun sendErrorResponse(exchange: HttpExchange, statusCode: Int, message: String) {
-        try {
-            val errorJson = """{"error": "$message"}"""
-            val responseBytes = errorJson.toByteArray(Charsets.UTF_8)
-            exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
-            exchange.sendResponseHeaders(statusCode, responseBytes.size.toLong())
-            exchange.responseBody.use { it.write(responseBytes) }
-        } catch (e: Exception) {
-            thisLogger().error("Error sending error response", e)
-        }
+        org.zhongmiao.interceptwave.util.HttpServerUtil.sendJsonError(exchange, statusCode, message)
     }
 
     private fun logForwardError(t: Throwable) {

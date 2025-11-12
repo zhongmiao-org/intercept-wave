@@ -129,7 +129,7 @@ class WsServerEngine(
             }
 
             // Prefer quick rebind on restart
-            runCatching { this.server.setReuseAddr(true) }
+            runCatching { this.server.isReuseAddr = true }
 
             if (config.wssEnabled) {
                 val ssl = buildSslContext()
