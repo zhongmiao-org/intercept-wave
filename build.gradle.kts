@@ -66,7 +66,7 @@ kover {
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
     implementation(libs.kotlinx.serialization.json)
-    implementation("org.java-websocket:Java-WebSocket:1.5.6")
+    implementation("org.java-websocket:Java-WebSocket:1.6.0")
 
     testImplementation(libs.junit)
     testImplementation(libs.opentest4j)
