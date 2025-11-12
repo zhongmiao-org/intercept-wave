@@ -19,7 +19,8 @@ import javax.swing.JPanel
  */
 class ProxyConfigPanel(
     project: Project,
-    private val initialConfig: ProxyConfig
+    private val initialConfig: ProxyConfig,
+    private val onChanged: () -> Unit = {}
 ) {
     // 顶部（全局）控件
     private val protocolCombo = ComboBox(arrayOf("HTTP", "WS"))
@@ -37,11 +38,12 @@ class ProxyConfigPanel(
     private val cookieLabel = JBLabel(message("config.group.cookie") + ":")
 
     // 中部内容分离
-    private val httpSection = HttpConfigSection(project, initialConfig)
-    private val wsSection = WsConfigSection(project, initialConfig)
+    private val httpSection = HttpConfigSection(project, initialConfig) { onChanged() }
+    private val wsSection = WsConfigSection(project, initialConfig) { onChanged() }
 
     init {
         protocolCombo.selectedItem = initialConfig.protocol
+        attachChangeListeners()
     }
 
     fun getPanel(): JBPanel<JBPanel<*>> {
@@ -142,6 +144,26 @@ class ProxyConfigPanel(
 //        stripPrefixCheckbox.isVisible = true
         cookieLabel.isVisible = !isWs
         globalCookieField.isVisible = !isWs
+    }
+
+    private fun attachChangeListeners() {
+        fun javax.swing.text.Document.onAnyChange(cb: () -> Unit) {
+            addDocumentListener(object : javax.swing.event.DocumentListener {
+                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = cb()
+                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = cb()
+                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = cb()
+            })
+        }
+
+        nameField.document.onAnyChange(onChanged)
+        portField.document.onAnyChange(onChanged)
+        interceptPrefixField.document.onAnyChange(onChanged)
+        baseUrlField.document.onAnyChange(onChanged)
+        globalCookieField.document.onAnyChange(onChanged)
+
+        stripPrefixCheckbox.addActionListener { onChanged() }
+        enabledCheckbox.addActionListener { onChanged() }
+        protocolCombo.addActionListener { onChanged() }
     }
 
     fun validateInput(): Boolean {

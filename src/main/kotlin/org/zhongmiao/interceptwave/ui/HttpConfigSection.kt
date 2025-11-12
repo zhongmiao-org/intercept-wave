@@ -13,7 +13,11 @@ import javax.swing.Box
 import javax.swing.JButton
 
 /** HTTP 内容区（API 列表等） */
-class HttpConfigSection(private val project: Project, private val config: ProxyConfig) {
+class HttpConfigSection(
+    private val project: Project,
+    private val config: ProxyConfig,
+    private val onChanged: () -> Unit = {}
+) {
     private val tableModel = object : javax.swing.table.DefaultTableModel(
         arrayOf(
             message("config.table.enabled"),
@@ -57,6 +61,9 @@ class HttpConfigSection(private val project: Project, private val config: ProxyC
         bar.add(del)
         panel.add(bar, BorderLayout.SOUTH)
 
+        // 监听表格内容变化，标记变更
+        tableModel.addTableModelListener { onChanged() }
+
         return panel
     }
 
@@ -79,6 +86,7 @@ class HttpConfigSection(private val project: Project, private val config: ProxyC
             val newApi = dialog.getMockApiConfig()
             config.mockApis.add(newApi)
             loadMockApis()
+            onChanged()
         }
     }
 
@@ -90,6 +98,7 @@ class HttpConfigSection(private val project: Project, private val config: ProxyC
             if (dialog.showAndGet()) {
                 config.mockApis[row] = dialog.getMockApiConfig()
                 loadMockApis()
+                onChanged()
             }
         } else {
             javax.swing.JOptionPane.showMessageDialog(
@@ -113,6 +122,7 @@ class HttpConfigSection(private val project: Project, private val config: ProxyC
             if (result == javax.swing.JOptionPane.YES_OPTION) {
                 config.mockApis.removeAt(row)
                 loadMockApis()
+                onChanged()
             }
         } else {
             javax.swing.JOptionPane.showMessageDialog(
@@ -138,4 +148,3 @@ class HttpConfigSection(private val project: Project, private val config: ProxyC
         }
     }
 }
-

@@ -35,6 +35,20 @@ class ConfigDialog(
 
     // 统一校验与保存逻辑标志位：避免重复弹窗
     private var isSaving = false
+    private var hasUnsavedChanges = false
+    private lateinit var applyActionRef: DialogWrapperAction
+
+    private fun markDirty() {
+        if (!hasUnsavedChanges) {
+            hasUnsavedChanges = true
+            if (this::applyActionRef.isInitialized) applyActionRef.isEnabled = true
+        }
+    }
+
+    private fun clearDirty() {
+        hasUnsavedChanges = false
+        if (this::applyActionRef.isInitialized) applyActionRef.isEnabled = false
+    }
 
     init {
         init()
@@ -77,7 +91,7 @@ class ConfigDialog(
         tabPanels.clear()
 
         proxyGroups.forEachIndexed { index, config ->
-            val configPanel = ProxyConfigPanel(project, config)
+            val configPanel = ProxyConfigPanel(project, config) { markDirty() }
             tabPanels[index] = configPanel
 
             // 创建标签，显示配置组名称和端口
@@ -156,6 +170,7 @@ class ConfigDialog(
 
         // 选中新添加的标签
         tabbedPane.selectedIndex = tabbedPane.tabCount - 1
+        markDirty()
     }
 
     /**
@@ -202,6 +217,7 @@ class ConfigDialog(
             if (currentIndex > 0) {
                 tabbedPane.selectedIndex = currentIndex - 1
             }
+            markDirty()
         }
     }
 
@@ -229,6 +245,7 @@ class ConfigDialog(
 
         setupTabbedPane()
         tabbedPane.selectedIndex = newIndex
+        markDirty()
     }
 
     private fun validateAll(): Boolean {
@@ -261,6 +278,7 @@ class ConfigDialog(
             rootConfig.proxyGroups.clear()
             rootConfig.proxyGroups.addAll(proxyGroups)
             configService.saveRootConfig(rootConfig)
+            clearDirty()
             if (closeOnSuccess) super.doOKAction()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -280,12 +298,13 @@ class ConfigDialog(
     }
 
     override fun createActions(): Array<Action> {
-        val applyAction = object : DialogWrapperAction(message("config.button.apply")) {
+        applyActionRef = object : DialogWrapperAction(message("config.button.apply")) {
             override fun doAction(e: java.awt.event.ActionEvent?) {
                 performSave(closeOnSuccess = false)
             }
         }
-        return arrayOf(okAction, applyAction, cancelAction)
+        applyActionRef.isEnabled = false
+        return arrayOf(okAction, applyActionRef, cancelAction)
     }
 }
 

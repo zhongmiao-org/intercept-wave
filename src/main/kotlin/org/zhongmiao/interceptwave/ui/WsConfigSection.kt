@@ -11,7 +11,11 @@ import javax.swing.BorderFactory
 import javax.swing.JButton
 
 /** WS 内容区（上游、规则与手动推送设置） */
-class WsConfigSection(private val project: com.intellij.openapi.project.Project, private val config: ProxyConfig) {
+class WsConfigSection(
+    private val project: com.intellij.openapi.project.Project,
+    private val config: ProxyConfig,
+    private val onChanged: () -> Unit = {}
+) {
     private val wsBaseUrlField = JBTextField(config.wsBaseUrl ?: "")
     private val wsPrefixField = JBTextField(config.wsInterceptPrefix ?: "")
     private val wsManualPushCheck = JBCheckBox(message("config.ws.manualpush"), config.wsManualPush)
@@ -37,6 +41,11 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         gbc.gridx = 1; gbc.weightx = 1.0
         wsBaseUrlField.toolTipText = message("config.ws.baseurl.tooltip")
         top.add(wsBaseUrlField, gbc)
+        wsBaseUrlField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
+        })
 
         // WS 前缀
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
@@ -44,11 +53,17 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         gbc.gridx = 1; gbc.weightx = 1.0
         wsPrefixField.toolTipText = message("config.ws.prefix.tooltip")
         top.add(wsPrefixField, gbc)
+        wsPrefixField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
+        })
 
         // 手动推送开关
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2
         wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
         top.add(wsManualPushCheck, gbc)
+        wsManualPushCheck.addActionListener { onChanged() }
 
         panel.add(top, BorderLayout.NORTH)
 
@@ -84,6 +99,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         if (dialog.showAndGet()) {
             config.wsPushRules.add(dialog.getRule())
             loadRules()
+            onChanged()
         }
     }
 
@@ -103,6 +119,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         if (dialog.showAndGet()) {
             config.wsPushRules[idx] = dialog.getRule()
             loadRules()
+            onChanged()
         }
     }
 
@@ -126,6 +143,7 @@ class WsConfigSection(private val project: com.intellij.openapi.project.Project,
         if (result == javax.swing.JOptionPane.YES_OPTION) {
             config.wsPushRules.removeAt(idx)
             loadRules()
+            onChanged()
         }
     }
 

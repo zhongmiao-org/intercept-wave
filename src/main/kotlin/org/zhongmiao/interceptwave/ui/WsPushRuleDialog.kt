@@ -205,7 +205,7 @@ class WsPushRuleDialog(
         parent.add(JBScrollPane(area), gbc)
 
         // Format button at next row
-        gbc.gridy = gbc.gridy + 1
+        gbc.gridy += 1
         gbc.fill = GridBagConstraints.NONE
         gbc.weighty = 0.0
         gbc.anchor = GridBagConstraints.EAST

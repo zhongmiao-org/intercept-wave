@@ -13,7 +13,7 @@ fun formatWsRuleMatcher(r: WsPushRule): String {
     val value = r.eventValue?.trim().orEmpty()
     if (key.isNotEmpty() && value.isNotEmpty()) parts.add("event: ${key}=${value}")
     val dir = r.direction.lowercase()
-    if (dir != "both") parts.add("dir: ${dir}")
+    if (dir != "both") parts.add("dir: $dir")
     return if (parts.isEmpty()) "-" else parts.joinToString(", ")
 }
 
