@@ -5,18 +5,16 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
-import com.intellij.util.ui.JBUI
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.WsPushRule
 import org.zhongmiao.interceptwave.model.WsTimelineItem
 import org.zhongmiao.interceptwave.util.JsonNormalizeUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
 import javax.swing.*
 import com.intellij.ui.table.JBTable
 import java.awt.CardLayout
@@ -52,8 +50,18 @@ class WsPushRuleDialog(
 
     // periodic
     private val periodField = JBTextField((existing?.periodSec ?: 5).toString())
-    private val periodicMsgArea = JTextArea(existing?.message ?: "{}")
-    private val offMsgArea = JTextArea(existing?.message ?: "{}")
+    private val periodicMsgArea = JTextArea(existing?.message ?: "{}").apply {
+        lineWrap = true
+        wrapStyleWord = true
+        rows = 10
+        toolTipText = message("wsrule.message.tooltip")
+    }
+    private val offMsgArea = JTextArea(existing?.message ?: "{}").apply {
+        lineWrap = true
+        wrapStyleWord = true
+        rows = 10
+        toolTipText = message("wsrule.message.tooltip")
+    }
 
     // timeline
     private val tlModel = object : DefaultTableModel(arrayOf(message("wsrule.timeline.atms"), message("wsrule.timeline.message")), 0) {
@@ -77,101 +85,71 @@ class WsPushRuleDialog(
             // Dialog felt too narrow; increase default width
             preferredSize = Dimension(820, 560)
         }
-        val top = JPanel(GridBagLayout())
-        val gbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
-        }
-
-        // enabled
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2
-        top.add(enabledCheck, gbc)
-        gbc.gridwidth = 1
-
-        // path
-        gbc.gridx = 0; gbc.gridy = 1
-        top.add(JBLabel(message("wsrule.path")), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
+        // 顶部“表单字段”改为 UI DSL（复用组件以保持行为/校验一致）
         pathField.toolTipText = message("wsrule.path.tooltip")
-        top.add(pathField, gbc)
-        gbc.weightx = 0.0
-
-        // mode
-        gbc.gridx = 0; gbc.gridy = 2
-        top.add(JBLabel(message("wsrule.mode")), gbc)
-        gbc.gridx = 1
-        top.add(modeCombo, gbc)
-
-        // event key/value
-        gbc.gridx = 0; gbc.gridy = 3
-        top.add(JBLabel(message("wsrule.event.key")), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
         eventKeyField.toolTipText = message("wsrule.event.key.tooltip")
-        top.add(eventKeyField, gbc)
-        gbc.weightx = 0.0
-
-        gbc.gridx = 0; gbc.gridy = 4
-        top.add(JBLabel(message("wsrule.event.value")), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
         eventValueField.toolTipText = message("wsrule.event.value.tooltip")
-        top.add(eventValueField, gbc)
-        gbc.weightx = 0.0
-
-        // direction
-        gbc.gridx = 0; gbc.gridy = 5
-        top.add(JBLabel(message("wsrule.direction")), gbc)
-        gbc.gridx = 1
-        top.add(directionCombo, gbc)
-
-        // onOpen
-        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2
         onOpenCheck.toolTipText = message("wsrule.onopen.tooltip")
-        top.add(onOpenCheck, gbc)
-        gbc.gridwidth = 1
-
-        // intercept
-        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2
         interceptCheck.toolTipText = message("wsrule.intercept.tooltip")
-        top.add(interceptCheck, gbc)
-        gbc.gridwidth = 1
 
-        // periodic subform
-        val periodicPanel = JPanel(GridBagLayout())
-        val pgbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
+        val top = panel {
+            group(message("wsrule.group.basic")) {
+                row { cell(enabledCheck) }
+                row(message("wsrule.path")) {
+                    cell(pathField).align(AlignX.FILL)
+                }
+                row(message("wsrule.mode")) {
+                    cell(modeCombo).align(AlignX.FILL)
+                }
+                row(message("wsrule.event.key")) {
+                    cell(eventKeyField).align(AlignX.FILL)
+                }
+                row(message("wsrule.event.value")) {
+                    cell(eventValueField).align(AlignX.FILL)
+                }
+                row(message("wsrule.direction")) {
+                    cell(directionCombo).align(AlignX.FILL)
+                }
+                row { cell(onOpenCheck) }
+                row { cell(interceptCheck) }
+            }
         }
-        pgbc.gridx = 0; pgbc.gridy = 0
-        periodicPanel.add(JBLabel(message("wsrule.period.sec")), pgbc)
-        pgbc.gridx = 1
-        periodicPanel.add(periodField, pgbc)
-        pgbc.gridx = 0; pgbc.gridy = 1
-        addMessageEditor(periodicPanel, pgbc, periodicMsgArea)
+
+        // periodic subform (纯 DSL)
+        val periodicPanel = panel {
+            row(message("wsrule.period.sec")) { cell(periodField).align(AlignX.FILL) }
+            row(message("wsrule.message")) { cell(JBScrollPane(periodicMsgArea)).align(AlignX.FILL) }
+        }
 
         // timeline subform
         val tlPanel = JPanel(BorderLayout(5, 5))
         tlTable.fillsViewportHeight = true
+        // 空数据时也给出适当高度，提升观感（约 5 行高度）
+        run {
+            val visibleRows = 5
+            tlTable.preferredScrollableViewportSize = Dimension(
+                tlTable.preferredScrollableViewportSize.width,
+                tlTable.rowHeight * visibleRows
+            )
+        }
         tlPanel.add(JBScrollPane(tlTable), BorderLayout.CENTER)
-        val tBtns = JPanel()
-        tBtns.layout = BoxLayout(tBtns, BoxLayout.X_AXIS)
-        val addBtn = JButton(message("wsrule.timeline.add"), AllIcons.General.Add)
-        addBtn.addActionListener { addTimelineItem() }
-        val editBtn = JButton(message("wsrule.timeline.edit"), AllIcons.Actions.Edit)
-        editBtn.addActionListener { editTimelineItem() }
-        val delBtn = JButton(message("wsrule.timeline.delete"), AllIcons.General.Remove)
-        delBtn.addActionListener { deleteTimelineItem() }
-        tBtns.add(addBtn); tBtns.add(Box.createHorizontalStrut(5)); tBtns.add(editBtn); tBtns.add(Box.createHorizontalStrut(5)); tBtns.add(delBtn)
+        val tBtns = panel {
+            row {
+                button(message("wsrule.timeline.add")) { addTimelineItem() }
+                    .applyToComponent { icon = AllIcons.General.Add }
+                button(message("wsrule.timeline.edit")) { editTimelineItem() }
+                    .applyToComponent { icon = AllIcons.Actions.Edit }
+                button(message("wsrule.timeline.delete")) { deleteTimelineItem() }
+                    .applyToComponent { icon = AllIcons.General.Remove }
+            }
+        }
         tlPanel.add(tBtns, BorderLayout.SOUTH)
         tlPanel.add(loopCheck, BorderLayout.NORTH)
 
-        // off subform (manual template only)
-        val offPanel = JPanel(GridBagLayout())
-        val ogbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
+        // off subform (manual template only, 纯 DSL)
+        val offPanel = panel {
+            row(message("wsrule.message")) { cell(JBScrollPane(offMsgArea)).align(AlignX.FILL) }
         }
-        ogbc.gridx = 0; ogbc.gridy = 0
-        addMessageEditor(offPanel, ogbc, offMsgArea)
 
         // center: cards by mode
         val cards = JPanel(CardLayout())
@@ -186,29 +164,32 @@ class WsPushRuleDialog(
         return panel
     }
 
-    /**
-     * 追加“消息编辑区”一组控件：Label + Scroll TextArea + 格式化按钮。
-     * 会在传入的 gbc 所在行放置标签与文本域，并将下一行用于放置格式化按钮。
-     */
-    private fun addMessageEditor(parent: JPanel, gbc: GridBagConstraints, area: JTextArea) {
-        // build label + scroll text area via shared util
-        UiFormUtil.addLabeledScrollTextArea(parent, gbc, "wsrule.message", area)
-        // place format button on next row
-        gbc.anchor = GridBagConstraints.EAST
-        val fmtBtn = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
-        fmtBtn.addActionListener {
-            runCatching { area.text = JsonNormalizeUtil.prettyJson(area.text) }
-                .onFailure {
-                    JOptionPane.showMessageDialog(
-                        parent,
-                        message("mockapi.message.json.error", it.message ?: ""),
-                        message("config.message.error"),
-                        JOptionPane.ERROR_MESSAGE
-                    )
+    override fun createSouthAdditionalPanel(): JPanel {
+        // 左下角统一放置“格式化 JSON”，仅针对 off/periodic 模式有效
+        return panel {
+            row {
+                button(message("mockapi.button.format")) {
+                    val mode = modeItems[modeCombo.selectedIndex].value
+                    when (mode) {
+                        "periodic" -> runCatching { periodicMsgArea.text = JsonNormalizeUtil.prettyJson(periodicMsgArea.text) }
+                            .onFailure { e ->
+                                JOptionPane.showMessageDialog(contentPanel, message("mockapi.message.json.error", e.message ?: ""), message("config.message.error"), JOptionPane.ERROR_MESSAGE)
+                            }
+                        "off" -> runCatching { offMsgArea.text = JsonNormalizeUtil.prettyJson(offMsgArea.text) }
+                            .onFailure { e ->
+                                JOptionPane.showMessageDialog(contentPanel, message("mockapi.message.json.error", e.message ?: ""), message("config.message.error"), JOptionPane.ERROR_MESSAGE)
+                            }
+                        else -> JOptionPane.showMessageDialog(contentPanel, message("wsrule.validation.timeline.empty"), message("config.message.info"), JOptionPane.INFORMATION_MESSAGE)
+                    }
+                }.applyToComponent {
+                    icon = AllIcons.Actions.ReformatCode
+                    isFocusPainted = false
                 }
+            }
         }
-        parent.add(fmtBtn, gbc)
     }
+
+    // (message editors migrated to DSL; helper removed)
 
     private fun addTimelineItem() {
         val at = JOptionPane.showInputDialog(contentPanel, message("wsrule.timeline.at.prompt")) ?: return

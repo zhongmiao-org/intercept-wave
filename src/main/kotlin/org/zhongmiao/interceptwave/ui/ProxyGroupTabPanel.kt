@@ -14,9 +14,8 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.table.JBTable
+import com.intellij.ui.dsl.builder.AlignX
 import java.awt.BorderLayout
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
 import javax.swing.*
 
 /**
@@ -44,7 +43,6 @@ class ProxyGroupTabPanel(
         isFocusPainted = false
         isFocusable = false
     }
-    private val configInfoArea = JTextArea()
     // WS 手动推送控件
     private val wsCustomMsgArea = JTextArea()
     private val wsTargetCombo = ComboBox(arrayOf(
@@ -58,19 +56,19 @@ class ProxyGroupTabPanel(
     }
 
     fun getPanel(): JPanel {
-        val panel = JPanel(BorderLayout(15, 15))
-        panel.border = BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        val panel = JPanel(BorderLayout(8, 8))
+        panel.border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
 
         // 顶部：状态信息
         val statusPanel = createStatusPanel()
         panel.add(statusPanel, BorderLayout.NORTH)
 
         // 中部：配置信息 +（可选）WS推送面板
-        val center = JPanel(BorderLayout(10, 10))
+        val center = JPanel(BorderLayout(6, 6))
         val cfg = configService.getProxyGroup(configId)
         if (cfg != null && cfg.protocol == "WS" && cfg.wsManualPush) {
-            // WS 组：配置信息区域收缩到顶部，给推送面板更多空间
-            val infoPanel = createInfoPanel(compact = true)
+            // WS 组：配置信息放在顶部（不限制高度），下方是推送面板
+            val infoPanel = createInfoPanel()
             center.add(infoPanel, BorderLayout.NORTH)
             center.add(createWsPushPanel(), BorderLayout.CENTER)
         } else {
@@ -86,165 +84,148 @@ class ProxyGroupTabPanel(
      * 创建状态面板
      */
     private fun createStatusPanel(): JPanel {
-        val panel = JPanel(GridBagLayout())
-        panel.border = BorderFactory.createTitledBorder(message("toolwindow.status.title"))
-
-        val gbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
-        }
-
-        // 配置组名称
         val nameLabel = JBLabel("$configName (:$port)")
         nameLabel.font = nameLabel.font.deriveFont(16f).deriveFont(java.awt.Font.BOLD)
-        gbc.gridx = 0
-        gbc.gridy = 0
-        gbc.gridwidth = 2
-        gbc.weightx = 1.0
-        panel.add(nameLabel, gbc)
 
-        // 配置状态
-        gbc.gridy = 1
-        gbc.gridwidth = 1
-        panel.add(JBLabel(message("toolwindow.label.config.status")), gbc)
-        gbc.gridx = 1
         val enabledLabel = JBLabel(
             if (enabled) message("toolwindow.status.enabled") else message("toolwindow.status.disabled"),
             if (enabled) AllIcons.General.InspectionsOK else AllIcons.General.InspectionsError,
             SwingConstants.LEFT
-        )
-        enabledLabel.foreground = if (enabled) JBColor(0x008000, 0x6A8759) else JBColor.GRAY
-        panel.add(enabledLabel, gbc)
+        ).apply { foreground = if (enabled) JBColor(0x008000, 0x6A8759) else JBColor.GRAY }
 
-        // 运行状态
-        gbc.gridx = 0
-        gbc.gridy = 2
-        panel.add(JBLabel(message("toolwindow.label.running.status")), gbc)
-        gbc.gridx = 1
-        panel.add(statusLabel, gbc)
-
-        // 访问 URL
-        gbc.gridx = 0
-        gbc.gridy = 3
-        panel.add(JBLabel(message("toolwindow.label.url")), gbc)
-        gbc.gridx = 1
         urlLabel.foreground = JBColor(0x0066CC, 0x5394EC)
-        panel.add(urlLabel, gbc)
 
-        // 按钮
-        val buttonPanel = JPanel()
-        buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
-
-        startButton.addActionListener {
-            startServer()
+        val content = com.intellij.ui.dsl.builder.panel {
+            group(message("toolwindow.status.title")) {
+                row { cell(nameLabel) }
+                row(message("toolwindow.label.config.status")) { cell(enabledLabel).align(AlignX.FILL) }
+                row(message("toolwindow.label.running.status")) { cell(statusLabel).align(AlignX.FILL) }
+                row(message("toolwindow.label.url")) { cell(urlLabel).align(AlignX.FILL) }
+                row {
+                    startButton.addActionListener { startServer() }
+                    stopButton.addActionListener { stopServer() }
+                    cell(startButton)
+                    cell(stopButton)
+                }
+            }
         }
-
-        stopButton.addActionListener {
-            stopServer()
-        }
-
-        buttonPanel.add(startButton)
-        buttonPanel.add(Box.createHorizontalStrut(10))
-        buttonPanel.add(stopButton)
-
-        gbc.gridx = 0
-        gbc.gridy = 4
-        gbc.gridwidth = 2
-        gbc.insets = JBUI.insets(15, 5, 5, 5)
-        panel.add(buttonPanel, gbc)
-
-        return panel
+        return content
     }
 
     /**
      * 创建配置信息面板
      */
-    private fun createInfoPanel(compact: Boolean = false): JPanel {
-        val panel = JPanel(BorderLayout())
-        panel.border = BorderFactory.createTitledBorder(message("toolwindow.config.title"))
+    private fun createInfoPanel(): JPanel {
+        val cfg = configService.getProxyGroup(configId)
+        val isWs = cfg?.protocol == "WS"
+        val yes = message("toolwindow.yes")
+        val no = message("toolwindow.no")
 
-        configInfoArea.isEditable = false
-        configInfoArea.lineWrap = true
-        configInfoArea.wrapStyleWord = true
+        val content = com.intellij.ui.dsl.builder.panel {
+            group(message("toolwindow.config.title")) {
+                // 顶部基本信息
+                row(message("toolwindow.config.name", configName)) { }
+                row(message("toolwindow.config.port", "$port")) { }
+                row(message("toolwindow.config.stripprefix", if (cfg?.stripPrefix == true) yes else no)) { }
 
-        updateConfigInfo()
+                if (!isWs) {
+                    // HTTP 详细
+                    row(message("toolwindow.config.prefix", cfg?.interceptPrefix ?: "")) { }
+                    row(message("toolwindow.config.baseurl", cfg?.baseUrl ?: "")) { }
+                    val cookie = (cfg?.globalCookie ?: "").ifEmpty { message("toolwindow.notset") }
+                    row(message("toolwindow.config.cookie", cookie)) { }
 
-        val scrollPane = JBScrollPane(configInfoArea)
-        if (compact) {
-            // 提高高度以减少内部滚动，同时仍为下方推送面板预留空间
-            val h = 220
-            panel.preferredSize = java.awt.Dimension(10, h)
-            scrollPane.preferredSize = java.awt.Dimension(10, h - 40)
+                    // Mock 接口列表（两列：启用复选框 + 路径），不再显示“Mock 接口列表:”文案
+                    val apis = cfg?.mockApis ?: emptyList()
+                    val table = JBTable(createHttpMockShortTableModel(apis)).apply {
+                        fillsViewportHeight = true
+                        // 窄化“启用”复选框列宽
+                        columnModel.getColumn(0).apply {
+                            minWidth = JBUI.scale(40)
+                            preferredWidth = JBUI.scale(40)
+                            maxWidth = JBUI.scale(40)
+                        }
+                        // 空数据时也给出适当高度，提升观感（约 5 行高度）
+                        val visibleRows = 5
+                        preferredScrollableViewportSize = java.awt.Dimension(
+                            preferredScrollableViewportSize.width,
+                            rowHeight * visibleRows
+                        )
+                    }
+                    row { cell(JBScrollPane(table)).align(AlignX.FILL) }
+                } else {
+                    // WS 详细（进入该分支意味着 cfg 非空）
+                    row(message("toolwindow.ws.title")) { }
+                    val c = cfg
+                    val wsBase = c.wsBaseUrl ?: message("toolwindow.notset")
+                    row(message("toolwindow.ws.baseurl", wsBase)) { }
+                    val wsPrefix = c.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
+                    row(message("toolwindow.ws.prefix", wsPrefix)) { }
+                    row(message("toolwindow.ws.manualpush", if (c.wsManualPush) yes else no)) { }
+                }
+            }
         }
-        panel.add(scrollPane, BorderLayout.CENTER)
+        return content
+    }
 
-        return panel
+    private fun createHttpMockShortTableModel(apis: List<org.zhongmiao.interceptwave.model.MockApiConfig>): javax.swing.table.DefaultTableModel {
+        return object : javax.swing.table.DefaultTableModel(
+            arrayOf(
+                message("config.table.enabled"),
+                message("config.table.path"),
+            ), 0
+        ) {
+            override fun getColumnClass(column: Int): Class<*> = if (column == 0) java.lang.Boolean::class.java else String::class.java
+            override fun isCellEditable(row: Int, column: Int): Boolean = false
+        }.apply {
+            apis.forEach { api ->
+                addRow(arrayOf<Any>(api.enabled, api.path))
+            }
+        }
     }
 
     /**
      * 更新配置信息显示
      */
-    private fun updateConfigInfo() {
-        val config = configService.getProxyGroup(configId)
-        if (config == null) {
-            configInfoArea.text = message("toolwindow.config.notfound")
-            return
-        }
-
-        val info = buildString {
-            appendLine(message("toolwindow.config.name", config.name))
-            appendLine(message("toolwindow.config.port", "${config.port}"))
-            if (config.protocol == "WS") {
-                appendLine()
-                appendLine(message("toolwindow.ws.title"))
-                appendLine(message("toolwindow.ws.baseurl", config.wsBaseUrl ?: message("toolwindow.notset")))
-                val wsPrefixDisplay = config.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
-                appendLine(message("toolwindow.ws.prefix", wsPrefixDisplay))
-                appendLine(message("toolwindow.ws.manualpush", if (config.wsManualPush) message("toolwindow.yes") else message("toolwindow.no")))
-                appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
-            } else {
-                appendLine(message("toolwindow.config.prefix", config.interceptPrefix))
-                appendLine(message("toolwindow.config.baseurl", config.baseUrl))
-                appendLine(message("toolwindow.config.stripprefix", if (config.stripPrefix) message("toolwindow.yes") else message("toolwindow.no")))
-                appendLine(message("toolwindow.config.cookie", config.globalCookie.ifEmpty { message("toolwindow.notset") }))
-                appendLine()
-                appendLine(message("toolwindow.config.mocklist"))
-                if (config.mockApis.isEmpty()) {
-                    appendLine(message("toolwindow.config.nomock"))
-                } else {
-                    config.mockApis.forEach { api ->
-                        val status = if (api.enabled) "✓" else "✗"
-                        appendLine("  $status ${api.method.padEnd(6)} ${api.path}")
-                    }
-                }
-            }
-        }
-        configInfoArea.text = info
-    }
+    // 更新文本方式已移除，改为 DSL 构建
 
     /**
      * WS 手动推送面板
      */
     private fun createWsPushPanel(): JPanel {
-        val panel = JPanel(BorderLayout(5, 5))
-        panel.border = BorderFactory.createTitledBorder(message("wspanel.title"))
-
-        val top = JPanel()
-        top.layout = BoxLayout(top, BoxLayout.X_AXIS)
-        top.add(JBLabel(message("wspanel.target")))
         wsTargetCombo.selectedIndex = 0
-        top.add(Box.createHorizontalStrut(5))
-        top.add(wsTargetCombo)
-        panel.add(top, BorderLayout.NORTH)
 
-        // 规则列表 + 发送选中
         val cfg = configService.getProxyGroup(configId)
-        val rulesPanel = JPanel(BorderLayout(5, 5))
         val ruleModel = createWsRuleTableModel()
-        val ruleTable = JBTable(ruleModel)
+        val ruleTable = JBTable(ruleModel).apply {
+            fillsViewportHeight = true
+            // 空数据时也给出适当高度（约 5 行），避免过于矮小
+            val visibleRows = 5
+            preferredScrollableViewportSize = java.awt.Dimension(
+                preferredScrollableViewportSize.width,
+                rowHeight * visibleRows
+            )
+            // 缩窄启用列宽固定为 40
+            runCatching {
+                columnModel.getColumn(0).apply {
+                    minWidth = JBUI.scale(40)
+                    preferredWidth = JBUI.scale(40)
+                    maxWidth = JBUI.scale(40)
+                }
+                // 模式/间隔列固定为 80
+                columnModel.getColumn(2).apply {
+                    minWidth = JBUI.scale(80)
+                    preferredWidth = JBUI.scale(80)
+                    maxWidth = JBUI.scale(80)
+                }
+                columnModel.getColumn(3).apply {
+                    minWidth = JBUI.scale(80)
+                    preferredWidth = JBUI.scale(80)
+                    maxWidth = JBUI.scale(80)
+                }
+            }
+        }
         appendWsRuleRows(ruleModel, cfg?.wsPushRules ?: emptyList())
-        rulesPanel.add(JBScrollPane(ruleTable), BorderLayout.CENTER)
-        // 当用户选择规则时，将其消息填充到下方自定义输入区域，便于直接点击“发送”按钮
         ruleTable.selectionModel.addListSelectionListener {
             if (!it.valueIsAdjusting) {
                 val row = ruleTable.selectedRow
@@ -255,56 +236,52 @@ class ProxyGroupTabPanel(
                 }
             }
         }
-        val sendSelected = JButton(message("wspanel.send.selected"), AllIcons.Actions.Execute)
-        sendSelected.isFocusPainted = false
-        sendSelected.toolTipText = message("wspanel.send.selected.tooltip")
-        sendSelected.addActionListener {
-            val row = ruleTable.selectedRow
-            if (row < 0) return@addActionListener
-            val latest = configService.getProxyGroup(configId)
-            val rule = latest?.wsPushRules?.getOrNull(row) ?: return@addActionListener
-            val msgTrimmed = rule.message.trim()
-            if (msgTrimmed.isEmpty()) {
-                JOptionPane.showMessageDialog(
-                    null,
-                    message("wspanel.send.rule.empty.warn"),
-                    message("config.message.info"),
-                    JOptionPane.WARNING_MESSAGE
-                )
-                return@addActionListener
-            }
-            val target = when (wsTargetCombo.selectedIndex) { 1 -> "ALL"; 2 -> "LATEST"; else -> "MATCH" }
-            mockServerService.sendWsMessage(configId, path = rule.path, message = msgTrimmed, target = target)
-        }
-        val rpSouth = JPanel()
-        rpSouth.layout = BoxLayout(rpSouth, BoxLayout.X_AXIS)
-        rpSouth.add(sendSelected)
-        rulesPanel.add(rpSouth, BorderLayout.SOUTH)
-        panel.add(rulesPanel, BorderLayout.CENTER)
+        // 选中规则发送按钮改为 DSL 创建（在下方 group 中定义）
 
-        // 底部：自定义输入 + 按钮栏 放在同一 SOUTH 子容器，避免覆盖
         wsCustomMsgArea.lineWrap = true
         wsCustomMsgArea.wrapStyleWord = true
         wsCustomMsgArea.rows = 4
-        val southContainer = JPanel(BorderLayout(5, 5))
-        southContainer.add(JBScrollPane(wsCustomMsgArea), BorderLayout.CENTER)
 
-        val btnBar = JPanel()
-        btnBar.layout = BoxLayout(btnBar, BoxLayout.X_AXIS)
-        val sendBtn = JButton(message("wspanel.send.custom"), AllIcons.Actions.Execute)
-        sendBtn.isFocusPainted = false
-        sendBtn.toolTipText = message("wspanel.send.custom.tooltip")
-        sendBtn.addActionListener { sendWsCustomMessage() }
-        val clearBtn = JButton(message("wspanel.clear"), AllIcons.Actions.GC)
-        clearBtn.isFocusPainted = false
-        clearBtn.addActionListener { wsCustomMsgArea.text = "" }
-        btnBar.add(sendBtn)
-        btnBar.add(Box.createHorizontalStrut(5))
-        btnBar.add(clearBtn)
-        southContainer.add(btnBar, BorderLayout.SOUTH)
-        panel.add(southContainer, BorderLayout.SOUTH)
-
-        return panel
+        val content = com.intellij.ui.dsl.builder.panel {
+            group(message("wspanel.title")) {
+                row(message("wspanel.target")) { cell(wsTargetCombo).align(AlignX.FILL) }
+                row { cell(JBScrollPane(ruleTable)).align(AlignX.FILL) }
+                row {
+                    button(message("wspanel.send.selected")) {
+                        val row = ruleTable.selectedRow
+                        if (row < 0) return@button
+                        val latest = configService.getProxyGroup(configId)
+                        val rule = latest?.wsPushRules?.getOrNull(row) ?: return@button
+                        val msgTrimmed = rule.message.trim()
+                        if (msgTrimmed.isEmpty()) {
+                            JOptionPane.showMessageDialog(null, message("wspanel.send.rule.empty.warn"), message("config.message.info"), JOptionPane.WARNING_MESSAGE)
+                            return@button
+                        }
+                        val target = when (wsTargetCombo.selectedIndex) { 1 -> "ALL"; 2 -> "LATEST"; else -> "MATCH" }
+                        mockServerService.sendWsMessage(configId, path = rule.path, message = msgTrimmed, target = target)
+                    }.applyToComponent {
+                        icon = AllIcons.Actions.Execute
+                        isFocusPainted = false
+                        toolTipText = message("wspanel.send.selected.tooltip")
+                    }
+                }
+                row { cell(JBScrollPane(wsCustomMsgArea)).align(AlignX.FILL) }
+                row {
+                    button(message("wspanel.send.custom")) { sendWsCustomMessage() }
+                        .applyToComponent {
+                            icon = AllIcons.Actions.Execute
+                            isFocusPainted = false
+                            toolTipText = message("wspanel.send.custom.tooltip")
+                        }
+                    button(message("wspanel.clear")) { wsCustomMsgArea.text = "" }
+                        .applyToComponent {
+                            icon = AllIcons.Actions.GC
+                            isFocusPainted = false
+                        }
+                }
+            }
+        }
+        return content
     }
 
     private fun sendWsCustomMessage() {

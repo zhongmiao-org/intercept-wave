@@ -10,6 +10,7 @@ import org.java_websocket.server.DefaultSSLWebSocketServerFactory
 import org.zhongmiao.interceptwave.events.*
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.util.PathPatternUtil
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import java.net.InetSocketAddress
 import java.net.URI
 import java.net.http.HttpClient
@@ -47,6 +48,7 @@ class WsServerEngine(
         val conn: WebSocket,
         val pathOnly: String, // without query, possibly stripPrefix applied
         val fullPath: String, // with query
+        val upstreamTarget: String,
         @Volatile var upstream: java.net.http.WebSocket? = null,
         val periodicTasks: MutableList<ScheduledFuture<*>> = mutableListOf(),
         val timelineTasks: MutableList<ScheduledFuture<*>> = mutableListOf(),
@@ -72,14 +74,12 @@ class WsServerEngine(
                     val upstreamUrl = buildUpstreamUrl(fullForwardPath)
                     output.publish(WebSocketConnecting(config.id, config.name, computed, upstreamUrl))
 
-                    val ctx = ConnCtx(conn, computed, fullForwardPath)
+                    val ctx = ConnCtx(conn, computed, fullForwardPath, upstreamUrl)
                     this@WsServerEngine.connections[conn] = ctx
                     attachUpstream(ctx, upstreamUrl)
 
-                    // Auto push: schedule per matching rule
+                    // Auto push: schedule per matching rule (downstream connected)
                     scheduleAutoPush(ctx)
-
-                    output.publish(WebSocketConnected(config.id, config.name, computed))
                 }
 
                 override fun onClose(conn: WebSocket, code: Int, reason: String?, remote: Boolean) {
@@ -119,8 +119,12 @@ class WsServerEngine(
                 }
 
                 override fun onError(conn: WebSocket?, ex: Exception) {
-                    val path = conn?.let { this@WsServerEngine.connections[it]?.pathOnly } ?: ""
-                    output.publish(WebSocketError(config.id, config.name, path, ex.message ?: "error"))
+                    val ctx = conn?.let { this@WsServerEngine.connections[it] }
+                    val path = ctx?.pathOnly ?: ""
+                    val msg = if (ctx != null && ctx.upstream == null)
+                        message("console.ws.upstream.connect.failed", ctx.upstreamTarget)
+                    else (ex.message ?: ex.toString())
+                    output.publish(WebSocketError(config.id, config.name, path, msg))
                 }
 
                 override fun onWebsocketPing(conn: WebSocket?, f: Framedata?) {
@@ -238,6 +242,8 @@ class WsServerEngine(
                     ctx.upstream = webSocket
                     // Start demand for incoming messages
                     runCatching { webSocket.request(1) }
+                    // 上游连接成功后再输出“已连接”日志（避免误导）
+                    output.publish(WebSocketConnected(config.id, config.name, ctx.pathOnly))
                 }
                 override fun onText(webSocket: java.net.http.WebSocket, data: CharSequence, last: Boolean): CompletionStage<*> {
                     val text = data.toString()
@@ -273,14 +279,33 @@ class WsServerEngine(
                     return CompletableFuture.completedFuture(null)
                 }
                 override fun onError(webSocket: java.net.http.WebSocket, error: Throwable) {
-                    output.publish(WebSocketError(config.id, config.name, ctx.pathOnly, error.message ?: "error"))
+                    val friendly = if (ctx.upstream == null)
+                        message("console.ws.upstream.connect.failed", upstreamUrl)
+                    else (error.message ?: error.toString())
+                    output.publish(WebSocketError(config.id, config.name, ctx.pathOnly, friendly))
                 }
             }
             val builder: Builder = client.newWebSocketBuilder()
             val uri = URI(upstreamUrl)
-            builder.buildAsync(uri, listener)
-        } catch (t: Throwable) {
-            output.publish(WebSocketError(config.id, config.name, ctx.pathOnly, t.message ?: "error"))
+            val fut = builder.buildAsync(uri, listener)
+            // 若连接建立阶段即失败（如上游未启动/拒绝/超时），在此捕获并提示
+            fut.whenComplete { _, throwable ->
+                if (throwable != null) {
+                    output.publish(
+                        WebSocketError(
+                            config.id, config.name, ctx.pathOnly,
+                            message("console.ws.upstream.connect.failed", upstreamUrl)
+                        )
+                    )
+                }
+            }
+        } catch (_: Throwable) {
+            output.publish(
+                WebSocketError(
+                    config.id, config.name, ctx.pathOnly,
+                    message("console.ws.upstream.connect.failed", upstreamUrl)
+                )
+            )
         }
     }
 

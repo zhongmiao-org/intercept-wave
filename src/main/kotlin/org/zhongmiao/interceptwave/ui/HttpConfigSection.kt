@@ -2,15 +2,14 @@ package org.zhongmiao.interceptwave.ui
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.*
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
-import javax.swing.BorderFactory
-import javax.swing.Box
-import javax.swing.JButton
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 
 /** HTTP 内容区（API 列表等） */
 class HttpConfigSection(
@@ -18,6 +17,11 @@ class HttpConfigSection(
     private val config: ProxyConfig,
     private val onChanged: () -> Unit = {}
 ) {
+    // 顶部 HTTP 基本设置（与 WS 保持一致的布局：上游、前缀、全局 Cookie）
+    private val baseUrlField = JBTextField(config.baseUrl)
+    private val prefixField = JBTextField(config.interceptPrefix)
+    private val cookieField = JBTextField(config.globalCookie)
+
     private val tableModel = object : javax.swing.table.DefaultTableModel(
         arrayOf(
             message("config.table.enabled"),
@@ -37,34 +41,74 @@ class HttpConfigSection(
         loadMockApis()
         setupEditors()
 
-        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
-        panel.border = BorderFactory.createTitledBorder(message("config.group.mocklist"))
+        val rootPanel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
 
         mockTable.fillsViewportHeight = true
-        panel.add(JBScrollPane(mockTable), BorderLayout.CENTER)
+        // 空数据时也给出适当高度（约 5 行），并缩窄启用列宽
+        run {
+            val visibleRows = 5
+            mockTable.preferredScrollableViewportSize = java.awt.Dimension(
+                mockTable.preferredScrollableViewportSize.width,
+                mockTable.rowHeight * visibleRows
+            )
+            runCatching {
+                mockTable.columnModel.getColumn(0).apply {
+                    minWidth = com.intellij.util.ui.JBUI.scale(40)
+                    preferredWidth = com.intellij.util.ui.JBUI.scale(40)
+                    maxWidth = com.intellij.util.ui.JBUI.scale(40)
+                }
+            }
+        }
+        val tableScroll = JBScrollPane(mockTable).apply {
+            // 列表无标题与边框
+            border = null
+            viewportBorder = null
+        }
 
-        val bar = JBPanel<JBPanel<*>>()
-        bar.layout = javax.swing.BoxLayout(bar, javax.swing.BoxLayout.X_AXIS)
+        // 使用 DSL group 作为外层边框与内边距
+        val content = panel {
+            group(message("config.http.title")) {
+                row(message("config.group.baseurl") + ":") { cell(baseUrlField).align(AlignX.FILL) }
+                row(message("config.group.prefix") + ":") { cell(prefixField).align(AlignX.FILL) }
+                row(message("config.group.cookie") + ":") { cell(cookieField).align(AlignX.FILL) }
+                row { cell(tableScroll).align(AlignX.FILL) }
+                row {
+                    button(message("mockapi.add.button")) { addApi() }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.General.Add
+                            isFocusPainted = false
+                        }
+                    button(message("mockapi.edit.button")) { editApi() }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.Actions.Edit
+                            isFocusPainted = false
+                        }
+                    button(message("mockapi.delete.button")) { deleteApi() }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.General.Remove
+                            isFocusPainted = false
+                        }
+                }
+            }
+        }
+        rootPanel.add(content, BorderLayout.CENTER)
 
-        val add = JButton(message("mockapi.add.button"), com.intellij.icons.AllIcons.General.Add)
-        add.isFocusPainted = false
-        add.addActionListener { addApi() }
-        val edit = JButton(message("mockapi.edit.button"), com.intellij.icons.AllIcons.Actions.Edit)
-        edit.isFocusPainted = false
-        edit.addActionListener { editApi() }
-        val del = JButton(message("mockapi.delete.button"), com.intellij.icons.AllIcons.General.Remove)
-        del.isFocusPainted = false
-        del.addActionListener { deleteApi() }
-
-        bar.add(add); bar.add(Box.createHorizontalStrut(5))
-        bar.add(edit); bar.add(Box.createHorizontalStrut(5))
-        bar.add(del)
-        panel.add(bar, BorderLayout.SOUTH)
+        // 顶部字段联动变更
+        fun javax.swing.text.Document.onAnyChange(cb: () -> Unit) {
+            addDocumentListener(object : javax.swing.event.DocumentListener {
+                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = cb()
+                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = cb()
+                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = cb()
+            })
+        }
+        baseUrlField.document.onAnyChange(onChanged)
+        prefixField.document.onAnyChange(onChanged)
+        cookieField.document.onAnyChange(onChanged)
 
         // 监听表格内容变化，标记变更
         tableModel.addTableModelListener { onChanged() }
 
-        return panel
+        return rootPanel
     }
 
     private fun setupEditors() {
@@ -135,6 +179,10 @@ class HttpConfigSection(
     }
 
     fun applyTo(target: ProxyConfig) {
+        // 顶部 HTTP 基本设置
+        target.baseUrl = baseUrlField.text
+        target.interceptPrefix = prefixField.text
+        target.globalCookie = cookieField.text.trim()
         // 覆盖目标 mockApis 中已存在的行（保留长度一致的策略）
         for (i in 0 until tableModel.rowCount) {
             if (i < target.mockApis.size) {

@@ -7,6 +7,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.*
+import com.intellij.ui.dsl.builder.panel
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.*
@@ -120,38 +121,44 @@ class ConfigDialog(
     /**
      * 创建底部按钮面板
      */
-    private fun createBottomButtonPanel(): JBPanel<JBPanel<*>> {
-        val panel = JBPanel<JBPanel<*>>()
-        panel.layout = BoxLayout(panel, BoxLayout.X_AXIS)
+    private fun createBottomButtonPanel(): JComponent {
+        // 使用 UI DSL 统一按钮样式 / 焦点链路
+        val container = JBPanel<JBPanel<*>>(BorderLayout())
 
-        val addButton = JButton(message("config.group.add"), AllIcons.General.Add)
-        addButton.isFocusPainted = false
-        addButton.addActionListener { addNewProxyGroup() }
+        val left = panel {
+            row {
+                button(message("config.group.add")) { addNewProxyGroup() }
+                    .applyToComponent {
+                        icon = AllIcons.General.Add
+                        isFocusPainted = false
+                    }
+                button(message("config.group.delete")) { deleteCurrentProxyGroup() }
+                    .applyToComponent {
+                        icon = AllIcons.General.Remove
+                        isFocusPainted = false
+                    }
+            }
+        }
+        val right = panel {
+            row {
+                button(message("config.group.move.left")) { moveCurrentTab(-1) }
+                    .applyToComponent {
+                        icon = AllIcons.Actions.Back
+                        isFocusPainted = false
+                    }
+                button(message("config.group.move.right")) { moveCurrentTab(1) }
+                    .applyToComponent {
+                        // 右移保持图标在右侧
+                        horizontalTextPosition = SwingConstants.LEFT
+                        icon = AllIcons.Actions.Forward
+                        isFocusPainted = false
+                    }
+            }
+        }
 
-        val deleteButton = JButton(message("config.group.delete"), AllIcons.General.Remove)
-        deleteButton.isFocusPainted = false
-        deleteButton.addActionListener { deleteCurrentProxyGroup() }
-
-        val moveLeftButton = JButton(message("config.group.move.left"), AllIcons.Actions.Back)
-        moveLeftButton.isFocusPainted = false
-        moveLeftButton.addActionListener { moveCurrentTab(-1) }
-
-        // 特殊处理：右移按钮图标在右边
-        val moveRightButton = JButton(message("config.group.move.right"))
-        moveRightButton.horizontalTextPosition = SwingConstants.LEFT
-        moveRightButton.icon = AllIcons.Actions.Forward
-        moveRightButton.isFocusPainted = false
-        moveRightButton.addActionListener { moveCurrentTab(1) }
-
-        panel.add(addButton)
-        panel.add(Box.createHorizontalStrut(10))
-        panel.add(deleteButton)
-        panel.add(Box.createHorizontalGlue())
-        panel.add(moveLeftButton)
-        panel.add(Box.createHorizontalStrut(5))
-        panel.add(moveRightButton)
-
-        return panel
+        container.add(left, BorderLayout.WEST)
+        container.add(right, BorderLayout.EAST)
+        return container
     }
 
     /**

@@ -2,13 +2,12 @@ package org.zhongmiao.interceptwave.ui
 
 import com.intellij.ui.components.*
 import com.intellij.util.ui.JBUI
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
-import javax.swing.BorderFactory
-import javax.swing.JButton
+ 
 
 /** WS 内容区（上游、规则与手动推送设置） */
 class WsConfigSection(
@@ -26,67 +25,83 @@ class WsConfigSection(
     fun panel(): JBPanel<JBPanel<*>> {
         loadRules()
 
-        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
-        panel.border = BorderFactory.createTitledBorder(message("config.ws.title"))
+        val rootPanel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
 
-        val top = JBPanel<JBPanel<*>>(GridBagLayout())
-        val gbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
-        }
-
-        // WS 上游
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0
-        top.add(JBLabel(message("config.ws.baseurl") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
+        // 顶部“上半区字段行”切换为 UI DSL（复用既有组件与监听，保持行为不变）
         wsBaseUrlField.toolTipText = message("config.ws.baseurl.tooltip")
-        top.add(wsBaseUrlField, gbc)
+        wsPrefixField.toolTipText = message("config.ws.prefix.tooltip")
+        wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
         wsBaseUrlField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
             override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
             override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
             override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
         })
-
-        // WS 前缀
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
-        top.add(JBLabel(message("config.ws.prefix") + ":"), gbc)
-        gbc.gridx = 1; gbc.weightx = 1.0
-        wsPrefixField.toolTipText = message("config.ws.prefix.tooltip")
-        top.add(wsPrefixField, gbc)
         wsPrefixField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
             override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
             override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
             override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
         })
-
-        // 手动推送开关
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2
-        wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
-        top.add(wsManualPushCheck, gbc)
         wsManualPushCheck.addActionListener { onChanged() }
 
-        panel.add(top, BorderLayout.NORTH)
-
         wsRuleTable.fillsViewportHeight = true
-        panel.add(JBScrollPane(wsRuleTable), BorderLayout.CENTER)
+        // 空数据时也给出适当高度（约 5 行），避免过于矮小
+        run {
+            val visibleRows = 5
+            wsRuleTable.preferredScrollableViewportSize = java.awt.Dimension(
+                wsRuleTable.preferredScrollableViewportSize.width,
+                wsRuleTable.rowHeight * visibleRows
+            )
+        }
+        // 缩短“启用/模式/间隔”列宽，提升可读性
+        runCatching {
+            // 启用（checkbox + 文案）列，固定为 40
+            wsRuleTable.columnModel.getColumn(0).apply {
+                minWidth = JBUI.scale(40)
+                preferredWidth = JBUI.scale(40)
+                maxWidth = JBUI.scale(40)
+            }
+            wsRuleTable.columnModel.getColumn(2).apply {
+                minWidth = JBUI.scale(60)
+                preferredWidth = JBUI.scale(80)
+                maxWidth = JBUI.scale(120)
+            }
+            wsRuleTable.columnModel.getColumn(3).apply {
+                minWidth = JBUI.scale(50)
+                preferredWidth = JBUI.scale(70)
+                maxWidth = JBUI.scale(90)
+            }
+        }
+        val tableScroll = JBScrollPane(wsRuleTable)
 
-        val btnPanel = JBPanel<JBPanel<*>>()
-        btnPanel.layout = javax.swing.BoxLayout(btnPanel, javax.swing.BoxLayout.X_AXIS)
-        val addBtn = JButton(message("wsrule.add.button"), com.intellij.icons.AllIcons.General.Add)
-        addBtn.isFocusPainted = false
-        addBtn.addActionListener { addRule() }
-        val editBtn = JButton(message("wsrule.edit.button"), com.intellij.icons.AllIcons.Actions.Edit)
-        editBtn.isFocusPainted = false
-        editBtn.addActionListener { editRule() }
-        val delBtn = JButton(message("wsrule.delete.button"), com.intellij.icons.AllIcons.General.Remove)
-        delBtn.isFocusPainted = false
-        delBtn.addActionListener { deleteRule() }
-        btnPanel.add(addBtn); btnPanel.add(javax.swing.Box.createHorizontalStrut(5))
-        btnPanel.add(editBtn); btnPanel.add(javax.swing.Box.createHorizontalStrut(5))
-        btnPanel.add(delBtn)
-        panel.add(btnPanel, BorderLayout.SOUTH)
+        // 使用 DSL group 作为外层边框与内边距（替换 titled border）
+        val content = panel {
+            group(message("config.ws.title")) {
+                row(message("config.ws.baseurl") + ":") { cell(wsBaseUrlField).align(AlignX.FILL) }
+                row(message("config.ws.prefix") + ":") { cell(wsPrefixField).align(AlignX.FILL) }
+                row { cell(wsManualPushCheck) }
+                row { cell(tableScroll).align(AlignX.FILL) }
+                row {
+                    button(message("wsrule.add.button")) { addRule() }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.General.Add
+                            isFocusPainted = false
+                        }
+                    button(message("wsrule.edit.button")) { editRule() }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.Actions.Edit
+                            isFocusPainted = false
+                        }
+                    button(message("wsrule.delete.button")) { deleteRule() }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.General.Remove
+                            isFocusPainted = false
+                        }
+                }
+            }
+        }
+        rootPanel.add(content, BorderLayout.CENTER)
 
-        return panel
+        return rootPanel
     }
 
     private fun loadRules() {
