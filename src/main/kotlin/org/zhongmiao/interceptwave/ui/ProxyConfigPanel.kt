@@ -1,12 +1,14 @@
 package org.zhongmiao.interceptwave.ui
 
-import org.zhongmiao.interceptwave.InterceptWaveBundle.message
-import org.zhongmiao.interceptwave.model.ProxyConfig
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.components.*
+import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import javax.swing.JComponent
@@ -25,16 +27,11 @@ class ProxyConfigPanel(
     private val protocolCombo = ComboBox(arrayOf("HTTP", "WS"))
     private val nameField = JBTextField(initialConfig.name)
     private val portField = JBTextField(initialConfig.port.toString())
-    private val interceptPrefixField = JBTextField(initialConfig.interceptPrefix)
-    private val baseUrlField = JBTextField(initialConfig.baseUrl)
+    // HTTP 专属字段移至 HttpConfigSection 顶部；此处仅保留组级配置
     private val stripPrefixCheckbox = JBCheckBox(message("config.group.stripprefix"), initialConfig.stripPrefix)
-    private val globalCookieField = JBTextField(initialConfig.globalCookie)
     private val enabledCheckbox = JBCheckBox(message("config.group.enabled"), initialConfig.enabled)
 
-    // 标签：用于切换可见性
-    private val prefixLabel = JBLabel(message("config.group.prefix") + ":")
-    private val baseUrlLabel = JBLabel(message("config.group.baseurl") + ":")
-    private val cookieLabel = JBLabel(message("config.group.cookie") + ":")
+    // 标签：用于切换可见性（HTTP 专属已迁移，无需单独标签）
 
     // 中部内容分离
     private val httpSection = HttpConfigSection(project, initialConfig) { onChanged() }
@@ -74,10 +71,7 @@ class ProxyConfigPanel(
         // 工具提示
         nameField.toolTipText = message("config.group.name.tooltip")
         portField.toolTipText = message("config.group.port.tooltip")
-        interceptPrefixField.toolTipText = message("config.group.prefix.tooltip")
-        baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
-        globalCookieField.toolTipText = message("config.group.cookie.tooltip")
         enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
 
         // DSL 面板，复用现有组件，便于与现有逻辑/监听兼容
@@ -92,24 +86,9 @@ class ProxyConfigPanel(
                 row(message("config.group.port") + ":") {
                     cell(portField).align(AlignX.FILL)
                 }
-                // 拦截前缀（HTTP 可见）
-                row {
-                    cell(prefixLabel)
-                    cell(interceptPrefixField).align(AlignX.FILL)
-                }
-                // 目标地址（HTTP 可见）
-                row {
-                    cell(baseUrlLabel)
-                    cell(baseUrlField).align(AlignX.FILL)
-                }
                 // 剥离前缀（全宽）
                 row {
                     cell(stripPrefixCheckbox)
-                }
-                // 全局 Cookie（HTTP 可见）
-                row {
-                    cell(cookieLabel)
-                    cell(globalCookieField).align(AlignX.FILL)
                 }
                 // 启用开关（全宽）
                 row {
@@ -120,32 +99,12 @@ class ProxyConfigPanel(
     }
 
     private fun updateGlobalVisibility() {
-        val isWs = (protocolCombo.selectedItem as? String)?.equals("WS", ignoreCase = true) == true
-        prefixLabel.isVisible = !isWs
-        interceptPrefixField.isVisible = !isWs
-        baseUrlLabel.isVisible = !isWs
-        baseUrlField.isVisible = !isWs
-//        // 剥离前缀在 WS 组同样生效（针对 WS 前缀），因此在 WS 组也显示该选项
-//        stripPrefixCheckbox.isVisible = true
-        cookieLabel.isVisible = !isWs
-        globalCookieField.isVisible = !isWs
+        // 统一：全局区仅显示通用字段，无需按协议切换可见性
     }
 
     private fun attachChangeListeners() {
-        fun javax.swing.text.Document.onAnyChange(cb: () -> Unit) {
-            addDocumentListener(object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-            })
-        }
-
         nameField.document.onAnyChange(onChanged)
         portField.document.onAnyChange(onChanged)
-        interceptPrefixField.document.onAnyChange(onChanged)
-        baseUrlField.document.onAnyChange(onChanged)
-        globalCookieField.document.onAnyChange(onChanged)
-
         stripPrefixCheckbox.addActionListener { onChanged() }
         enabledCheckbox.addActionListener { onChanged() }
         protocolCombo.addActionListener { onChanged() }
@@ -182,10 +141,7 @@ class ProxyConfigPanel(
         config.protocol = (protocolCombo.selectedItem as? String) ?: "HTTP"
         config.name = nameField.text.trim().ifEmpty { message("config.group.default") }
         config.port = portField.text.toIntOrNull() ?: 8888
-        config.interceptPrefix = interceptPrefixField.text
-        config.baseUrl = baseUrlField.text
         config.stripPrefix = stripPrefixCheckbox.isSelected
-        config.globalCookie = globalCookieField.text.trim()
         config.enabled = enabledCheckbox.isSelected
 
         httpSection.applyTo(config)

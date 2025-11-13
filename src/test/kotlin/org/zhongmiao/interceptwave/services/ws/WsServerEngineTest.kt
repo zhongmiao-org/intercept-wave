@@ -6,6 +6,7 @@ import org.zhongmiao.interceptwave.events.MockServerEvent
 import org.zhongmiao.interceptwave.events.MockServerOutput
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.lang.reflect.Method
+import org.zhongmiao.interceptwave.util.PathUtil
 
 class WsServerEngineTest {
 
@@ -41,7 +42,8 @@ class WsServerEngineTest {
         val out = TestOutput()
         val engine = WsServerEngine(cfg, out)
 
-        val match = invokePrivate(engine, "computeMatchPath", "/ws/chat") as String
+        // computeMatchPath moved to PathUtil
+        val match = PathUtil.computeWsMatchPath(cfg, "/ws/chat")
         assertEquals("/chat", match)
 
         val fwd = invokePrivate(engine, "computeForwardPath", "/ws/chat?token=1") as String

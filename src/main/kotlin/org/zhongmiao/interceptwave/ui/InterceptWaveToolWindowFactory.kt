@@ -1,22 +1,25 @@
 package org.zhongmiao.interceptwave.ui
 
-import org.zhongmiao.interceptwave.InterceptWaveBundle.message
-import org.zhongmiao.interceptwave.services.ConfigService
-import org.zhongmiao.interceptwave.services.MockServerService
-import org.zhongmiao.interceptwave.services.ConsoleService
-import org.zhongmiao.interceptwave.events.*
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
-import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.dsl.builder.panel
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.events.*
+import org.zhongmiao.interceptwave.services.ConfigService
+import org.zhongmiao.interceptwave.services.ConsoleService
+import org.zhongmiao.interceptwave.services.MockServerService
 import java.awt.BorderLayout
-import javax.swing.SwingUtilities
-import javax.swing.*
+import javax.swing.BorderFactory
+import javax.swing.JPanel
 import javax.swing.ScrollPaneConstants
+import javax.swing.SwingUtilities
+import javax.swing.JComponent
 
 @Suppress("unused")
 class InterceptWaveToolWindow(private val project: Project) {
@@ -30,8 +33,8 @@ class InterceptWaveToolWindow(private val project: Project) {
         private val tabPanels = mutableMapOf<String, ProxyGroupTabPanel>()
 
         // 全局按钮引用，用于状态管理
-        private lateinit var startAllButton: JButton
-        private lateinit var stopAllButton: JButton
+        private lateinit var startAllButton: javax.swing.JButton
+        private lateinit var stopAllButton: javax.swing.JButton
 
         init {
             setupTabs()
@@ -72,65 +75,63 @@ class InterceptWaveToolWindow(private val project: Project) {
 
         @Suppress("unused")
         fun getContent(): JComponent {
-            val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
-            panel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
+            val rootPanel = JBPanel<JBPanel<*>>(BorderLayout(8, 8))
+            rootPanel.border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
 
             // 顶部容器（仅放置右侧全局按钮，不再显示左侧标题）
             val titlePanel = JPanel(BorderLayout())
 
-            // 全局操作按钮
-            val globalButtonPanel = JPanel()
-            globalButtonPanel.layout = BoxLayout(globalButtonPanel, BoxLayout.X_AXIS)
-
-            startAllButton = createButton(message("toolwindow.button.startall"), AllIcons.Actions.RunAll) {
-                mockServerService.startAllServers()
-                refreshAllTabs()
+            // 全局操作按钮（使用 UI DSL 排列，并捕获引用）
+            val globalRow = panel {
+                row {
+                    button(message("toolwindow.button.startall")) {
+                        mockServerService.startAllServers()
+                        refreshAllTabs()
+                    }.applyToComponent {
+                        icon = AllIcons.Actions.RunAll
+                        isFocusPainted = false
+                        isFocusable = false
+                        startAllButton = this
+                    }
+                    button(message("toolwindow.button.stopall")) {
+                        // 通过 ConsoleService 的虚拟进程终止来统一停止逻辑，确保 IDE Stop 按钮一致联动
+                        consoleService.terminateConsoleProcess()
+                        refreshAllTabs()
+                    }.applyToComponent {
+                        icon = AllIcons.Debugger.MuteBreakpoints
+                        isFocusPainted = false
+                        isFocusable = false
+                        stopAllButton = this
+                    }
+                    button(message("toolwindow.button.config")) {
+                        // Open the config dialog focusing on the currently selected group (if any)
+                        val selected = tabbedPane.selectedIndex
+                        // Exclude the trailing "+" tab when present
+                        val maxGroupIndex = (tabbedPane.tabCount - 2).coerceAtLeast(0)
+                        val initialIndex = if (selected in 0..maxGroupIndex) selected else 0
+                        openConfigDialog(initialSelectedIndex = initialIndex, autoAddNew = false)
+                    }.applyToComponent {
+                        icon = AllIcons.General.Settings
+                        isFocusPainted = false
+                        isFocusable = false
+                    }
+                }
             }
 
-            stopAllButton = createButton(message("toolwindow.button.stopall"), AllIcons.Debugger.MuteBreakpoints) {
-                // 通过 ConsoleService 的虚拟进程终止来统一停止逻辑，确保 IDE Stop 按钮一致联动
-                consoleService.terminateConsoleProcess()
-                refreshAllTabs()
-            }
+            titlePanel.add(globalRow, BorderLayout.EAST)
 
-            val configButton = createButton(message("toolwindow.button.config"), AllIcons.General.Settings) {
-                // Open config dialog focusing on the currently selected group (if any)
-                val selected = tabbedPane.selectedIndex
-                // Exclude the trailing "+" tab when present
-                val maxGroupIndex = (tabbedPane.tabCount - 2).coerceAtLeast(0)
-                val initialIndex = if (selected in 0..maxGroupIndex) selected else 0
-                openConfigDialog(initialSelectedIndex = initialIndex, autoAddNew = false)
-            }
-
-            globalButtonPanel.add(startAllButton)
-            globalButtonPanel.add(Box.createHorizontalStrut(10))
-            globalButtonPanel.add(stopAllButton)
-            globalButtonPanel.add(Box.createHorizontalStrut(10))
-            globalButtonPanel.add(configButton)
-
-            titlePanel.add(globalButtonPanel, BorderLayout.EAST)
-
-            panel.add(titlePanel, BorderLayout.NORTH)
+            rootPanel.add(titlePanel, BorderLayout.NORTH)
 
             // 标签页
-            panel.add(tabbedPane, BorderLayout.CENTER)
+            rootPanel.add(tabbedPane, BorderLayout.CENTER)
 
             // 初始化按钮状态
             updateGlobalButtonStates()
 
-            return panel
+            return rootPanel
         }
 
-        /**
-         * 创建按钮并设置样式
-         */
-        private fun createButton(text: String, icon: Icon, action: () -> Unit): JButton {
-            return JButton(text, icon).apply {
-                isFocusPainted = false
-                isFocusable = false
-                addActionListener { action() }
-            }
-        }
+        // createButton: 已用 UI DSL button 替代
 
         /**
          * 更新全局按钮状态
@@ -172,14 +173,16 @@ class InterceptWaveToolWindow(private val project: Project) {
 
             val proxyGroups = configService.getAllProxyGroups()
 
-            if (proxyGroups.isEmpty()) {
-                // 没有配置组，显示提示
-                val emptyPanel = JPanel(BorderLayout())
-                val label = JBLabel(message("toolwindow.empty.hint"))
-                label.foreground = JBColor.GRAY
-                label.horizontalAlignment = SwingConstants.CENTER
-                emptyPanel.add(label, BorderLayout.CENTER)
-                tabbedPane.addTab(message("toolwindow.empty.tab"), emptyPanel)
+                if (proxyGroups.isEmpty()) {
+                // 没有配置组，显示提示（DSL 布局），不再额外包一层 JPanel
+                val content = panel {
+                    row {
+                        val label = JBLabel(message("toolwindow.empty.hint"))
+                        label.foreground = JBColor.GRAY
+                        cell(label)
+                    }
+                }
+                tabbedPane.addTab(message("toolwindow.empty.tab"), content)
             } else {
                 proxyGroups.forEach { config ->
                     val tabPanel = ProxyGroupTabPanel(
@@ -202,12 +205,14 @@ class InterceptWaveToolWindow(private val project: Project) {
                 }
 
                 // 添加 "+" 标签用于快速新增配置
-                val addPanel = JPanel(BorderLayout())
-                val addLabel = JBLabel(message("toolwindow.add.hint"))
-                addLabel.foreground = JBColor.GRAY
-                addLabel.horizontalAlignment = SwingConstants.CENTER
-                addPanel.add(addLabel, BorderLayout.CENTER)
-                tabbedPane.addTab(null, AllIcons.General.Add, addPanel, message("toolwindow.add.hint"))
+                val addContent = panel {
+                    row {
+                        val addLabel = JBLabel(message("toolwindow.add.hint"))
+                        addLabel.foreground = JBColor.GRAY
+                        cell(addLabel)
+                    }
+                }
+                tabbedPane.addTab(null, AllIcons.General.Add, addContent, message("toolwindow.add.hint"))
 
                 // 监听 "+" 标签被点击
                 tabbedPane.addChangeListener {

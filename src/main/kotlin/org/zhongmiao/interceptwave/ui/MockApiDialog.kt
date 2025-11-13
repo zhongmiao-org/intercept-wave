@@ -9,12 +9,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
+import java.awt.BorderLayout
 import com.intellij.util.ui.JBUI
-import java.awt.Dimension
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
 import javax.swing.*
 
 /**
@@ -30,7 +30,12 @@ class MockApiDialog(
     private val statusCodeField = JBTextField(existingApi?.statusCode?.toString() ?: "200")
     private val delayField = JBTextField(existingApi?.delay?.toString() ?: "0")
     private val useCookieCheckBox = JCheckBox(message("mockapi.usecookie"), existingApi?.useCookie ?: false)
-    private val mockDataArea = JTextArea(existingApi?.mockData ?: "{}")
+    private val mockDataArea = JTextArea(existingApi?.mockData ?: "{}").apply {
+        lineWrap = true
+        wrapStyleWord = true
+        rows = 10
+        toolTipText = message("mockapi.mockdata.tooltip")
+    }
     private val enabledCheckBox = JCheckBox(message("mockapi.enabled"), existingApi?.enabled ?: true)
 
     init {
@@ -43,119 +48,74 @@ class MockApiDialog(
     }
 
     override fun createCenterPanel(): JComponent {
-        val panel = JPanel(GridBagLayout())
-        panel.preferredSize = Dimension(600, 500)
+        // 容器：顶部 DSL 表单 + 中部 JSON 编辑区
+        val root = JPanel(BorderLayout(10, 10))
+        root.preferredSize = JBUI.size(600, 500)
 
-        val gbc = GridBagConstraints().apply {
-            fill = GridBagConstraints.HORIZONTAL
-            insets = JBUI.insets(5)
-        }
-
-        // 启用状态
-        gbc.gridx = 0
-        gbc.gridy = 0
-        gbc.gridwidth = 2
-        gbc.weightx = 0.0
-        panel.add(enabledCheckBox, gbc)
-
-        gbc.gridwidth = 1
-
-        // 接口路径
-        var row = 1
-        gbc.gridx = 0
-        gbc.gridy = row
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("mockapi.path")), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
+        // 顶部基本信息（UI DSL，复用既有组件，保持监听/校验逻辑不变）
         pathField.toolTipText = message("mockapi.path.tooltip")
-        panel.add(pathField, gbc)
-        row++
-
-        // HTTP方法
-        gbc.gridx = 0
-        gbc.gridy = row
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("mockapi.method")), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        panel.add(methodComboBox, gbc)
-        row++
-
-        // 状态码
-        gbc.gridx = 0
-        gbc.gridy = row
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("mockapi.statuscode")), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
         statusCodeField.toolTipText = message("mockapi.statuscode.tooltip")
-        panel.add(statusCodeField, gbc)
-        row++
-
-        // 延迟
-        gbc.gridx = 0
-        gbc.gridy = row
-        gbc.weightx = 0.0
-        panel.add(JBLabel(message("mockapi.delay")), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
         delayField.toolTipText = message("mockapi.delay.tooltip")
-        panel.add(delayField, gbc)
-        row++
-
-        // 使用全局Cookie
-        gbc.gridx = 0
-        gbc.gridy = row
-        gbc.gridwidth = 2
-        gbc.weightx = 0.0
-        gbc.weighty = 0.0
-        gbc.fill = GridBagConstraints.NONE
-        gbc.anchor = GridBagConstraints.WEST
         useCookieCheckBox.toolTipText = message("mockapi.usecookie.tooltip")
-        panel.add(useCookieCheckBox, gbc)
-        row++
 
-        gbc.gridwidth = 1
-        gbc.fill = GridBagConstraints.BOTH
-
-        // Mock数据
-        gbc.gridx = 0
-        gbc.gridy = row
-        gbc.weightx = 0.0
-        gbc.anchor = GridBagConstraints.NORTHWEST
-        UiFormUtil.addLabeledScrollTextArea(panel, gbc, "mockapi.mockdata", mockDataArea)
-        row++
-
-        // 添加格式化按钮（用于辅助校验与可读性查看，不影响保存策略）
-        gbc.gridx = 1
-        gbc.gridy = row
-        gbc.weightx = 0.0
-        gbc.weighty = 0.0
-        gbc.fill = GridBagConstraints.NONE
-        gbc.anchor = GridBagConstraints.EAST
-        val formatButton = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode)
-        formatButton.isFocusPainted = false
-        formatButton.addActionListener {
-            try {
-                val formatted = prettyJson(mockDataArea.text)
-                mockDataArea.text = formatted
-            } catch (e: Exception) {
-                JOptionPane.showMessageDialog(
-                    panel,
-                    message("mockapi.message.json.error", e.message ?: ""),
-                    message("config.message.error"),
-                    JOptionPane.ERROR_MESSAGE
-                )
+        val topForm = panel {
+            group(message("mockapi.group.basic")) {
+                row {
+                    cell(enabledCheckBox)
+                }
+                row(message("mockapi.path")) {
+                    cell(pathField).align(AlignX.FILL)
+                }
+                row(message("mockapi.method")) {
+                    cell(methodComboBox).align(AlignX.FILL)
+                }
+                row(message("mockapi.statuscode")) {
+                    cell(statusCodeField).align(AlignX.FILL)
+                }
+                row(message("mockapi.delay")) {
+                    cell(delayField).align(AlignX.FILL)
+                }
+                row {
+                    cell(useCookieCheckBox)
+                }
             }
         }
-        panel.add(formatButton, gbc)
+        root.add(topForm, BorderLayout.NORTH)
 
-        return panel
+        // 中部：Mock 数据编辑区（DSL）
+        val editorForm = panel {
+            row(message("mockapi.mockdata")) {
+                cell(JBScrollPane(mockDataArea)).align(AlignX.FILL)
+            }
+        }
+
+        root.add(editorForm, BorderLayout.CENTER)
+
+        return root
+    }
+
+    override fun createSouthAdditionalPanel(): JPanel {
+        // 左下角统一放置“格式化 JSON”
+        return panel {
+            row {
+                button(message("mockapi.button.format")) {
+                    try {
+                        val formatted = prettyJson(mockDataArea.text)
+                        mockDataArea.text = formatted
+                    } catch (e: Exception) {
+                        JOptionPane.showMessageDialog(
+                            contentPanel,
+                            message("mockapi.message.json.error", e.message ?: ""),
+                            message("config.message.error"),
+                            JOptionPane.ERROR_MESSAGE
+                        )
+                    }
+                }.applyToComponent {
+                    icon = AllIcons.Actions.ReformatCode
+                    isFocusPainted = false
+                }
+            }
+        }
     }
 
     // 使用严格 JSON 解析进行格式化与压缩

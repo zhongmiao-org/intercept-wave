@@ -8,6 +8,16 @@
 
 ### ✨ Added
 
+- HTTP engine extraction and common utilities:
+  - Introduced `ServerEngine` interface (start/stop/isRunning/getUrl/lastError) implemented by HTTP/WS engines.
+  - New `HttpServerEngine` (per-group) encapsulating request handling, welcome page, mock/forward logic.
+  - New `EngineFactory`, `PathUtil` (HTTP/WS match path), `HttpWelcomeUtil` (welcome JSON), `HttpForwardUtil` (forward requests).
+- UI kit and table utilities:
+  - Added `UiKit` for column widths, visible rows, JBUI sizes, and `Document.onAnyChange`.
+  - Added `HttpMockTableUtil`; enhanced `WsRuleTableUtil` to allow editable Enabled column.
+- Tooltips and i18n:
+  - HTTP cookie field tooltip restored with concrete format example.
+  - Renamed labels: “Intercept Prefix” → “Address Prefix”; “WS Upstream URL” → “Upstream Address”; “Global Cookie” → “Cookie”.
 - WebSocket engine integration (Java-WebSocket) with upstream bridging:
   - Local `ws://` listener per WS group; optional local `wss://` (TLS) via PKCS#12 keystore.
   - Upstream bridging to `ws://` or `wss://` using JDK `java.net.http.WebSocket`.
@@ -26,10 +36,26 @@
 
 ### 🔄 Changed
 
+
+- Tool Window tables: Enabled column is now editable for both HTTP Mock list and WS rules in the side panel; toggling writes to in-memory config and takes effect on next request/message (WS periodic/timeline scheduling unchanged).
+- Consolidated UI spacing/dimensions to JBUI; removed redundant wrapper panels; unified table column widths and visible rows via `UiKit`.
+- Config/Tool Window copy updated to new terminology (Address Prefix / Upstream Address / Cookie).
+- MockServerService simplified to an orchestrator:
+  - Uses unified `engines` map; URL comes from engine `getUrl()`; status derived from `engine.isRunning()` (removed separate serverStatus tracking).
 - ConfigService normalizes/minifies JSON for WS templates and timelines (best-effort; non-JSON left as-is), and continues to normalize HTTP mock JSON.
 - Config dialog and tool window now hide HTTP-specific fields when group type is WS (intercept prefix/base URL/strip prefix/global cookie, and HTTP mock list).
- - WS prefix semantics: when WS prefix is empty, it no longer inherits the HTTP intercept prefix; tooltip and displays updated (show as "Not set").
- - WS rule dialog: when mode is "Off", keep the message input visible as the template for manual sending.
+- WS prefix semantics: when WS prefix is empty, it no longer inherits the HTTP intercept prefix; tooltip and displays updated (show as "Not set").
+- WS rule dialog: when mode is "Off", keep the message input visible as the template for manual sending.
+- UI migration to IntelliJ UI DSL (long-term plan):
+  - Config dialog sections (HTTP/WS top fields), button rows (Add/Edit/Delete), and tool window subpanels migrated to UI DSL rows/groups for consistent spacing and validation/focus behavior.
+  - MockApiDialog and WsPushRuleDialog: top forms migrated to DSL; message editor areas changed to large multi-line fields; "Format JSON" moved to the dialog bottom-left; tooltips added; removed "(JSON)" suffix from labels.
+  - Tool window: empty-state and "+" tabs now built with DSL; status/config/WS push panels use DSL groups instead of titled borders (consistent paddings).
+- Tool window "Current Configuration" layout aligned between HTTP and WS:
+  - HTTP shows name, port, strip prefix (under port), upstream, prefix, global cookie, then a read-only 2-column table (Enabled, Path) for Mock APIs.
+  - WS shows "WS Settings" (upstream, prefix, manual push) and overall structure mirrors HTTP; both views expand by content without artificial height limits.
+- Tables visual tweaks:
+  - Fixed "Enabled" column width to 40 (HiDPI-scaled) across all tables (config dialog, tool window, dialogs).
+  - WS rules "Mode" and "Period" columns narrowed (config dialog and tool window), improving readability.
 
 ### 🐛 Fixed
 
@@ -37,7 +63,7 @@
 
 ### 📦 Dependencies
 
-- Add `org.java-websocket:Java-WebSocket:1.5.6` for the local WS/WSS server engine.
+- Add `org.java-websocket:Java-WebSocket` for the local WS/WSS server engine.
 
 ## [3.0.2] - 2025-11-03
 
