@@ -43,7 +43,7 @@ class HttpServerEngine(
                 createContext("/") { exchange ->
                     handleProxyRequest(exchange)
                 }
-                setExecutor(exec)
+                executor = exec
                 start()
             }
             server = s
