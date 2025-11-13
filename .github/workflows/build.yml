@@ -83,7 +83,7 @@ jobs:
     needs: [ build ]
     runs-on: ubuntu-latest
     env:
-      UPSTREAM_COMPOSE_FILE: docker-compose.upstream.yml
+      UPSTREAM_COMPOSE_FILE: docker/docker-compose.upstream.yml
     steps:
 
       # Free GitHub Actions Environment Disk Space

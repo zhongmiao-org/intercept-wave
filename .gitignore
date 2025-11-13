@@ -9,3 +9,4 @@ build
 .gradle-home/
 
 .gradle-local
+docker/.env

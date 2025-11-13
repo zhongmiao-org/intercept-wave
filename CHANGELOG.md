@@ -8,6 +8,13 @@
 
 ### ✨ Added
 
+- Docker local test stack under `docker/`:
+  - `docker-compose.client.yml` to start upstream + console.
+  - Console reads runtime config via `.env` (env_file); added `.env.example`.
+  - Added docs: `docker/README.md` and `docker/README_zh.md`.
+- Standalone upstream compose moved to `docker/docker-compose.upstream.yml` and updated to `v0.2.0`.
+- CI: workflow uses `docker/docker-compose.upstream.yml` to spin up upstream for tests.
+- Dependabot: enabled Docker scans for `/docker` to auto-bump GHCR tags used in compose files.
 - HTTP engine extraction and common utilities:
   - Introduced `ServerEngine` interface (start/stop/isRunning/getUrl/lastError) implemented by HTTP/WS engines.
   - New `HttpServerEngine` (per-group) encapsulating request handling, welcome page, mock/forward logic.
@@ -36,6 +43,11 @@
 
 ### 🔄 Changed
 
+
+- Packaging and tooling:
+  - Exclude `docker/` from source archives via `.gitattributes` (export-ignore).
+  - Exclude `docker/` from Qodana inspection.
+  - Ignore `docker/.env` in VCS.
 
 - Tool Window tables: Enabled column is now editable for both HTTP Mock list and WS rules in the side panel; toggling writes to in-memory config and takes effect on next request/message (WS periodic/timeline scheduling unchanged).
 - Consolidated UI spacing/dimensions to JBUI; removed redundant wrapper panels; unified table column widths and visible rows via `UiKit`.
