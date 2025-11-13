@@ -156,12 +156,11 @@ class ProxyGroupTabPanel(
                 } else {
                     // WS 详细（进入该分支意味着 cfg 非空）
                     row(message("toolwindow.ws.title")) { }
-                    val c = cfg
-                    val wsBase = c.wsBaseUrl ?: message("toolwindow.notset")
+                    val wsBase = cfg.wsBaseUrl ?: message("toolwindow.notset")
                     row(message("toolwindow.ws.baseurl", wsBase)) { }
-                    val wsPrefix = c.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
+                    val wsPrefix = cfg.wsInterceptPrefix?.takeIf { it.isNotEmpty() } ?: message("toolwindow.notset")
                     row(message("toolwindow.ws.prefix", wsPrefix)) { }
-                    row(message("toolwindow.ws.manualpush", if (c.wsManualPush) yes else no)) { }
+                    row(message("toolwindow.ws.manualpush", if (cfg.wsManualPush) yes else no)) { }
                 }
             }
         }
