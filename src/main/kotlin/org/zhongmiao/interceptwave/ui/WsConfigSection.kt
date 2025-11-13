@@ -1,13 +1,15 @@
 package org.zhongmiao.interceptwave.ui
 
-import com.intellij.ui.components.*
-import com.intellij.util.ui.JBUI
+import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
- 
+
 
 /** WS 内容区（上游、规则与手动推送设置） */
 class WsConfigSection(
@@ -31,46 +33,16 @@ class WsConfigSection(
         wsBaseUrlField.toolTipText = message("config.ws.baseurl.tooltip")
         wsPrefixField.toolTipText = message("config.ws.prefix.tooltip")
         wsManualPushCheck.toolTipText = message("config.ws.manualpush.tooltip")
-        wsBaseUrlField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
-            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
-            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
-            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
-        })
-        wsPrefixField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
-            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
-            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
-            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChanged()
-        })
+        wsBaseUrlField.document.onAnyChange(onChanged)
+        wsPrefixField.document.onAnyChange(onChanged)
         wsManualPushCheck.addActionListener { onChanged() }
 
         wsRuleTable.fillsViewportHeight = true
-        // 空数据时也给出适当高度（约 5 行），避免过于矮小
-        run {
-            val visibleRows = 5
-            wsRuleTable.preferredScrollableViewportSize = java.awt.Dimension(
-                wsRuleTable.preferredScrollableViewportSize.width,
-                wsRuleTable.rowHeight * visibleRows
-            )
-        }
-        // 缩短“启用/模式/间隔”列宽，提升可读性
-        runCatching {
-            // 启用（checkbox + 文案）列，固定为 40
-            wsRuleTable.columnModel.getColumn(0).apply {
-                minWidth = JBUI.scale(40)
-                preferredWidth = JBUI.scale(40)
-                maxWidth = JBUI.scale(40)
-            }
-            wsRuleTable.columnModel.getColumn(2).apply {
-                minWidth = JBUI.scale(60)
-                preferredWidth = JBUI.scale(80)
-                maxWidth = JBUI.scale(120)
-            }
-            wsRuleTable.columnModel.getColumn(3).apply {
-                minWidth = JBUI.scale(50)
-                preferredWidth = JBUI.scale(70)
-                maxWidth = JBUI.scale(90)
-            }
-        }
+        // 统一可见行数与列宽
+        UiKit.ensureVisibleRows(wsRuleTable, UiKit.DEFAULT_VISIBLE_ROWS)
+        UiKit.setEnabledColumnWidth(wsRuleTable, 0)
+        UiKit.setFixedColumnWidth(wsRuleTable, 2, UiKit.MODE_COL_WIDTH)
+        UiKit.setFixedColumnWidth(wsRuleTable, 3, UiKit.PERIOD_COL_WIDTH)
         val tableScroll = JBScrollPane(wsRuleTable)
 
         // 使用 DSL group 作为外层边框与内边距（替换 titled border）

@@ -173,8 +173,8 @@ class InterceptWaveToolWindow(private val project: Project) {
 
             val proxyGroups = configService.getAllProxyGroups()
 
-            if (proxyGroups.isEmpty()) {
-                // 没有配置组，显示提示（DSL 布局）
+                if (proxyGroups.isEmpty()) {
+                // 没有配置组，显示提示（DSL 布局），不再额外包一层 JPanel
                 val content = panel {
                     row {
                         val label = JBLabel(message("toolwindow.empty.hint"))
@@ -182,8 +182,7 @@ class InterceptWaveToolWindow(private val project: Project) {
                         cell(label)
                     }
                 }
-                val wrapper = JPanel(BorderLayout()).apply { add(content, BorderLayout.CENTER) }
-                tabbedPane.addTab(message("toolwindow.empty.tab"), wrapper)
+                tabbedPane.addTab(message("toolwindow.empty.tab"), content)
             } else {
                 proxyGroups.forEach { config ->
                     val tabPanel = ProxyGroupTabPanel(
@@ -213,8 +212,7 @@ class InterceptWaveToolWindow(private val project: Project) {
                         cell(addLabel)
                     }
                 }
-                val addPanel = JPanel(BorderLayout()).apply { add(addContent, BorderLayout.CENTER) }
-                tabbedPane.addTab(null, AllIcons.General.Add, addPanel, message("toolwindow.add.hint"))
+                tabbedPane.addTab(null, AllIcons.General.Add, addContent, message("toolwindow.add.hint"))
 
                 // 监听 "+" 标签被点击
                 tabbedPane.addChangeListener {

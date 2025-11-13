@@ -14,7 +14,7 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import java.awt.BorderLayout
-import java.awt.Dimension
+import com.intellij.util.ui.JBUI
 import javax.swing.*
 
 /**
@@ -50,7 +50,7 @@ class MockApiDialog(
     override fun createCenterPanel(): JComponent {
         // 容器：顶部 DSL 表单 + 中部 JSON 编辑区
         val root = JPanel(BorderLayout(10, 10))
-        root.preferredSize = Dimension(600, 500)
+        root.preferredSize = JBUI.size(600, 500)
 
         // 顶部基本信息（UI DSL，复用既有组件，保持监听/校验逻辑不变）
         pathField.toolTipText = message("mockapi.path.tooltip")

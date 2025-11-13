@@ -10,6 +10,7 @@ import org.java_websocket.server.DefaultSSLWebSocketServerFactory
 import org.zhongmiao.interceptwave.events.*
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.util.PathPatternUtil
+import org.zhongmiao.interceptwave.util.PathUtil
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import java.net.InetSocketAddress
 import java.net.URI
@@ -32,17 +33,18 @@ import org.zhongmiao.interceptwave.util.WsRuleMatchUtil
 class WsServerEngine(
     private val config: ProxyConfig,
     private val output: MockServerOutput
-) {
+) : org.zhongmiao.interceptwave.services.ServerEngine {
     private val log = Logger.getInstance(WsServerEngine::class.java)
 
     @Volatile
-    var lastError: String? = null
+    override var lastError: String? = null
         private set
 
     private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
     private val client: HttpClient = HttpClient.newBuilder().build()
 
     private lateinit var server: WebSocketServer
+    @Volatile private var running: Boolean = false
 
     private data class ConnCtx(
         val conn: WebSocket,
@@ -58,18 +60,19 @@ class WsServerEngine(
 
     private val connections = ConcurrentHashMap<WebSocket, ConnCtx>()
 
-    fun start(): Boolean {
+    override fun start(): Boolean {
         try {
             // Java-WebSocket requires decoders >= 1; using 1 here.
             server = object : WebSocketServer(InetSocketAddress("127.0.0.1", config.port), 1, listOf(Draft_6455())) {
                 override fun onStart() {
+                    running = true
                     log.info("WS server started on :${config.port}")
                 }
 
                 override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
                     val resource = handshake.resourceDescriptor // includes path + query, starts with '/'
                     val pathOnly = resource.substringBefore('?')
-                    val computed = computeMatchPath(pathOnly)
+                    val computed = PathUtil.computeWsMatchPath(config, pathOnly)
                     val fullForwardPath = computeForwardPath(resource)
                     val upstreamUrl = buildUpstreamUrl(fullForwardPath)
                     output.publish(WebSocketConnecting(config.id, config.name, computed, upstreamUrl))
@@ -153,14 +156,19 @@ class WsServerEngine(
         }
     }
 
-    fun stop() {
+    override fun stop() {
         try {
             server.stop(0)
         } catch (_: Throwable) { /* ignore */ }
         connections.values.forEach { cleanupCtx(it) }
         connections.clear()
         scheduler.shutdownNow()
+        running = false
     }
+
+    override fun isRunning(): Boolean = running
+
+    override fun getUrl(): String = "ws://localhost:${config.port}"
 
     fun send(target: String, path: String?, message: String) {
         val now = System.currentTimeMillis()
@@ -218,14 +226,6 @@ class WsServerEngine(
     private fun buildUpstreamUrl(forwardPathWithQuery: String): String {
         val base = config.wsBaseUrl?.trim() ?: ""
         return if (base.endsWith("/") && forwardPathWithQuery.startsWith("/")) base.dropLast(1) + forwardPathWithQuery else base + forwardPathWithQuery
-    }
-
-    private fun computeMatchPath(requestPath: String): String {
-        // For WS, do NOT inherit HTTP prefix when WS prefix is empty
-        val prefix = (config.wsInterceptPrefix ?: "")
-        return if (config.stripPrefix && prefix.isNotEmpty() && requestPath.startsWith(prefix)) {
-            requestPath.removePrefix(prefix).ifEmpty { "/" }
-        } else requestPath
     }
 
     private fun computeForwardPath(resource: String): String {

@@ -9,7 +9,7 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.*
 import com.intellij.ui.dsl.builder.panel
 import java.awt.BorderLayout
-import java.awt.Dimension
+import com.intellij.util.ui.JBUI
 import javax.swing.*
 
 /**
@@ -72,7 +72,7 @@ class ConfigDialog(
 
     override fun createCenterPanel(): JComponent {
         val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
-        panel.preferredSize = Dimension(900, 650)
+        panel.preferredSize = JBUI.size(900, 650)
 
         // 添加标签页
         panel.add(tabbedPane, BorderLayout.CENTER)

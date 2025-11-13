@@ -14,11 +14,11 @@ import org.zhongmiao.interceptwave.model.WsPushRule
 import org.zhongmiao.interceptwave.model.WsTimelineItem
 import org.zhongmiao.interceptwave.util.JsonNormalizeUtil
 import java.awt.BorderLayout
-import java.awt.Dimension
 import javax.swing.*
 import com.intellij.ui.table.JBTable
 import java.awt.CardLayout
 import javax.swing.table.DefaultTableModel
+import com.intellij.util.ui.JBUI
 
 class WsPushRuleDialog(
     project: Project,
@@ -83,7 +83,7 @@ class WsPushRuleDialog(
     override fun createCenterPanel(): JComponent {
         val panel = JPanel(BorderLayout(10, 10)).apply {
             // Dialog felt too narrow; increase default width
-            preferredSize = Dimension(820, 560)
+            preferredSize = JBUI.size(820, 560)
         }
         // 顶部“表单字段”改为 UI DSL（复用组件以保持行为/校验一致）
         pathField.toolTipText = message("wsrule.path.tooltip")
@@ -125,13 +125,7 @@ class WsPushRuleDialog(
         val tlPanel = JPanel(BorderLayout(5, 5))
         tlTable.fillsViewportHeight = true
         // 空数据时也给出适当高度，提升观感（约 5 行高度）
-        run {
-            val visibleRows = 5
-            tlTable.preferredScrollableViewportSize = Dimension(
-                tlTable.preferredScrollableViewportSize.width,
-                tlTable.rowHeight * visibleRows
-            )
-        }
+        UiKit.ensureVisibleRows(tlTable, UiKit.DEFAULT_VISIBLE_ROWS)
         tlPanel.add(JBScrollPane(tlTable), BorderLayout.CENTER)
         val tBtns = panel {
             row {

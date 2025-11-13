@@ -2,14 +2,15 @@ package org.zhongmiao.interceptwave.ui
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.components.*
+import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextField
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.table.JBTable
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
-import com.intellij.ui.dsl.builder.AlignX
-import com.intellij.ui.dsl.builder.panel
 
 /** HTTP 内容区（API 列表等） */
 class HttpConfigSection(
@@ -43,22 +44,15 @@ class HttpConfigSection(
 
         val rootPanel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
 
+        // 提示信息：与 WS 配置保持一致地提供 tooltip，说明填写规则
+        baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
+        prefixField.toolTipText = message("config.group.prefix.tooltip")
+        cookieField.toolTipText = message("config.group.cookie.tooltip")
+
         mockTable.fillsViewportHeight = true
-        // 空数据时也给出适当高度（约 5 行），并缩窄启用列宽
-        run {
-            val visibleRows = 5
-            mockTable.preferredScrollableViewportSize = java.awt.Dimension(
-                mockTable.preferredScrollableViewportSize.width,
-                mockTable.rowHeight * visibleRows
-            )
-            runCatching {
-                mockTable.columnModel.getColumn(0).apply {
-                    minWidth = com.intellij.util.ui.JBUI.scale(40)
-                    preferredWidth = com.intellij.util.ui.JBUI.scale(40)
-                    maxWidth = com.intellij.util.ui.JBUI.scale(40)
-                }
-            }
-        }
+        // 统一可见行数与启用列宽
+        UiKit.ensureVisibleRows(mockTable, UiKit.DEFAULT_VISIBLE_ROWS)
+        UiKit.setEnabledColumnWidth(mockTable, 0)
         val tableScroll = JBScrollPane(mockTable).apply {
             // 列表无标题与边框
             border = null
@@ -93,14 +87,7 @@ class HttpConfigSection(
         }
         rootPanel.add(content, BorderLayout.CENTER)
 
-        // 顶部字段联动变更
-        fun javax.swing.text.Document.onAnyChange(cb: () -> Unit) {
-            addDocumentListener(object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-            })
-        }
+        // 顶部字段联动变更（使用通用扩展）
         baseUrlField.document.onAnyChange(onChanged)
         prefixField.document.onAnyChange(onChanged)
         cookieField.document.onAnyChange(onChanged)

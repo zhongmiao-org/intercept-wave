@@ -1,20 +1,19 @@
 package org.zhongmiao.interceptwave.ui
 
-import org.zhongmiao.interceptwave.InterceptWaveBundle.message
-import org.zhongmiao.interceptwave.services.ConfigService
-import org.zhongmiao.interceptwave.services.ConsoleService
-import org.zhongmiao.interceptwave.services.MockServerService
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.util.ui.JBUI
-import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.table.JBTable
 import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.table.JBTable
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.services.ConfigService
+import org.zhongmiao.interceptwave.services.ConsoleService
+import org.zhongmiao.interceptwave.services.MockServerService
 import java.awt.BorderLayout
 import javax.swing.*
 
@@ -135,22 +134,29 @@ class ProxyGroupTabPanel(
                     val cookie = (cfg?.globalCookie ?: "").ifEmpty { message("toolwindow.notset") }
                     row(message("toolwindow.config.cookie", cookie)) { }
 
-                    // Mock 接口列表（两列：启用复选框 + 路径），不再显示“Mock 接口列表:”文案
+                    // Mock 接口列表（两列：启用复选框 + 路径）
                     val apis = cfg?.mockApis ?: emptyList()
-                    val table = JBTable(createHttpMockShortTableModel(apis)).apply {
+                    val model = createHttpShortTableModel(enabledEditable = true)
+                    appendHttpShortRows(model, apis)
+                    val table = JBTable(model).apply {
                         fillsViewportHeight = true
-                        // 窄化“启用”复选框列宽
-                        columnModel.getColumn(0).apply {
-                            minWidth = JBUI.scale(40)
-                            preferredWidth = JBUI.scale(40)
-                            maxWidth = JBUI.scale(40)
+                        UiKit.setEnabledColumnWidth(this, 0)
+                        UiKit.ensureVisibleRows(this, UiKit.DEFAULT_VISIBLE_ROWS)
+                    }
+                    // 勾选启用后，直接修改内存中的配置以便下一次请求生效
+                    (table.model as javax.swing.table.DefaultTableModel).addTableModelListener { e ->
+                        if (e is javax.swing.event.TableModelEvent) {
+                            val row = e.firstRow
+                            val col = e.column
+                            if (row >= 0 && (col == 0 || col == javax.swing.event.TableModelEvent.ALL_COLUMNS)) {
+                                val latest = configService.getProxyGroup(configId)
+                                val target = latest?.mockApis?.getOrNull(row)
+                                if (target != null) {
+                                    val newVal = (table.model.getValueAt(row, 0) as? Boolean) ?: false
+                                    target.enabled = newVal
+                                }
+                            }
                         }
-                        // 空数据时也给出适当高度，提升观感（约 5 行高度）
-                        val visibleRows = 5
-                        preferredScrollableViewportSize = java.awt.Dimension(
-                            preferredScrollableViewportSize.width,
-                            rowHeight * visibleRows
-                        )
                     }
                     row { cell(JBScrollPane(table)).align(AlignX.FILL) }
                 } else {
@@ -167,21 +173,7 @@ class ProxyGroupTabPanel(
         return content
     }
 
-    private fun createHttpMockShortTableModel(apis: List<org.zhongmiao.interceptwave.model.MockApiConfig>): javax.swing.table.DefaultTableModel {
-        return object : javax.swing.table.DefaultTableModel(
-            arrayOf(
-                message("config.table.enabled"),
-                message("config.table.path"),
-            ), 0
-        ) {
-            override fun getColumnClass(column: Int): Class<*> = if (column == 0) java.lang.Boolean::class.java else String::class.java
-            override fun isCellEditable(row: Int, column: Int): Boolean = false
-        }.apply {
-            apis.forEach { api ->
-                addRow(arrayOf<Any>(api.enabled, api.path))
-            }
-        }
-    }
+    // HTTP 简表构造已收敛到 HttpMockTableUtil
 
     /**
      * 更新配置信息显示
@@ -195,36 +187,31 @@ class ProxyGroupTabPanel(
         wsTargetCombo.selectedIndex = 0
 
         val cfg = configService.getProxyGroup(configId)
-        val ruleModel = createWsRuleTableModel()
+        // 侧边栏允许直接编辑“启用”列（仅第 0 列可编辑）
+        val ruleModel = createWsRuleTableModel(enabledEditable = true)
         val ruleTable = JBTable(ruleModel).apply {
             fillsViewportHeight = true
-            // 空数据时也给出适当高度（约 5 行），避免过于矮小
-            val visibleRows = 5
-            preferredScrollableViewportSize = java.awt.Dimension(
-                preferredScrollableViewportSize.width,
-                rowHeight * visibleRows
-            )
-            // 缩窄启用列宽固定为 40
-            runCatching {
-                columnModel.getColumn(0).apply {
-                    minWidth = JBUI.scale(40)
-                    preferredWidth = JBUI.scale(40)
-                    maxWidth = JBUI.scale(40)
-                }
-                // 模式/间隔列固定为 80
-                columnModel.getColumn(2).apply {
-                    minWidth = JBUI.scale(80)
-                    preferredWidth = JBUI.scale(80)
-                    maxWidth = JBUI.scale(80)
-                }
-                columnModel.getColumn(3).apply {
-                    minWidth = JBUI.scale(80)
-                    preferredWidth = JBUI.scale(80)
-                    maxWidth = JBUI.scale(80)
+            UiKit.ensureVisibleRows(this, UiKit.DEFAULT_VISIBLE_ROWS)
+            UiKit.setEnabledColumnWidth(this, 0)
+            UiKit.setFixedColumnWidth(this, 2, UiKit.MODE_COL_WIDTH)
+            UiKit.setFixedColumnWidth(this, 3, UiKit.PERIOD_COL_WIDTH)
+        }
+        appendWsRuleRows(ruleModel, cfg?.wsPushRules ?: emptyList())
+        // 勾选启用后，直接修改内存中的配置（周期/时间轴既有任务不自动重建）
+        ruleModel.addTableModelListener { e ->
+            if (e is javax.swing.event.TableModelEvent) {
+                val row = e.firstRow
+                val col = e.column
+                if (row >= 0 && (col == 0 || col == javax.swing.event.TableModelEvent.ALL_COLUMNS)) {
+                    val latest = configService.getProxyGroup(configId)
+                    val rule = latest?.wsPushRules?.getOrNull(row)
+                    if (rule != null) {
+                        val newVal = (ruleModel.getValueAt(row, 0) as? Boolean) ?: false
+                        rule.enabled = newVal
+                    }
                 }
             }
         }
-        appendWsRuleRows(ruleModel, cfg?.wsPushRules ?: emptyList())
         ruleTable.selectionModel.addListSelectionListener {
             if (!it.valueIsAdjusting) {
                 val row = ruleTable.selectedRow

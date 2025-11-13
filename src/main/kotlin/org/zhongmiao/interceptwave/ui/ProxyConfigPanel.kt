@@ -1,12 +1,14 @@
 package org.zhongmiao.interceptwave.ui
 
-import org.zhongmiao.interceptwave.InterceptWaveBundle.message
-import org.zhongmiao.interceptwave.model.ProxyConfig
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.components.*
+import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import javax.swing.JComponent
@@ -101,14 +103,6 @@ class ProxyConfigPanel(
     }
 
     private fun attachChangeListeners() {
-        fun javax.swing.text.Document.onAnyChange(cb: () -> Unit) {
-            addDocumentListener(object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = cb()
-            })
-        }
-
         nameField.document.onAnyChange(onChanged)
         portField.document.onAnyChange(onChanged)
         stripPrefixCheckbox.addActionListener { onChanged() }

@@ -8,6 +8,16 @@
 
 ### ✨ 新增
 
+- 抽离 HTTP 引擎与公共工具：
+  - 新增统一引擎接口 `ServerEngine`（start/stop/isRunning/getUrl/lastError），HTTP/WS 两种引擎均实现。
+  - 新增每组独立的 `HttpServerEngine`，封装请求处理、欢迎页、Mock/转发逻辑。
+  - 新增 `EngineFactory`、`PathUtil`（HTTP/WS 匹配路径）、`HttpWelcomeUtil`（欢迎页 JSON）、`HttpForwardUtil`（上游转发）。
+- UI 工具与表格工具：
+  - 新增 `UiKit` 统一列宽/可见行数/JBUI 尺寸与输入监听 `Document.onAnyChange`。
+  - 新增 `HttpMockTableUtil`；强化 `WsRuleTableUtil` 支持“启用”列可编辑。
+- 提示与文案：
+  - HTTP 设置中的 cookie 字段恢复并完善 tooltip（含示例格式）。
+  - 统一术语：拦截前缀 → 地址前缀；WS 上游地址 → 上游地址；全局 Cookie → cookie。
 - WebSocket 引擎集成（Java‑WebSocket）与上游转发：
   - 本地 WS 监听（组内单端口）；可选本地 WSS(TLS) 监听（PKCS#12 keystore）。
   - 上游转发到 `ws://`/`wss://`，基于 JDK `java.net.http.WebSocket`。
@@ -26,6 +36,11 @@
 
 ### 🔄 变更
 
+- 工具窗口表格：“启用”列改为可编辑（HTTP Mock 列表与 WS 规则）。切换后仅修改内存配置，HTTP 下次请求立即生效；WS 的周期/时间轴既有任务不重建。
+- 统一使用 JBUI 管理固定尺寸；移除多余容器；表格列宽与可见行数由 `UiKit` 统一。
+- 配置对话框/工具窗口的相关文案统一为“地址前缀 / 上游地址 / cookie”。
+- MockServerService 角色简化为“编排”：
+  - 统一使用 `engines` 管理引擎；URL 由 `engine.getUrl()` 提供；运行状态由 `engine.isRunning()` 判断（移除独立 serverStatus）。
 - 配置服务继续对 HTTP Mock JSON 做归一化，同时对 WS 模板/时间轴 JSON 做“尽力归一化+最小化”（非严格 JSON 原样保留）。
 - 当组类型为 WS 时，在配置对话框和工具窗口隐藏 HTTP 专有字段（拦截前缀、目标地址、剥离前缀、全局 Cookie，以及 HTTP Mock 列表）。
  - WS 前缀语义调整：WS 前缀留空时不再继承 HTTP 前缀；提示与展示同步更新（显示“未设置”）。

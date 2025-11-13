@@ -27,14 +27,25 @@ class MockServerServiceTest {
 
     @Test
     fun serverStatusReflectiveAccess() {
+        // Align with new design: status is derived from engines[configId].isRunning()
         val svc = MockServerService(fakeProject())
-        val f: Field = svc.javaClass.getDeclaredField("serverStatus")
+
+        // Reflectively access engines map (implementation detail, same as previous test intent)
+        val f: Field = svc.javaClass.getDeclaredField("engines")
         f.isAccessible = true
         @Suppress("UNCHECKED_CAST")
-        val map = f.get(svc) as ConcurrentHashMap<String, Boolean>
-        map["cfg-1"] = true
+        val engines = f.get(svc) as ConcurrentHashMap<String, ServerEngine>
+
+        // Insert a fake running engine and a non-existent id
+        engines["cfg-1"] = object : ServerEngine {
+            override fun start(): Boolean = true
+            override fun stop() {}
+            override fun isRunning(): Boolean = true
+            override val lastError: String? = null
+            override fun getUrl(): String = "http://localhost:0"
+        }
+
         assertTrue(svc.getServerStatus("cfg-1"))
         assertFalse(svc.getServerStatus("cfg-2"))
     }
 }
-
