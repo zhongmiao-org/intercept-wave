@@ -423,6 +423,28 @@ Notes:
 - Platform tests run in a single forked JVM and are headless-configured.
 - UI tests are split into a separate task and use the robot-server plugin.
 
+### Integration Tests (Docker upstream)
+
+These tests require the upstream service container running (default http://localhost:9000):
+
+- Start container:
+  - `cd docker`
+  - `docker compose -f docker-compose.upstream.yml up -d upstream`
+
+Running by category (marked with `@Category(IntegrationTest)`):
+
+- Run only integration tests:
+  - `./gradlew test -DincludeTags=org.zhongmiao.interceptwave.tags.IntegrationTest -Diw.upstream.http=http://localhost:9000`
+- Exclude integration tests (unit tests only):
+  - `./gradlew test -DexcludeTags=org.zhongmiao.interceptwave.tags.IntegrationTest`
+- Default behavior:
+  - Without include/exclude, all tests run; if the container is not running, integration tests auto-skip after availability probe.
+
+Override upstream base URL:
+
+- System property: `-Diw.upstream.http=http://localhost:9000`
+- Environment variable: `IW_UPSTREAM_HTTP=http://localhost:9000`
+
 ### Coverage Reports (Kover)
 
 - XML: `./gradlew koverXmlReport` → `build/reports/kover/report.xml`

@@ -36,7 +36,8 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
 
     fun `test updateStatus toggles buttons`() {
         val id = UUID.randomUUID().toString()
-        val cfg = ProxyConfig(id = id, name = "PG", port = 19100, enabled = true,
+        val p = java.net.ServerSocket(0).use { it.localPort }
+        val cfg = ProxyConfig(id = id, name = "PG", port = p, enabled = true,
             mockApis = mutableListOf(MockApiConfig(path = "/u", mockData = "{}", enabled = true)))
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)
@@ -52,7 +53,7 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         assertFalse(stopBtn.isEnabled)
 
         // Simulate running state
-        panel.updateStatus(true, "http://localhost:19100")
+        panel.updateStatus(true, "http://localhost:$p")
         assertFalse(startBtn.isEnabled)
         assertTrue(stopBtn.isEnabled)
 

@@ -35,10 +35,11 @@ class ProxyGroupTabPanelStartStopTest : BasePlatformTestCase() {
 
     fun `test start and stop buttons invoke service`() {
         val id = UUID.randomUUID().toString()
+        val p = java.net.ServerSocket(0).use { it.localPort }
         val cfg = ProxyConfig(
             id = id,
             name = "PanelStartStop",
-            port = 19026,
+            port = p,
             enabled = true,
             mockApis = mutableListOf(MockApiConfig(path = "/ok", mockData = "{}", enabled = true))
         )

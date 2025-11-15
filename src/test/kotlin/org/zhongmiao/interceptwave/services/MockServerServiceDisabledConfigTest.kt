@@ -23,11 +23,14 @@ class MockServerServiceDisabledConfigTest : BasePlatformTestCase() {
         try { service.stopAllServers() } finally { super.tearDown() }
     }
 
+    private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
+
     fun `test startServer returns false when config disabled`() {
+        val p = freePort()
         val cfg = ProxyConfig(
             id = UUID.randomUUID().toString(),
             name = "Disabled",
-            port = 19050,
+            port = p,
             enabled = false
         )
         val root = configService.getRootConfig()
@@ -40,8 +43,10 @@ class MockServerServiceDisabledConfigTest : BasePlatformTestCase() {
     }
 
     fun `test startAllServers returns empty when no enabled groups`() {
-        val cfg1 = ProxyConfig(id = UUID.randomUUID().toString(), name = "A", port = 19051, enabled = false)
-        val cfg2 = ProxyConfig(id = UUID.randomUUID().toString(), name = "B", port = 19052, enabled = false)
+        val p1 = freePort()
+        val p2 = freePort()
+        val cfg1 = ProxyConfig(id = UUID.randomUUID().toString(), name = "A", port = p1, enabled = false)
+        val cfg2 = ProxyConfig(id = UUID.randomUUID().toString(), name = "B", port = p2, enabled = false)
         val root = configService.getRootConfig()
         root.proxyGroups.addAll(listOf(cfg1, cfg2))
         configService.saveRootConfig(root)
@@ -51,4 +56,3 @@ class MockServerServiceDisabledConfigTest : BasePlatformTestCase() {
         assertTrue(service.getRunningServers().isEmpty())
     }
 }
-
