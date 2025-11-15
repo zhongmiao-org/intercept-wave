@@ -163,20 +163,22 @@ intellijPlatform {
 
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
-val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
-    task {
-        jvmArgumentProviders += CommandLineArgumentProvider {
-            listOf(
-                "-Drobot-server.port=8082",
-                "-Dide.mac.message.dialogs.as.sheets=false",
-                "-Djb.privacy.policy.text=<!--999.999-->",
-                "-Djb.consents.confirmation.enabled=false",
-            )
+val runIdeForUiTestsConfig =
+    intellijPlatformTesting.runIde.registering {
+        task {
+            jvmArgumentProviders += CommandLineArgumentProvider {
+                listOf(
+                    "-Drobot-server.port=8082",
+                    "-Dide.mac.message.dialogs.as.sheets=false",
+                    "-Djb.privacy.policy.text=<!--999.999-->",
+                    "-Djb.consents.confirmation.enabled=false",
+                )
+            }
         }
+
+        plugins { robotServerPlugin() }
     }
 
-    plugins { robotServerPlugin() }
-}
 
 tasks {
     wrapper {
