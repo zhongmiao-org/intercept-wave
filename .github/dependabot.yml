@@ -13,8 +13,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-  # Maintain Docker image tags used in docker-compose
+  # Scan docker/ folder for compose files and Dockerfiles
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/docker"
     schedule:
       interval: "daily"

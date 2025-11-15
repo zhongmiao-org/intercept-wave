@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  upstream:
+    image: ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.2.0
+    container_name: iw-upstream
+    restart: unless-stopped
+    environment:
+      - BASE_PORT=9000
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+      - "9002:9002"
+      - "9003:9003"
+      - "9004:9004"
+      - "9005:9005"
+
+  console:
+    image: ghcr.io/zhongmiao-org/intercept-wave-console:v0.2.0
+    container_name: iw-console
+    restart: unless-stopped
+    depends_on:
+      - upstream
+    ports:
+      - "8080:80"  # UI at http://localhost:8080
+    # Load downstream console runtime config from .env in this folder
+    env_file:
+      - .env

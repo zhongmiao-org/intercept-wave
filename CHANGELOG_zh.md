@@ -8,6 +8,13 @@
 
 ### ✨ 新增
 
+- 新增本地联调用 Docker 方案至 `docker/`：
+  - `docker-compose.client.yml` 一键启动“上游 + 控制台”。
+  - 控制台通过 `.env`（env_file）读取运行时配置；新增 `.env.example` 示例。
+  - 补充双语文档：`docker/README.md`、`docker/README_zh.md`。
+- 独立上游编排迁移至 `docker/docker-compose.upstream.yml`，镜像更新至 `v0.2.0`。
+- CI：测试任务改用 `docker/docker-compose.upstream.yml` 启动上游服务。
+- Dependabot：开启 `/docker` 目录的 Docker 扫描，自动发现并升级 compose 中使用的 GHCR 镜像标签。
 - 抽离 HTTP 引擎与公共工具：
   - 新增统一引擎接口 `ServerEngine`（start/stop/isRunning/getUrl/lastError），HTTP/WS 两种引擎均实现。
   - 新增每组独立的 `HttpServerEngine`，封装请求处理、欢迎页、Mock/转发逻辑。
@@ -36,6 +43,10 @@
 
 ### 🔄 变更
 
+- 打包与工具：
+  - 通过 `.gitattributes` 将 `docker/` 从源码归档中排除（export-ignore）。
+  - 在 Qodana 检查中排除 `docker/` 目录。
+  - 忽略提交 `docker/.env`。
 - 工具窗口表格：“启用”列改为可编辑（HTTP Mock 列表与 WS 规则）。切换后仅修改内存配置，HTTP 下次请求立即生效；WS 的周期/时间轴既有任务不重建。
 - 统一使用 JBUI 管理固定尺寸；移除多余容器；表格列宽与可见行数由 `UiKit` 统一。
 - 配置对话框/工具窗口的相关文案统一为“地址前缀 / 上游地址 / cookie”。
