@@ -32,13 +32,16 @@ class MockServerServiceForwardingErrorTest : BasePlatformTestCase() {
         }
     }
 
+    private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
+
     fun `test forwarding error path returns 502`() {
         System.setProperty("interceptwave.allowForwardInTests", "true")
 
+        val p = freePort()
         val config = ProxyConfig(
             id = UUID.randomUUID().toString(),
             name = "ForwardError",
-            port = 19025,
+            port = p,
             interceptPrefix = "/api",
             stripPrefix = true,
             baseUrl = "http://127.0.0.1:9", // closed port, force ConnectException
@@ -50,11 +53,10 @@ class MockServerServiceForwardingErrorTest : BasePlatformTestCase() {
         configService.saveRootConfig(root)
         mockServerService.startServer(config.id)
 
-        val url = URI("http://localhost:19025/api/anything").toURL()
+        val url = URI("http://localhost:$p/api/anything").toURL()
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         val code = conn.responseCode
         assertEquals(502, code)
     }
 }
-

@@ -422,6 +422,28 @@ A: 在全局配置中设置 Cookie 值后，在 Mock 接口配置中勾选"使�
 - 平台测试在单个 JVM 中运行并启用 headless 配置。
 - UI 测试单独拆分到 `testUi` 任务，使用 robot-server 插件。
 
+### 集成测试（依赖 Docker upstream）
+
+这类测试需要先启动上游服务容器（默认监听 http://localhost:9000）：
+
+- 启动容器：
+  - `cd docker`
+  - `docker compose -f docker-compose.upstream.yml up -d upstream`
+
+测试分类与运行方式：
+
+- 仅运行集成测试（带有 `@Category(IntegrationTest)` 标记）：
+  - `./gradlew test -DincludeTags=org.zhongmiao.interceptwave.tags.IntegrationTest -Diw.upstream.http=http://localhost:9000`
+- 排除集成测试（只跑纯单元测试）：
+  - `./gradlew test -DexcludeTags=org.zhongmiao.interceptwave.tags.IntegrationTest`
+- 默认行为：
+  - 不传入 include/exclude 时会运行全部测试；若未启动容器，依赖上游的测试会自动跳过（运行前会探测可用性）。
+
+可通过以下方式覆盖上游基址：
+
+- 系统属性：`-Diw.upstream.http=http://localhost:9000`
+- 环境变量：`IW_UPSTREAM_HTTP=http://localhost:9000`
+
 ### 覆盖率报告（Kover）
 
 - XML 报告：`./gradlew koverXmlReport` → `build/reports/kover/report.xml`

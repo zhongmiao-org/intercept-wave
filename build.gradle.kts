@@ -161,6 +161,23 @@ intellijPlatform {
     }
 }
 
+// Ensure tests run on JUnit Platform (Jupiter + Vintage) and support tag filtering
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform {
+        val include = System.getProperty("includeTags")?.takeIf { it.isNotBlank() }
+        val exclude = System.getProperty("excludeTags")?.takeIf { it.isNotBlank() }
+        include?.let { vals ->
+            val arr = vals.split(',').map(String::trim).filter(String::isNotEmpty).toTypedArray()
+            if (arr.isNotEmpty()) includeTags(*arr)
+        }
+        exclude?.let { vals ->
+            val arr = vals.split(',').map(String::trim).filter(String::isNotEmpty).toTypedArray()
+            if (arr.isNotEmpty()) excludeTags(*arr)
+        }
+        // Note: JUnit4 Categories (Vintage) are exposed as tags via their fully qualified names.
+    }
+}
+
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
 val runIdeForUiTestsConfig =

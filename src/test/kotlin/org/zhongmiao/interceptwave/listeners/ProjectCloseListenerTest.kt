@@ -60,10 +60,11 @@ class ProjectCloseListenerTest : BasePlatformTestCase() {
 
     fun `test projectClosing stops running servers`() {
         // prepare a running server
+        val p = java.net.ServerSocket(0).use { it.localPort }
         val cfg = org.zhongmiao.interceptwave.model.ProxyConfig(
             id = java.util.UUID.randomUUID().toString(),
             name = "Close Hook",
-            port = 19010,
+            port = p,
             enabled = true
         )
         val root = configService.getRootConfig()

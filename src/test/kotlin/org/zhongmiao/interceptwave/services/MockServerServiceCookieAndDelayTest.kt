@@ -32,11 +32,14 @@ class MockServerServiceCookieAndDelayTest : BasePlatformTestCase() {
         }
     }
 
+    private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
+
     fun `test mock response sets cookie and cors headers with delay`() {
+        val p = freePort()
         val config = ProxyConfig(
             id = UUID.randomUUID().toString(),
             name = "CookieDelay",
-            port = 19024,
+            port = p,
             interceptPrefix = "/api",
             stripPrefix = true,
             globalCookie = "sessionId=abc123",
@@ -58,7 +61,7 @@ class MockServerServiceCookieAndDelayTest : BasePlatformTestCase() {
 
         mockServerService.startServer(config.id)
 
-        val url = URI("http://localhost:19024/api/info").toURL()
+        val url = URI("http://localhost:$p/api/info").toURL()
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         val code = conn.responseCode
@@ -73,4 +76,3 @@ class MockServerServiceCookieAndDelayTest : BasePlatformTestCase() {
         assertTrue(conn.getHeaderField("Access-Control-Allow-Methods").contains("OPTIONS"))
     }
 }
-

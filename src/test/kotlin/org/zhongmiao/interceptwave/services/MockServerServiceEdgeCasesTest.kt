@@ -38,11 +38,14 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
         configService.saveRootConfig(root)
     }
 
+    private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
+
     fun `test unmatched path returns 502 in tests`() {
+        val p1 = freePort()
         val config = ProxyConfig(
             id = UUID.randomUUID().toString(),
             name = "Forward Disabled",
-            port = 19001,
+            port = p1,
             interceptPrefix = "/api",
             stripPrefix = true,
             enabled = true,
@@ -53,7 +56,7 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
         addProxyConfig(config)
         mockServerService.startServer(config.id)
 
-        val url = URI("http://localhost:19001/api/unknown").toURL()
+        val url = URI("http://localhost:$p1/api/unknown").toURL()
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         // Forwarding is disabled in unit tests by default, so expect 502
@@ -62,10 +65,11 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
     }
 
     fun `test running servers list`() {
+        val p2 = freePort()
         val config = ProxyConfig(
             id = UUID.randomUUID().toString(),
             name = "Running List",
-            port = 19002,
+            port = p2,
             enabled = true
         )
         addProxyConfig(config)
@@ -75,14 +79,15 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
         assertEquals(1, running.size)
         val (id, url) = running[0]
         assertEquals(config.id, id)
-        assertEquals("http://localhost:19002", url)
+        assertEquals("http://localhost:$p2", url)
     }
 
     fun `test stripPrefix false does not show welcome on prefix path`() {
+        val p3 = freePort()
         val config = ProxyConfig(
             id = UUID.randomUUID().toString(),
             name = "No Prefix Welcome",
-            port = 19003,
+            port = p3,
             interceptPrefix = "/api",
             stripPrefix = false,
             enabled = true,
@@ -94,11 +99,10 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
         mockServerService.startServer(config.id)
 
         // Accessing /api (the prefix) should NOT return welcome JSON when stripPrefix=false
-        val url = URI("http://localhost:19003/api").toURL()
+        val url = URI("http://localhost:$p3/api").toURL()
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         val code = conn.responseCode
         assertEquals(502, code)
     }
 }
-
