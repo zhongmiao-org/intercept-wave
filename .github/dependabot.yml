@@ -13,8 +13,3 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-  # Scan docker/ folder for compose files and Dockerfiles
-  - package-ecosystem: "docker"
-    directory: "/docker"
-    schedule:
-      interval: "daily"
