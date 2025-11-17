@@ -2,7 +2,8 @@
 # https://www.jetbrains.com/help/qodana/qodana-yaml.html
 
 version: "1.0"
-linter: jetbrains/qodana-jvm-community:latest
+# Pin Qodana linter to a specific version to ensure reproducible analysis
+linter: jetbrains/qodana-jvm-community:2025.1
 projectJDK: "21"
 profile:
   name: qodana.recommended

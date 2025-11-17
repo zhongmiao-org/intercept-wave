@@ -180,8 +180,9 @@ tasks.withType<Test>().configureEach {
 
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
-val runIdeForUiTestsConfig =
-    intellijPlatformTesting.runIde.registering {
+// Explicit type avoids platform-type inference warnings in static analysis
+val runIdeForUiTestsConfig: Any =
+	intellijPlatformTesting.runIde.registering {
         task {
             jvmArgumentProviders += CommandLineArgumentProvider {
                 listOf(
