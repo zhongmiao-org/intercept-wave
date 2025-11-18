@@ -15,7 +15,7 @@
 <!-- Plugin description -->
 ## Plugin Introduction
 
-Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It can intelligently intercept HTTP requests, either returning custom mock data or acting as a proxy server to forward real requests to the original server.
+Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It can intelligently intercept HTTP requests and WebSocket (`ws://`/`wss://`) messages, either returning custom mock data or acting as a proxy server/bridge to forward real traffic to the original server.
 
 ### ✨ Multi-Service Proxy
 
@@ -32,6 +32,7 @@ Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and inte
 - 🔄 **With Mock Config**: Returns preset mock data for offline development
 - 🌐 **Without Mock Config**: Acts as a proxy server, forwarding requests with complete HTTP headers to get real data
 - 🔀 Smart path matching with prefix stripping support
+ - 📡 **WebSocket Mock & Bridge**: Create WS groups that listen on local `ws://` ports (optionally `wss://` with a PKCS#12 keystore), bridge to upstream `ws://`/`wss://` servers, and support both automatic and manual message pushing.
 
 **Developer-Friendly Features**:
 - 👥 **Target Users**: Frontend Engineers, QA Engineers, Full-Stack Developers
@@ -58,6 +59,7 @@ Intercept Wave provides the following core functionalities:
 
 - **API Interception**: Intercept specific APIs and return configured mock data
 - **Proxy Forwarding**: Automatically forward unconfigured APIs to the original server
+- **WebSocket Mock & Push**: Start local WS mock/proxy services, forward to upstream `ws://`/`wss://` endpoints, and define push rules (periodic/timeline) or send messages manually from the tool window.
 - **CORS Support**: Automatically add CORS headers to resolve cross-origin issues
 - **Request Preservation**: Preserve original request headers and User-Agent
 - **Delay Simulation**: Simulate network delays for testing slow network environments
@@ -116,7 +118,7 @@ Each tab panel displays:
 - 🟢/⚫ **Running Status**: Running / Stopped
 - 🔗 **Access URL**: Service access URL when running
 - **Start Service** / **Stop Service**: Control individual service start/stop
-- **Current Configuration**: Displays port, intercept prefix, base URL, mock API list, and other detailed information
+- **Current Configuration**: Displays port, protocol, upstream address, and details such as HTTP mock APIs or WS push rules.
 
 ### 3. Configure Proxy Groups
 
@@ -133,13 +135,10 @@ Click the "Configuration" button to open the configuration dialog:
 Each configuration group contains the following settings:
 
 **Basic Configuration**:
+- **Protocol**: `HTTP` or `WS`. HTTP groups handle HTTP APIs; WS groups handle WebSocket connections.
 - **Configuration Group Name**: Custom name (e.g., "User Service", "Order Service")
 - **Port Number**: The port this service listens on (e.g., 8888, 8889)
-- **Intercept Prefix**: API path prefix to intercept (default: /api)
-- **Base URL**: Base URL of the original server (e.g., http://localhost:8080)
-- **Strip Prefix**: When enabled, matching removes the intercept prefix
-  - Example: Request `/api/user` will match mock path `/user`
-- **Global Cookie**: Configure global cookie value (e.g., sessionId=abc123; userId=456)
+- **Strip Prefix**: When enabled, matching removes the configured prefix when computing match paths (applies to both HTTP and WS groups).
 - **Enable This Configuration Group**: When checked, this configuration group will be included in "Start All"
 
 #### Mock API Configuration
@@ -155,6 +154,28 @@ Each configuration group contains the following settings:
 
 3. Click the "Format JSON" button to format mock data
 4. Click "OK" to save configuration
+
+#### HTTP Settings (Protocol = HTTP)
+
+HTTP configuration groups provide additional HTTP-specific settings:
+
+- **Intercept Prefix**: API path prefix to intercept (default: `/api`)
+- **Base URL**: Base URL of the original server (e.g., `http://localhost:8080`)
+- **Global Cookie**: Configure global cookie value (e.g., `sessionId=abc123; userId=456`)
+
+#### WebSocket Group Settings (Protocol = WS)
+
+WS configuration groups share the same basic settings (name, port, strip prefix, enabled), and add WS-specific options:
+
+- **Upstream WebSocket URL**: Upstream `ws://` or `wss://` address (for example, `ws://localhost:8080/ws/chat`). Required for WS groups.
+- **WS Prefix (optional)**: Path prefix for WebSocket matching. When `Strip Prefix` is enabled and WS prefix is non-empty, that prefix is removed before matching push rules. When empty, WS paths are matched as-is (no inheritance from the HTTP intercept prefix).
+- **Manual Push Panel**: Toggle whether the tool window shows a WS manual push panel for this group.
+- **WS Push Rules**: A table of rules used for automatic and manual pushes:
+  - Match by path pattern (supports `*`/`**` like HTTP mocks) and optional JSON event key/value.
+  - Choose direction: `in` (upstream → client), `out` (client → upstream), or `both`.
+  - Set mode: `off`, `periodic` (send every N seconds, optional `onOpenFire` on connect), or `timeline` (send a sequence at specific milliseconds, optional `loop`).
+  - Provide message content, which is used for auto-push and as the default template when manually sending.
+  - Optionally intercept matching messages instead of forwarding them.
 
 #### Path Matching Rules (Wildcards)
 Support wildcards in `path` for flexible matching (behavior of `stripPrefix` and `interceptPrefix` remains unchanged):
@@ -481,8 +502,8 @@ For a brief Gradle layout, see the previous section. For the full repository lay
 
 ## Development Roadmap
 
-- [ ] HTTPS support
-- [ ] WebSocket mock support
+- [ ] HTTPS/WSS support
+- [x] WebSocket mock support
 - [x] Request log viewer (available in Run tool window)
 - [ ] Import/export configuration
 - [ ] Mock data template library
