@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   upstream:
     image: ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.2.0
