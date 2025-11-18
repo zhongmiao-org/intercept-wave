@@ -2,6 +2,7 @@ import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.gradle.process.CommandLineArgumentProvider
+import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformTestingExtension
 import java.time.Duration
 
 plugins {
@@ -180,7 +181,7 @@ tasks.withType<Test>().configureEach {
 
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
-val runIdeForUiTestsConfig =
+val runIdeForUiTestsConfig: RegisteringDomainObjectDelegateProviderWithAction<out NamedDomainObjectContainer<IntelliJPlatformTestingExtension.RunIdeParameters>, IntelliJPlatformTestingExtension.RunIdeParameters>  =
     intellijPlatformTesting.runIde.registering {
         task {
             jvmArgumentProviders += CommandLineArgumentProvider {
