@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [3.1.0]
+
 ### ✨ 新增
 
 - 新增本地联调用 Docker 方案至 `docker/`：

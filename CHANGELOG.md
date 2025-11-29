@@ -2,9 +2,11 @@
 
 # Intercept Wave Changelog
 
->English Changelog | [中文更新日志](./CHANGELOG_zh.md) 
+>English Changelog | [中文更新日志](./CHANGELOG_zh.md)
 
 ## [Unreleased]
+
+## [3.1.0] - 2025-11-29
 
 ### ✨ Added
 
@@ -38,17 +40,15 @@
   - WS push rules with route/event matcher: modes `off | periodic | timeline`, fields `periodSec`, `message`, `timeline(atMs/loop/onOpenFire)`, `eventKey` (default `action`), `eventValue`, `direction(in/out/both)`.
   - Tool window WS panel: rules table (“Send selected”) + custom send area (target: matching/all/latest).
 - i18n resources for all WS UI and logs (EN/ZH).
- - WS rules: per-rule "Block forwarding when matched" option to intercept messages (direction-aware, optional JSON event key/value matching).
- - Config dialog: Added "Apply" button next to OK; validates and saves to disk without closing the dialog. Save/validate logic extracted to a shared function.
+- WS rules: per-rule "Block forwarding when matched" option to intercept messages (direction-aware, optional JSON event key/value matching).
+- Config dialog: Added "Apply" button next to OK; validates and saves to disk without closing the dialog. Save/validate logic extracted to a shared function.
 
 ### 🔄 Changed
-
 
 - Packaging and tooling:
   - Exclude `docker/` from source archives via `.gitattributes` (export-ignore).
   - Exclude `docker/` from Qodana inspection.
   - Ignore `docker/.env` in VCS.
-
 - Tool Window tables: Enabled column is now editable for both HTTP Mock list and WS rules in the side panel; toggling writes to in-memory config and takes effect on next request/message (WS periodic/timeline scheduling unchanged).
 - Consolidated UI spacing/dimensions to JBUI; removed redundant wrapper panels; unified table column widths and visible rows via `UiKit`.
 - Config/Tool Window copy updated to new terminology (Address Prefix / Upstream Address / Cookie).
@@ -336,7 +336,8 @@
 - Support for custom Mock data responses
 - Provided visual configuration interface
 
-[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.2...v3.1.0
 [3.0.2]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v2.2.1...v3.0.0
