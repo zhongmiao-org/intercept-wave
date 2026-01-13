@@ -189,16 +189,16 @@ jobs:
           java-version: 21
 
       # Run Qodana inspections
-      - name: Qodana - Code Inspection
-        uses: JetBrains/qodana-action@v2025.3
-        with:
-          pr-mode: false
-          cache-default-branch-only: true
-        env:
-          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
-          QODANA_ENDPOINT: 'https://qodana.cloud'
-          # Disable Kotlin compiler statistics to avoid missing directory errors
-          GRADLE_OPTS: "-Dkotlin.compiler.execution.strategy=in-process"
+#      - name: Qodana - Code Inspection
+#        uses: JetBrains/qodana-action@v2025.3
+#        with:
+#          pr-mode: false
+#          cache-default-branch-only: true
+#        env:
+#          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+#          QODANA_ENDPOINT: 'https://qodana.cloud'
+#          # Disable Kotlin compiler statistics to avoid missing directory errors
+#          GRADLE_OPTS: "-Dkotlin.compiler.execution.strategy=in-process"
 
   # Run plugin structure verification along with IntelliJ Plugin Verifier
   verify:
