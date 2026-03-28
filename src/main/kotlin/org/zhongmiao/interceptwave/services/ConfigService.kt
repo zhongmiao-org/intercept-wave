@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.services
 
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.model.RootConfig
@@ -60,10 +61,11 @@ class ConfigService(private val project: Project) {
                 if (jsonObject.containsKey("version") && jsonObject.containsKey("proxyGroups")) {
                     // v2.0 配置，直接加载
                     val loaded = json.decodeFromString(RootConfig.serializer(), content)
+                    val routesFixed = ensureHttpRoutes(loaded)
                     // 兼容性处理：规范化历史 mockData（单引号、未引号键、尾逗号）并最小化，并确保版本为当前主次版本
-                    val fixed = normalizeAndMinifyMockData(loaded)
+                    val fixed = normalizeAndMinifyMockData(routesFixed.second)
                     val withVersion = ensureVersionMajorMinor(fixed.second)
-                    if (fixed.first || withVersion.version != loaded.version) {
+                    if (routesFixed.first || fixed.first || withVersion.version != loaded.version) {
                         saveRootConfig(withVersion)
                     }
                     withVersion
@@ -107,20 +109,25 @@ class ConfigService(private val project: Project) {
     private fun normalizeAndMinifyMockData(root: RootConfig): Pair<Boolean, RootConfig> {
         var changed = false
         val normalizedGroups = root.proxyGroups.map { group ->
-            // HTTP Mock 的 JSON 归一化
-            val newApis = group.mockApis.map { api ->
-                val original = api.mockData
-                try {
-                    val minified = org.zhongmiao.interceptwave.util.JsonNormalizeUtil.minifyJson(original)
-                    if (minified != original) {
-                        changed = true
-                        api.copy(mockData = minified)
-                    } else api
-                } catch (e: Exception) {
-                    // 宽容解析失败则保留原样，但记录日志
-                    thisLogger().warn("Normalize mockData failed for path=${api.path}: ${e.message}")
-                    api
-                }
+            fun normalizeApis(apis: MutableList<org.zhongmiao.interceptwave.model.MockApiConfig>): MutableList<org.zhongmiao.interceptwave.model.MockApiConfig> {
+                return apis.map { api ->
+                    val original = api.mockData
+                    try {
+                        val minified = org.zhongmiao.interceptwave.util.JsonNormalizeUtil.minifyJson(original)
+                        if (minified != original) {
+                            changed = true
+                            api.copy(mockData = minified)
+                        } else api
+                    } catch (e: Exception) {
+                        thisLogger().warn("Normalize mockData failed for path=${api.path}: ${e.message}")
+                        api
+                    }
+                }.toMutableList()
+            }
+
+            val newApis = normalizeApis(legacyMockApis(group))
+            val newRoutes = group.routes.map { route ->
+                route.copy(mockApis = normalizeApis(route.mockApis))
             }.toMutableList()
 
             // WS Push 模板与时间轴的 JSON 归一化（若为合法 JSON 则最小化，不强制要求）
@@ -155,10 +162,21 @@ class ConfigService(private val project: Project) {
                 rule.copy(message = newMessage, timeline = newTimeline)
             }.toMutableList()
 
-            group.copy(mockApis = newApis, wsPushRules = newWsRules)
+            group.copy(mockApis = newApis, routes = newRoutes, wsPushRules = newWsRules)
         }.toMutableList()
 
         return changed to root.copy(proxyGroups = normalizedGroups)
+    }
+
+    private fun ensureHttpRoutes(root: RootConfig): Pair<Boolean, RootConfig> {
+        var changed = false
+        val groups = root.proxyGroups.map { group ->
+            if (!group.protocol.equals("HTTP", ignoreCase = true)) return@map group
+            if (group.routes.isNotEmpty() && !shouldReplacePlaceholderRoute(group)) return@map group
+            changed = true
+            group.copy(routes = mutableListOf(defaultHttpRoute(group)))
+        }.toMutableList()
+        return changed to root.copy(proxyGroups = groups)
     }
 
     /**
@@ -202,17 +220,27 @@ class ConfigService(private val project: Project) {
             val oldConfig = json.decodeFromString(MockConfig.serializer(), oldContent)
 
             // 创建新配置结构
-                    val newConfig = RootConfig(
-                        version = "2.0",
-                        proxyGroups = mutableListOf(
-                            ProxyConfig(
-                                id = UUID.randomUUID().toString(),
-                                name = message("config.group.default"),
-                                port = oldConfig.port,
-                                interceptPrefix = oldConfig.interceptPrefix,
-                                baseUrl = oldConfig.baseUrl,
+            val newConfig = RootConfig(
+                version = "2.0",
+                proxyGroups = mutableListOf(
+                    ProxyConfig(
+                        id = UUID.randomUUID().toString(),
+                        name = message("config.group.default"),
+                        port = oldConfig.port,
+                        routes = mutableListOf(
+                            HttpRoute(
+                                name = "API",
+                                pathPrefix = oldConfig.interceptPrefix,
+                                targetBaseUrl = oldConfig.baseUrl,
                                 stripPrefix = oldConfig.stripPrefix,
-                                globalCookie = oldConfig.globalCookie,
+                                enableMock = true,
+                                mockApis = oldConfig.mockApis
+                            )
+                        ),
+                        interceptPrefix = oldConfig.interceptPrefix,
+                        baseUrl = oldConfig.baseUrl,
+                        stripPrefix = oldConfig.stripPrefix,
+                        globalCookie = oldConfig.globalCookie,
                         enabled = true,
                         mockApis = oldConfig.mockApis
                     )
@@ -279,6 +307,7 @@ class ConfigService(private val project: Project) {
             id = UUID.randomUUID().toString(),
             name = name ?: message("config.group.default.indexed", index + 1),
             port = 8888 + index,
+            routes = mutableListOf(defaultHttpRoute()),
             interceptPrefix = "/api",
             baseUrl = "http://localhost:8080",
             stripPrefix = true,
@@ -293,7 +322,8 @@ class ConfigService(private val project: Project) {
      */
     fun saveRootConfig(config: RootConfig) {
         try {
-            val versioned = ensureVersionMajorMinor(config)
+            val routed = ensureHttpRoutes(config).second
+            val versioned = ensureVersionMajorMinor(routed)
             configFile.writeText(json.encodeToString(versioned))
             rootConfig = versioned
             thisLogger().info("Root config saved successfully")
@@ -326,5 +356,43 @@ class ConfigService(private val project: Project) {
      * 根据 ID 获取配置组
      */
     fun getProxyGroup(id: String): ProxyConfig? = rootConfig.proxyGroups.find { it.id == id }
+
+    @Suppress("DEPRECATION")
+    private fun defaultHttpRoute(source: ProxyConfig? = null): HttpRoute {
+        val prefix = source?.interceptPrefix?.ifBlank { "/" } ?: "/api"
+        return HttpRoute(
+            name = "API",
+            pathPrefix = prefix,
+            targetBaseUrl = source?.baseUrl ?: "http://localhost:8080",
+            stripPrefix = source?.stripPrefix ?: true,
+            enableMock = true,
+            mockApis = source?.mockApis?.map { it.copy() }?.toMutableList() ?: mutableListOf()
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun shouldReplacePlaceholderRoute(group: ProxyConfig): Boolean {
+        if (group.routes.isEmpty()) return true
+        if (group.routes.size != 1) return false
+        val route = group.routes.first()
+        val routeMatchesLegacy =
+            route.pathPrefix == group.interceptPrefix &&
+                route.targetBaseUrl == group.baseUrl &&
+                route.stripPrefix == group.stripPrefix &&
+                route.mockApis.map { it.path } == group.mockApis.map { it.path }
+        if (routeMatchesLegacy) return false
+
+        return route.name == "API" &&
+            route.pathPrefix == "/api" &&
+            route.targetBaseUrl == "http://localhost:8080" &&
+            route.stripPrefix &&
+            route.enableMock &&
+            route.mockApis.isEmpty() &&
+            (group.interceptPrefix != route.pathPrefix || group.baseUrl != route.targetBaseUrl || group.mockApis.isNotEmpty() || !group.stripPrefix)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun legacyMockApis(group: ProxyConfig): MutableList<org.zhongmiao.interceptwave.model.MockApiConfig> =
+        group.mockApis
 
 }

@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.events.*
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.util.Env
@@ -79,26 +80,26 @@ class HttpServerEngine(
                 return
             }
 
-            // When stripPrefix is enabled, visiting /prefix or /prefix/ shows welcome page as well
-            if (config.stripPrefix && config.interceptPrefix.isNotEmpty()) {
-                val normalizedPrefix = if (config.interceptPrefix.endsWith("/")) config.interceptPrefix.dropLast(1) else config.interceptPrefix
-                if (requestPath == normalizedPrefix || requestPath == "$normalizedPrefix/") {
-                    handleProxyWelcomePage(exchange)
-                    return
-                }
+            val route = PathUtil.selectHttpRoute(config, requestPath)
+            if (route == null) {
+                sendErrorResponse(exchange, 502, "Bad Gateway: No matching route configured")
+                return
             }
 
-            // Compute matching path
-            val matchPath = PathUtil.computeHttpMatchPath(config, requestPath)
+            if (shouldServeWelcomePage(route, requestPath)) {
+                handleProxyWelcomePage(exchange)
+                return
+            }
 
-            // Find mock api
-            val mockApi = findMatchingMockApiInProxy(matchPath, method)
+            val matchPath = PathUtil.computeHttpMatchPath(route, requestPath)
+
+            val mockApi = findMatchingMockApiInRoute(route, matchPath, method)
             output.publish(MatchedPath(config.id, config.name, matchPath))
 
-            if (mockApi != null && mockApi.enabled) {
+            if (route.enableMock && mockApi != null && mockApi.enabled) {
                 handleProxyMockResponse(exchange, mockApi)
             } else {
-                forwardToOriginalServerProxy(exchange)
+                forwardToOriginalServerProxy(exchange, route)
             }
         } catch (e: Exception) {
             log.error("[${config.name}] Error handling request", e)
@@ -123,8 +124,8 @@ class HttpServerEngine(
         }
     }
 
-    private fun findMatchingMockApiInProxy(requestPath: String, method: String): MockApiConfig? =
-        org.zhongmiao.interceptwave.util.PathPatternUtil.findMatchingMockApiInProxy(requestPath, method, config)
+    private fun findMatchingMockApiInRoute(route: HttpRoute, requestPath: String, method: String): MockApiConfig? =
+        org.zhongmiao.interceptwave.util.PathPatternUtil.findMatchingMockApiInRoute(requestPath, method, route)
 
     private fun handleProxyMockResponse(exchange: HttpExchange, mockApi: MockApiConfig) {
         try {
@@ -154,10 +155,12 @@ class HttpServerEngine(
         }
     }
 
-    private fun forwardToOriginalServerProxy(exchange: HttpExchange) {
+    private fun forwardToOriginalServerProxy(exchange: HttpExchange, route: HttpRoute) {
         try {
-            val requestPath = exchange.requestURI.toString()
-            val targetUrl = config.baseUrl + requestPath
+            val requestPath = exchange.requestURI.path
+            val forwardPath = PathUtil.computeHttpForwardPath(route, requestPath)
+            val query = exchange.requestURI.rawQuery?.takeIf { it.isNotBlank() }?.let { "?$it" } ?: ""
+            val targetUrl = route.targetBaseUrl.trimEnd('/') + forwardPath + query
 
             output.publish(ForwardingTo(config.id, config.name, targetUrl))
 
@@ -193,6 +196,13 @@ class HttpServerEngine(
 
     private fun logForwardError(t: Throwable) {
         if (Env.isNoUi()) log.warn("Error forwarding request", t) else log.error("Error forwarding request", t)
+    }
+
+    private fun shouldServeWelcomePage(route: HttpRoute, requestPath: String): Boolean {
+        if (!route.stripPrefix) return false
+        val prefix = route.pathPrefix.trimEnd('/').ifEmpty { "/" }
+        if (prefix == "/") return false
+        return requestPath == prefix || requestPath == "$prefix/"
     }
 
 }

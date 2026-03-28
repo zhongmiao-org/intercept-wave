@@ -5,6 +5,7 @@ import org.junit.Test
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 
+@Suppress("DEPRECATION")
 class PathPatternUtilTest {
 
     @Test
@@ -59,4 +60,3 @@ class PathPatternUtilTest {
         assertEquals("/hello/world", m2!!.path)
     }
 }
-

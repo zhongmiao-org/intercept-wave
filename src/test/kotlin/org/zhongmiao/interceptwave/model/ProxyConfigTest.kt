@@ -9,6 +9,7 @@ import java.util.UUID
 /**
  * Tests for RootConfig and ProxyConfig data models (v2.0)
  */
+@Suppress("DEPRECATION")
 class ProxyConfigTest {
 
     private val json = Json { prettyPrint = true }
@@ -71,6 +72,11 @@ class ProxyConfigTest {
         assertNotNull(config.id)
         assertEquals("默认配置", config.name)
         assertEquals(8888, config.port)
+        assertEquals(1, config.routes.size)
+        assertEquals("/api", config.routes[0].pathPrefix)
+        assertEquals("http://localhost:8080", config.routes[0].targetBaseUrl)
+        assertTrue(config.routes[0].stripPrefix)
+        assertTrue(config.routes[0].enableMock)
         assertEquals("/api", config.interceptPrefix)
         assertEquals("http://localhost:8080", config.baseUrl)
         assertTrue(config.stripPrefix)
@@ -91,6 +97,20 @@ class ProxyConfigTest {
             stripPrefix = false,
             globalCookie = "sessionId=abc123",
             enabled = false,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/v1",
+                    targetBaseUrl = "https://api.example.com",
+                    stripPrefix = false,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(
+                            path = "/api/test",
+                            mockData = "{\"status\": \"ok\"}"
+                        )
+                    )
+                )
+            ),
             mockApis = mutableListOf(
                 MockApiConfig(
                     path = "/api/test",
@@ -107,6 +127,8 @@ class ProxyConfigTest {
         assertFalse(config.stripPrefix)
         assertEquals("sessionId=abc123", config.globalCookie)
         assertFalse(config.enabled)
+        assertEquals(1, config.routes.size)
+        assertEquals("/v1", config.routes[0].pathPrefix)
         assertEquals(1, config.mockApis.size)
     }
 
@@ -126,6 +148,20 @@ class ProxyConfigTest {
             id = "test-id-123",
             name = "Test Config",
             port = 8765,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/test",
+                    targetBaseUrl = "http://test.local",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(
+                            path = "/api/user",
+                            mockData = "{\"id\": 1}"
+                        )
+                    )
+                )
+            ),
             interceptPrefix = "/test",
             baseUrl = "http://test.local",
             stripPrefix = true,
@@ -145,6 +181,9 @@ class ProxyConfigTest {
         assertEquals(config.id, decoded.id)
         assertEquals(config.name, decoded.name)
         assertEquals(config.port, decoded.port)
+        assertEquals(1, decoded.routes.size)
+        assertEquals("/test", decoded.routes[0].pathPrefix)
+        assertEquals("http://test.local", decoded.routes[0].targetBaseUrl)
         assertEquals(config.interceptPrefix, decoded.interceptPrefix)
         assertEquals(config.baseUrl, decoded.baseUrl)
         assertEquals(config.stripPrefix, decoded.stripPrefix)
@@ -299,6 +338,9 @@ class ProxyConfigTest {
 
         config.enabled = false
         assertFalse(config.enabled)
+
+        config.routes.add(HttpRoute(pathPrefix = "/extra", targetBaseUrl = "http://localhost:9000"))
+        assertEquals(2, config.routes.size)
 
         config.mockApis.add(MockApiConfig(path = "/test", mockData = "{}"))
         assertEquals(1, config.mockApis.size)
