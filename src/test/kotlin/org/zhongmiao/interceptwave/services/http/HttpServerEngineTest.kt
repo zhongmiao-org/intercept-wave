@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.services.http
 import org.junit.Assert.*
 import org.junit.Test
 import org.zhongmiao.interceptwave.events.*
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.HttpURLConnection
@@ -42,6 +43,9 @@ class HttpServerEngineTest {
         val cfg = ProxyConfig(
             name = "Basic",
             port = port,
+            routes = mutableListOf(
+                HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = true)
+            ),
             interceptPrefix = "/api",
             stripPrefix = true,
         )
@@ -70,6 +74,17 @@ class HttpServerEngineTest {
         val cfg = ProxyConfig(
             name = "Mock",
             port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:8080",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{\"ok\":true}", method = "GET", enabled = true, useCookie = true)
+                    )
+                )
+            ),
             interceptPrefix = "/api",
             stripPrefix = true,
             globalCookie = "sid=abc123",
@@ -110,6 +125,17 @@ class HttpServerEngineTest {
         val cfg = ProxyConfig(
             name = "Preflight",
             port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:8080",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{}", method = "ALL", enabled = true)
+                    )
+                )
+            ),
             interceptPrefix = "/api",
             stripPrefix = true,
             mockApis = mutableListOf(
@@ -135,6 +161,15 @@ class HttpServerEngineTest {
         val cfg = ProxyConfig(
             name = "NoMock",
             port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:9",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf()
+                )
+            ),
             interceptPrefix = "/api",
             stripPrefix = true,
             baseUrl = "http://localhost:9", // irrelevant since forwarding is disabled in tests
@@ -154,6 +189,62 @@ class HttpServerEngineTest {
         assertTrue(out.events.any { it is ForwardingTo })
         assertFalse(out.events.any { it is Forwarded })
 
+        engine.stop()
+    }
+
+    @Test
+    fun longest_prefix_route_and_disable_mock_behaviour() {
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "Routes",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "Fallback",
+                    pathPrefix = "/",
+                    targetBaseUrl = "http://localhost:4001",
+                    stripPrefix = false,
+                    enableMock = false
+                ),
+                HttpRoute(
+                    name = "API",
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:4002",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{\"route\":\"api\"}", method = "GET", enabled = true),
+                        MockApiConfig(path = "/admin", mockData = "{\"route\":\"admin\"}", method = "GET", enabled = false)
+                    )
+                ),
+                HttpRoute(
+                    name = "Admin",
+                    pathPrefix = "/api/admin",
+                    targetBaseUrl = "http://localhost:4003",
+                    stripPrefix = true,
+                    enableMock = false
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val userConn = URI("http://localhost:$port/api/user").toURL().openConnection() as HttpURLConnection
+        userConn.requestMethod = "GET"
+        assertEquals(200, userConn.responseCode)
+        assertEquals("{\"route\":\"api\"}", userConn.inputStream.bufferedReader().readText())
+
+        val adminConn = URI("http://localhost:$port/api/admin/users").toURL().openConnection() as HttpURLConnection
+        adminConn.requestMethod = "GET"
+        assertEquals(502, adminConn.responseCode)
+
+        val fallbackConn = URI("http://localhost:$port/home").toURL().openConnection() as HttpURLConnection
+        fallbackConn.requestMethod = "GET"
+        assertEquals(502, fallbackConn.responseCode)
+
+        assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://localhost:4003/users" })
+        assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://localhost:4001/home" })
         engine.stop()
     }
 }

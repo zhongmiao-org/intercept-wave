@@ -8,25 +8,28 @@ import org.zhongmiao.interceptwave.model.ProxyConfig
  */
 object HttpWelcomeUtil {
     fun buildWelcomeJson(config: ProxyConfig): String {
-        val mockApiCount = config.mockApis.size
-        val enabledApis = config.mockApis.filter { it.enabled }
+        val routes = config.routes.ifEmpty { mutableListOf() }
+        val enabledApis = routes.flatMap { route -> route.mockApis.filter { it.enabled } }
         val enabledApiCount = enabledApis.size
+        val mockApiCount = routes.sumOf { it.mockApis.size }
 
-        val examples = enabledApis.joinToString(",\n    ") { api ->
-            val method = api.method
-            val exampleUrl = if (config.stripPrefix) {
-                val prefix = if (config.interceptPrefix.endsWith("/")) config.interceptPrefix.dropLast(1) else config.interceptPrefix
-                val path = if (api.path.startsWith("/")) api.path else "/${api.path}"
-                "http://localhost:${config.port}" + prefix + path
-            } else {
-                val fullPath = if (api.path.startsWith("/")) api.path else "/${api.path}"
-                "http://localhost:${config.port}" + fullPath
+        val examples = routes.flatMap { route ->
+            route.mockApis.filter { it.enabled }.map { api ->
+                val method = api.method
+                val exampleUrl = if (route.stripPrefix) {
+                    val prefix = if (route.pathPrefix.endsWith("/") && route.pathPrefix != "/") route.pathPrefix.dropLast(1) else route.pathPrefix
+                    val path = if (api.path.startsWith("/")) api.path else "/${api.path}"
+                    "http://localhost:${config.port}" + if (prefix == "/") path else prefix + path
+                } else {
+                    val fullPath = if (api.path.startsWith("/")) api.path else "/${api.path}"
+                    "http://localhost:${config.port}" + fullPath
+                }
+                """{"route": "${route.name}", "method": "$method", "url": "$exampleUrl"}"""
             }
-            """{"method": "$method", "url": "$exampleUrl"}"""
-        }
+        }.joinToString(",\n    ")
 
-        val apisJson = enabledApis.joinToString(",\n    ") { api ->
-            """{"path": "${api.path}", "method": "${api.method}", "enabled": ${api.enabled}}"""
+        val routesJson = routes.joinToString(",\n    ") { route ->
+            """{"name": "${route.name}", "pathPrefix": "${route.pathPrefix}", "targetBaseUrl": "${route.targetBaseUrl}", "stripPrefix": ${route.stripPrefix}, "enableMock": ${route.enableMock}, "mockApis": ${route.mockApis.size}}"""
         }
 
         return """
@@ -36,9 +39,7 @@ object HttpWelcomeUtil {
               "configGroup": "${config.name}",
               "server": {
                 "port": ${config.port},
-                "baseUrl": "${config.baseUrl}",
-                "interceptPrefix": "${config.interceptPrefix}",
-                "stripPrefix": ${config.stripPrefix}
+                "routes": ${routes.size}
               },
               "mockApis": {
                 "total": $mockApiCount,
@@ -46,10 +47,10 @@ object HttpWelcomeUtil {
               },
               "usage": {
                 "description": "${message("welcome.usage.description")}",
-                "example": "GET http://localhost:${config.port}${config.interceptPrefix}/your-api-path"
+                "example": "GET http://localhost:${config.port}/your-api-path"
               },
-              "apis": [
-                $apisJson
+              "routes": [
+                $routesJson
               ],
               "examples": [
                 $examples
@@ -58,4 +59,3 @@ object HttpWelcomeUtil {
         """.trimIndent()
     }
 }
-

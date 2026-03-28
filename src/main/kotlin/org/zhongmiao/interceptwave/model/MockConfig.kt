@@ -32,10 +32,16 @@ data class ProxyConfig(
     // Mock服务的本地端口
     var port: Int = 8888,
 
+    // HTTP 路由规则列表（HTTP 组使用）
+    var routes: MutableList<HttpRoute> = mutableListOf(HttpRoute()),
+
+    // ================= 旧 HTTP 组相关（仅用于兼容迁移） =================
     // 需要劫持的接口地址前缀
+    @Deprecated("Use routes.pathPrefix instead")
     var interceptPrefix: String = "/api",
 
     // 原始接口的基础URL
+    @Deprecated("Use routes.targetBaseUrl instead")
     var baseUrl: String = "http://localhost:8080",
 
     // 是否在匹配时去掉前缀（默认true，推荐）
@@ -48,6 +54,7 @@ data class ProxyConfig(
     // 当stripPrefix=false时：
     //   - 请求 /api/user -> /api/user -> 需要 mockApis中的path="/api/user" 才能匹配
     //   - 需要在每个path配置中都写完整路径
+    @Deprecated("Use routes.stripPrefix instead")
     var stripPrefix: Boolean = true,
 
     // 全局Cookie，例如: sessionId=abc123; userId=456
@@ -57,6 +64,7 @@ data class ProxyConfig(
     var enabled: Boolean = true,
 
     // Mock接口配置列表（HTTP 组使用）
+    @Deprecated("Use routes.mockApis instead")
     var mockApis: MutableList<MockApiConfig> = mutableListOf(),
 
     // ================= WS 组相关（当 protocol=WS 时） =================
@@ -76,6 +84,17 @@ data class ProxyConfig(
     var wssEnabled: Boolean = false,
     var wssKeystorePath: String? = null,
     var wssKeystorePassword: String? = null
+)
+
+@Serializable
+data class HttpRoute(
+    var id: String = UUID.randomUUID().toString(),
+    var name: String = "API",
+    var pathPrefix: String = "/api",
+    var targetBaseUrl: String = "http://localhost:8080",
+    var stripPrefix: Boolean = true,
+    var enableMock: Boolean = true,
+    var mockApis: MutableList<MockApiConfig> = mutableListOf()
 )
 
 /**

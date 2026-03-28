@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
 
+@Suppress("DEPRECATION")
 class MockConfigTest {
 
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true; prettyPrint = false }
@@ -65,4 +66,3 @@ class MockConfigTest {
         assertTrue(s.contains("\"version\":\"2.0\""))
     }
 }
-

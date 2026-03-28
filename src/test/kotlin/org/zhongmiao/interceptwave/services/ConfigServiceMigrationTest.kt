@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.services
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.io.File
 
+@Suppress("DEPRECATION")
 class ConfigServiceMigrationTest : BasePlatformTestCase() {
 
     private lateinit var configDir: File
@@ -51,10 +52,49 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         assertEquals("http://localhost:18080", group.baseUrl)
         assertTrue(group.stripPrefix)
         assertEquals(1, group.mockApis.size)
+        assertEquals(1, group.routes.size)
+        assertEquals("API", group.routes[0].name)
+        assertEquals("/api", group.routes[0].pathPrefix)
+        assertEquals("http://localhost:18080", group.routes[0].targetBaseUrl)
+        assertTrue(group.routes[0].stripPrefix)
+        assertTrue(group.routes[0].enableMock)
+        assertEquals(1, group.routes[0].mockApis.size)
 
         // Backup should exist
         val backup = File(configDir, "config.json.backup")
         assertTrue(backup.exists())
+    }
+
+    fun `test load existing root_config_without_routes_adds_default_route`() {
+        val v2WithoutRoutes = """
+            {
+              "version": "3.0",
+              "proxyGroups": [
+                {
+                  "id": "http-1",
+                  "name": "Legacy HTTP",
+                  "protocol": "HTTP",
+                  "port": 18889,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://localhost:18081",
+                  "stripPrefix": false,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": [ { "path": "/api/user", "mockData": "{}" } ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(v2WithoutRoutes)
+
+        val root = ConfigService(project).getRootConfig()
+        val group = root.proxyGroups.single()
+        assertEquals(1, group.routes.size)
+        assertEquals("/api", group.routes[0].pathPrefix)
+        assertEquals("http://localhost:18081", group.routes[0].targetBaseUrl)
+        assertFalse(group.routes[0].stripPrefix)
+        assertEquals("/api/user", group.routes[0].mockApis.single().path)
     }
 
     fun `test ensureVersionMajorMinor normalizes to major_minor`() {
