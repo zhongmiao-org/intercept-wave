@@ -2,6 +2,7 @@ package org.zhongmiao.interceptwave.util
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 
@@ -58,5 +59,19 @@ class PathPatternUtilTest {
         assertNotNull(m2)
         // exact match without wildcard wins over wildcard, even if method is ALL
         assertEquals("/hello/world", m2!!.path)
+    }
+
+    @Test
+    fun findMatchingMockApiInRoute_returns_null_when_nothing_matches() {
+        val route = HttpRoute(
+            pathPrefix = "/api",
+            targetBaseUrl = "http://localhost:4002",
+            mockApis = mutableListOf(
+                MockApiConfig(path = "/user", method = "POST", mockData = "{}")
+            )
+        )
+
+        val match = PathPatternUtil.findMatchingMockApiInRoute("/user", "GET", route)
+        assertNull(match)
     }
 }

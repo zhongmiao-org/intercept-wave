@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.zhongmiao.interceptwave.model.HttpRoute
@@ -48,5 +49,24 @@ class PathUtilRouteTest {
         assertNotNull(route)
         assertEquals("legacy", route!!.name)
         assertEquals("/health", PathUtil.computeHttpForwardPath(route, "/health"))
+    }
+
+    @Test
+    fun selectHttpRoute_returns_null_when_multiple_routes_do_not_match() {
+        val config = ProxyConfig(
+            routes = mutableListOf(
+                HttpRoute(name = "api", pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true),
+                HttpRoute(name = "admin", pathPrefix = "/admin", targetBaseUrl = "http://localhost:4003", stripPrefix = false)
+            )
+        )
+
+        assertNull(PathUtil.selectHttpRoute(config, "/health"))
+    }
+
+    @Test
+    fun computeWsMatchPath_handles_prefix_strip_and_passthrough() {
+        val config = ProxyConfig(wsInterceptPrefix = "/ws", stripPrefix = true)
+        assertEquals("/chat", PathUtil.computeWsMatchPath(config, "/ws/chat"))
+        assertEquals("/health", PathUtil.computeWsMatchPath(config, "/health"))
     }
 }

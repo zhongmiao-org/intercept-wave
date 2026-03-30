@@ -39,6 +39,18 @@ class MockConfigTest {
     }
 
     @Test
+    fun httpRoute_defaults() {
+        val route = HttpRoute()
+        assertTrue(route.id.isNotBlank())
+        assertEquals("API", route.name)
+        assertEquals("/api", route.pathPrefix)
+        assertEquals("http://localhost:8080", route.targetBaseUrl)
+        assertTrue(route.stripPrefix)
+        assertTrue(route.enableMock)
+        assertTrue(route.mockApis.isEmpty())
+    }
+
+    @Test
     fun wsPushRule_defaultsAndSerialization() {
         val r = WsPushRule(path = "/room/**")
         assertTrue(r.enabled)

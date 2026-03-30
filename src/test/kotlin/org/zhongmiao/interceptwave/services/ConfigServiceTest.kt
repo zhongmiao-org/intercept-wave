@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.services
 import org.junit.Assert.*
 import org.junit.Test
 import com.intellij.openapi.project.Project
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.model.RootConfig
 import java.io.File
@@ -62,5 +63,46 @@ class ConfigServiceTest {
         assertEquals(1, enabled.size)
         assertEquals("A", enabled.first().id)
     }
-}
 
+    @Test
+    fun defaultProxyConfig_contains_default_route() {
+        val dir = Files.createTempDirectory("iw-conf4").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val cfg = svc.createDefaultProxyConfig(2, "HTTP")
+        assertEquals(1, cfg.routes.size)
+        assertEquals("API", cfg.routes.first().name)
+        assertEquals("/api", cfg.routes.first().pathPrefix)
+        assertEquals("http://localhost:8080", cfg.routes.first().targetBaseUrl)
+    }
+
+    @Test
+    fun malformedConfigFallsBackToDefaultConfig() {
+        val dir = Files.createTempDirectory("iw-conf5").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText("{bad json")
+
+        val svc = ConfigService(fakeProject(dir))
+        val root = svc.getRootConfig()
+        assertEquals(1, root.proxyGroups.size)
+        assertTrue(root.proxyGroups.first().routes.isNotEmpty())
+    }
+
+    @Test
+    fun saveRootConfig_preserves_explicit_routes() {
+        val dir = Files.createTempDirectory("iw-conf6").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val cfg = ProxyConfig(
+            id = "routes",
+            routes = mutableListOf(
+                HttpRoute(name = "frontend", pathPrefix = "/", targetBaseUrl = "http://localhost:4001", stripPrefix = false, enableMock = false),
+                HttpRoute(name = "api", pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true, enableMock = true)
+            )
+        )
+
+        svc.saveRootConfig(RootConfig(proxyGroups = mutableListOf(cfg)))
+        val saved = svc.getRootConfig().proxyGroups.single()
+        assertEquals(2, saved.routes.size)
+        assertEquals("/", saved.routes.first().pathPrefix)
+        assertEquals("/api", saved.routes.last().pathPrefix)
+    }
+}

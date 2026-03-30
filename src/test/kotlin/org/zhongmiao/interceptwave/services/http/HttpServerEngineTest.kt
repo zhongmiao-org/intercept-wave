@@ -247,4 +247,27 @@ class HttpServerEngineTest {
         assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://localhost:4001/home" })
         engine.stop()
     }
+
+    @Test
+    fun no_matching_route_with_multiple_routes_returns_502() {
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "NoRoute",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true),
+                HttpRoute(pathPrefix = "/admin", targetBaseUrl = "http://localhost:4003", stripPrefix = false)
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/health").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(502, conn.responseCode)
+        assertFalse(out.events.any { it is ForwardingTo })
+
+        engine.stop()
+    }
 }
