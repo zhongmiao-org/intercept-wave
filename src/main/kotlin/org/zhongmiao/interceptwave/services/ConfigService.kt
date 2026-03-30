@@ -391,12 +391,12 @@ class ConfigService(private val project: Project) {
         var current = root
 
         while (current.version != CURRENT_CONFIG_VERSION) {
-            current = when (current.version) {
-                "2.0" -> {
+            current = when (current.version.substringBefore('.')) {
+                "2" -> {
                     changed = true
                     migrateV2ToV3(current)
                 }
-                "3.0" -> {
+                "3" -> {
                     changed = true
                     migrateV3ToV4(current, rootJson)
                 }

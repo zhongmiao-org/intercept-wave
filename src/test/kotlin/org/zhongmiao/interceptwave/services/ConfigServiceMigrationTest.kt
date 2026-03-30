@@ -205,4 +205,226 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         assertEquals("http://localhost:8080", route.targetBaseUrl)
         assertTrue(route.stripPrefix)
     }
+
+    fun `test load version 3_1 multi_group_config_preserves_prefix_and_base_url`() {
+        val v31Root = """
+            {
+              "version": "3.1",
+              "proxyGroups": [
+                {
+                  "id": "user-service",
+                  "name": "User Service",
+                  "protocol": "HTTP",
+                  "port": 8888,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://localhost:9000",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": []
+                },
+                {
+                  "id": "order-service",
+                  "name": "Order Service",
+                  "protocol": "HTTP",
+                  "port": 8889,
+                  "interceptPrefix": "/order-api",
+                  "baseUrl": "http://localhost:9001",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": []
+                },
+                {
+                  "id": "payment-service",
+                  "name": "Payment Service",
+                  "protocol": "HTTP",
+                  "port": 8890,
+                  "interceptPrefix": "/pay-api",
+                  "baseUrl": "http://localhost:9002",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": []
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(v31Root)
+
+        val root = ConfigService(project).getRootConfig()
+        assertEquals("4.0", root.version)
+        assertEquals(3, root.proxyGroups.size)
+
+        val user = root.proxyGroups[0].routes.single()
+        assertEquals("/api", user.pathPrefix)
+        assertEquals("http://localhost:9000", user.targetBaseUrl)
+
+        val order = root.proxyGroups[1].routes.single()
+        assertEquals("/order-api", order.pathPrefix)
+        assertEquals("http://localhost:9001", order.targetBaseUrl)
+
+        val payment = root.proxyGroups[2].routes.single()
+        assertEquals("/pay-api", payment.pathPrefix)
+        assertEquals("http://localhost:9002", payment.targetBaseUrl)
+    }
+
+    fun `test load version 2 config_preserves_mock_data_while_migrating_to_routes`() {
+        val v2Root = """
+            {
+              "version": "2.0",
+              "proxyGroups": [
+                {
+                  "id": "business-api",
+                  "name": "业务接口",
+                  "protocol": "HTTP",
+                  "port": 8888,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://192.168.180.135:30332",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": [
+                    {
+                      "path": "/product/getClassList",
+                      "enabled": true,
+                      "mockData": "{\n  \"list\": [{\"id\": 6, \"classCode\": \"60\"}],\n  \"count\": 1,\n  \"pageNum\": 1,\n  \"pageSize\": 25\n}",
+                      "method": "GET",
+                      "statusCode": 200,
+                      "useCookie": false,
+                      "delay": 0
+                    }
+                  ]
+                },
+                {
+                  "id": "auth-api",
+                  "name": "认证服务",
+                  "protocol": "HTTP",
+                  "port": 8889,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://192.168.180.135:30334",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": []
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(v2Root)
+
+        val root = ConfigService(project).getRootConfig()
+        assertEquals("4.0", root.version)
+        assertEquals(2, root.proxyGroups.size)
+
+        val businessGroup = root.proxyGroups[0]
+        assertEquals("http://192.168.180.135:30332", businessGroup.routes.single().targetBaseUrl)
+        assertEquals("/api", businessGroup.routes.single().pathPrefix)
+        assertEquals(1, businessGroup.routes.single().mockApis.size)
+        assertEquals(
+            """{"list":[{"id":6,"classCode":"60"}],"count":1,"pageNum":1,"pageSize":25}""",
+            businessGroup.routes.single().mockApis.single().mockData
+        )
+
+        val authGroup = root.proxyGroups[1]
+        assertEquals("http://192.168.180.135:30334", authGroup.routes.single().targetBaseUrl)
+        assertEquals("/api", authGroup.routes.single().pathPrefix)
+        assertTrue(authGroup.routes.single().mockApis.isEmpty())
+    }
+
+    fun `test migrated 3_1 config_is_rewritten_as_routes_only_schema`() {
+        val v31Root = """
+            {
+              "version": "3.1",
+              "proxyGroups": [
+                {
+                  "id": "user-service",
+                  "name": "User Service",
+                  "protocol": "HTTP",
+                  "port": 8888,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://localhost:9000",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": []
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val configFile = File(configDir, "config.json")
+        configFile.writeText(v31Root)
+
+        ConfigService(project).getRootConfig()
+
+        val saved = configFile.readText()
+        assertTrue(saved.contains(""""version": "4.0""""))
+        assertTrue(saved.contains(""""routes": ["""))
+        assertTrue(saved.contains(""""pathPrefix": "/api""""))
+        assertTrue(saved.contains(""""targetBaseUrl": "http://localhost:9000""""))
+        assertFalse(saved.contains(""""interceptPrefix""""))
+        assertFalse(saved.contains(""""baseUrl""""))
+        assertFalse(saved.contains(""""mockApis": [],\n            "wsBaseUrl""""))
+    }
+
+    fun `test load version 2 config_preserves_multiple_mock_apis_fields_and_order`() {
+        val v2Root = """
+            {
+              "version": "2.0",
+              "proxyGroups": [
+                {
+                  "id": "business-api",
+                  "name": "业务接口",
+                  "protocol": "HTTP",
+                  "port": 8888,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://192.168.180.135:30332",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": [
+                    {
+                      "path": "/product/getClassList",
+                      "enabled": true,
+                      "mockData": "{\n  \"list\": [{\"id\": 6}],\n  \"count\": 1\n}",
+                      "method": "GET",
+                      "statusCode": 200,
+                      "useCookie": false,
+                      "delay": 0
+                    },
+                    {
+                      "path": "/product/getListProductsByDealer",
+                      "enabled": true,
+                      "mockData": "{\n  \"pageNum\": 1,\n  \"pageSize\": 30,\n  \"dealerId\": 1690873831842000\n}",
+                      "method": "POST",
+                      "statusCode": 200,
+                      "useCookie": false,
+                      "delay": 0
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(v2Root)
+
+        val route = ConfigService(project).getRootConfig().proxyGroups.single().routes.single()
+        assertEquals(2, route.mockApis.size)
+
+        val first = route.mockApis[0]
+        assertEquals("/product/getClassList", first.path)
+        assertEquals("GET", first.method)
+        assertEquals(200, first.statusCode)
+        assertEquals("""{"list":[{"id":6}],"count":1}""", first.mockData)
+
+        val second = route.mockApis[1]
+        assertEquals("/product/getListProductsByDealer", second.path)
+        assertEquals("POST", second.method)
+        assertEquals(200, second.statusCode)
+        assertEquals("""{"pageNum":1,"pageSize":30,"dealerId":1690873831842000}""", second.mockData)
+    }
 }
