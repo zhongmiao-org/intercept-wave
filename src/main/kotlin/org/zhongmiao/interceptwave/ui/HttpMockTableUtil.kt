@@ -13,7 +13,7 @@ fun createHttpShortTableModel(enabledEditable: Boolean = false): DefaultTableMod
         message("config.table.path"),
     ), 0
 ) {
-    override fun getColumnClass(column: Int): Class<*> = if (column == 0) java.lang.Boolean::class.java else String::class.java
+    override fun getColumnClass(column: Int): Class<*> = if (column == 0) Boolean::class.javaObjectType else String::class.java
     override fun isCellEditable(row: Int, column: Int): Boolean = enabledEditable && column == 0
 }
 
@@ -22,4 +22,3 @@ fun appendHttpShortRows(model: DefaultTableModel, apis: List<MockApiConfig>) {
         model.addRow(arrayOf<Any>(api.enabled, api.path))
     }
 }
-

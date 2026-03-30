@@ -37,6 +37,7 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
     /**
      * 将领域事件映射为 Console 输出（仅展示，不含任何业务判断）。
      */
+    @Suppress("DEPRECATION")
     private fun handle(event: MockServerEvent) {
         when (event) {
             is ServerStarting -> {
@@ -57,9 +58,10 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                             console.printInfo(message("console.baseurl", wsBase))
                             console.printInfo(message("console.stripprefix", cfg.stripPrefix))
                         } else {
-                            console.printInfo(message("console.prefix", cfg.interceptPrefix))
-                            console.printInfo(message("console.baseurl", cfg.baseUrl))
-                            console.printInfo(message("console.stripprefix", cfg.stripPrefix))
+                            val primaryRoute = cfg.routes.firstOrNull()
+                            console.printInfo(message("console.prefix", primaryRoute?.pathPrefix ?: message("toolwindow.notset")))
+                            console.printInfo(message("console.baseurl", primaryRoute?.targetBaseUrl ?: message("toolwindow.notset")))
+                            console.printInfo(message("console.stripprefix", primaryRoute?.stripPrefix ?: false))
                         }
                     }
                 }
@@ -78,8 +80,9 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
                             val enabled = cfg.wsPushRules.count { it.enabled }
                             console.printInfo(message("console.wsrules.enabled", enabled, total))
                         } else {
-                            val total = cfg.mockApis.size
-                            val enabled = cfg.mockApis.count { it.enabled }
+                            val allHttpApis = cfg.routes.flatMap { it.mockApis }
+                            val total = allHttpApis.size
+                            val enabled = allHttpApis.count { it.enabled }
                             console.printInfo(message("console.mockapis.enabled", enabled, total))
                         }
                     }

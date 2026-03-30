@@ -35,4 +35,18 @@ class PathUtilRouteTest {
         assertEquals("/user", PathUtil.computeHttpForwardPath(route, "/api/user"))
         assertEquals("/", PathUtil.computeHttpMatchPath(route, "/api"))
     }
+
+    @Test
+    fun selectHttpRoute_falls_back_to_single_route_for_legacy_forwarding() {
+        val config = ProxyConfig(
+            routes = mutableListOf(
+                HttpRoute(name = "legacy", pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true)
+            )
+        )
+
+        val route = PathUtil.selectHttpRoute(config, "/health")
+        assertNotNull(route)
+        assertEquals("legacy", route!!.name)
+        assertEquals("/health", PathUtil.computeHttpForwardPath(route, "/health"))
+    }
 }

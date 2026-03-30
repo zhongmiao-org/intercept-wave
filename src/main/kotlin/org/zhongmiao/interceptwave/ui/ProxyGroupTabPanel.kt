@@ -119,23 +119,24 @@ class ProxyGroupTabPanel(
         val isWs = cfg?.protocol == "WS"
         val yes = message("toolwindow.yes")
         val no = message("toolwindow.no")
+        val primaryRoute = cfg?.routes?.firstOrNull()
 
         val content = com.intellij.ui.dsl.builder.panel {
             group(message("toolwindow.config.title")) {
                 // 顶部基本信息
                 row(message("toolwindow.config.name", configName)) { }
                 row(message("toolwindow.config.port", "$port")) { }
-                row(message("toolwindow.config.stripprefix", if (cfg?.stripPrefix == true) yes else no)) { }
+                row(message("toolwindow.config.stripprefix", if ((primaryRoute?.stripPrefix ?: legacyStripPrefix(cfg)) == true) yes else no)) { }
 
                 if (!isWs) {
                     // HTTP 详细
-                    row(message("toolwindow.config.prefix", cfg?.interceptPrefix ?: "")) { }
-                    row(message("toolwindow.config.baseurl", cfg?.baseUrl ?: "")) { }
+                    row(message("toolwindow.config.prefix", primaryRoute?.pathPrefix ?: "")) { }
+                    row(message("toolwindow.config.baseurl", primaryRoute?.targetBaseUrl ?: "")) { }
                     val cookie = (cfg?.globalCookie ?: "").ifEmpty { message("toolwindow.notset") }
                     row(message("toolwindow.config.cookie", cookie)) { }
 
                     // Mock 接口列表（两列：启用复选框 + 路径）
-                    val apis = cfg?.mockApis ?: emptyList()
+                    val apis = primaryRoute?.mockApis ?: emptyList()
                     val model = createHttpShortTableModel(enabledEditable = true)
                     appendHttpShortRows(model, apis)
                     val table = JBTable(model).apply {
@@ -150,7 +151,7 @@ class ProxyGroupTabPanel(
                             val col = e.column
                             if (row >= 0 && (col == 0 || col == javax.swing.event.TableModelEvent.ALL_COLUMNS)) {
                                 val latest = configService.getProxyGroup(configId)
-                                val target = latest?.mockApis?.getOrNull(row)
+                                val target = latest?.routes?.firstOrNull()?.mockApis?.getOrNull(row)
                                 if (target != null) {
                                     val newVal = (table.model.getValueAt(row, 0) as? Boolean) ?: false
                                     target.enabled = newVal
@@ -172,6 +173,9 @@ class ProxyGroupTabPanel(
         }
         return content
     }
+
+    @Suppress("DEPRECATION")
+    private fun legacyStripPrefix(cfg: org.zhongmiao.interceptwave.model.ProxyConfig?): Boolean? = cfg?.stripPrefix
 
     // HTTP 简表构造已收敛到 HttpMockTableUtil
 

@@ -9,7 +9,7 @@ import org.zhongmiao.interceptwave.model.ProxyConfig
 object PathUtil {
     fun selectHttpRoute(config: ProxyConfig, requestPath: String): HttpRoute? {
         val candidates = config.routes.withIndex().filter { (_, route) -> routeMatches(route, requestPath) }
-        if (candidates.isEmpty()) return null
+        if (candidates.isEmpty()) return config.routes.singleOrNull()
         return candidates.maxWithOrNull(
             compareBy<IndexedValue<HttpRoute>> { normalizedPathPrefix(it.value.pathPrefix).length }
                 .thenBy { -it.index }
