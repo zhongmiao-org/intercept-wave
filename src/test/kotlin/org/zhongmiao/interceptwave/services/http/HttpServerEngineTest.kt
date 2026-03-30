@@ -258,4 +258,21 @@ class HttpServerEngineTest {
 
         engine.stop()
     }
+
+    @Test
+    fun start_returns_false_when_port_is_already_occupied() {
+        val port = freePort()
+        ServerSocket(port).use {
+            val cfg = ProxyConfig(
+                name = "BusyPort",
+                port = port,
+                routes = mutableListOf(
+                    HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true)
+                )
+            )
+            val engine = HttpServerEngine(cfg, TestOutput())
+            assertFalse(engine.start())
+            assertNotNull(engine.lastError)
+        }
+    }
 }

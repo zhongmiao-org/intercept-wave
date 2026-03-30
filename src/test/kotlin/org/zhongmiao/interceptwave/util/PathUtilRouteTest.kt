@@ -69,4 +69,17 @@ class PathUtilRouteTest {
         assertEquals("/chat", PathUtil.computeWsMatchPath(config, "/ws/chat"))
         assertEquals("/health", PathUtil.computeWsMatchPath(config, "/health"))
     }
+
+    @Test
+    fun computePathHelpers_cover_blank_prefix_empty_path_and_ws_passthrough() {
+        val blankRoute = HttpRoute(pathPrefix = "", targetBaseUrl = "http://localhost:4002", stripPrefix = true)
+        assertEquals("/", PathUtil.computeHttpMatchPath(blankRoute, ""))
+        assertEquals("/", PathUtil.computeHttpForwardPath(blankRoute, ""))
+
+        val noStripWs = ProxyConfig(wsInterceptPrefix = "/ws", stripPrefix = false)
+        assertEquals("/ws/chat", PathUtil.computeWsMatchPath(noStripWs, "/ws/chat"))
+
+        val emptyWsPrefix = ProxyConfig(wsInterceptPrefix = "", stripPrefix = true)
+        assertEquals("/health", PathUtil.computeWsMatchPath(emptyWsPrefix, "/health"))
+    }
 }

@@ -105,4 +105,179 @@ class ConfigServiceTest {
         assertEquals("/", saved.routes.first().pathPrefix)
         assertEquals("/api", saved.routes.last().pathPrefix)
     }
+
+    @Test
+    fun loadRootConfig_normalizes_mock_and_ws_json_and_reloads_saved_schema() {
+        val dir = Files.createTempDirectory("iw-conf7").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText(
+            """
+            {
+              "version": "4.0",
+              "proxyGroups": [
+                {
+                  "id": "g1",
+                  "name": "Normalize",
+                  "protocol": "HTTP",
+                  "port": 18888,
+                  "routes": [
+                    {
+                      "name": "API",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:4002",
+                      "stripPrefix": true,
+                      "enableMock": true,
+                      "mockApis": [
+                        { "path": "/user", "mockData": "{foo:'bar',}", "method": "GET" }
+                      ]
+                    }
+                  ],
+                  "wsPushRules": [
+                    {
+                      "path": "/ws/**",
+                      "message": "{foo:'bar',}",
+                      "timeline": [
+                        { "atMs": 10, "message": "{bar:'baz',}" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val svc = ConfigService(fakeProject(dir))
+        val root = svc.getRootConfig()
+        val group = root.proxyGroups.single()
+        assertEquals("""{"foo":"bar"}""", group.routes.single().mockApis.single().mockData)
+        assertEquals("""{"foo":"bar"}""", group.wsPushRules.single().message)
+        assertEquals("""{"bar":"baz"}""", group.wsPushRules.single().timeline.single().message)
+
+        val saved = File(configDir, "config.json").readText()
+        assertTrue(saved.contains("mockData"))
+        assertTrue(saved.contains("\\\"foo\\\":\\\"bar\\\""))
+        assertTrue(saved.contains("\\\"bar\\\":\\\"baz\\\""))
+        assertTrue(saved.contains("wsPushRules"))
+    }
+
+    @Test
+    fun loadRootConfig_with_unsupported_version_falls_back_to_default_config() {
+        val dir = Files.createTempDirectory("iw-conf8").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText(
+            """
+            {
+              "version": "9.9",
+              "proxyGroups": []
+            }
+            """.trimIndent()
+        )
+
+        val svc = ConfigService(fakeProject(dir))
+        val root = svc.getRootConfig()
+        assertEquals(1, root.proxyGroups.size)
+        assertEquals("4.0", root.version)
+    }
+
+    @Test
+    fun loadRootConfig_with_unsupported_version_but_normalizable_keeps_existing_groups() {
+        val dir = Files.createTempDirectory("iw-conf9").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        System.setProperty("intercept.wave.version", "4.0.3")
+        File(configDir, "config.json").writeText(
+            """
+            {
+              "version": "9.9",
+              "proxyGroups": [
+                {
+                  "id": "keep-me",
+                  "name": "Keep Me",
+                  "protocol": "HTTP",
+                  "port": 19999,
+                  "routes": [
+                    {
+                      "name": "API",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:4002",
+                      "stripPrefix": true,
+                      "enableMock": true,
+                      "mockApis": []
+                    }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val svc = ConfigService(fakeProject(dir))
+        val root = svc.getRootConfig()
+        assertEquals("4.0", root.version)
+        assertEquals(1, root.proxyGroups.size)
+        assertEquals("keep-me", root.proxyGroups.single().id)
+    }
+
+    @Test
+    fun loadRootConfig_keeps_existing_routes_when_legacy_fields_match() {
+        val dir = Files.createTempDirectory("iw-conf10").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText(
+            """
+            {
+              "version": "3.0",
+              "proxyGroups": [
+                {
+                  "id": "g1",
+                  "name": "Legacy With Routes",
+                  "protocol": "HTTP",
+                  "port": 18888,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://localhost:4002",
+                  "stripPrefix": false,
+                  "mockApis": [
+                    { "path": "/user", "mockData": "{}" }
+                  ],
+                  "routes": [
+                    {
+                      "name": "Backend",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:4002",
+                      "stripPrefix": false,
+                      "enableMock": true,
+                      "mockApis": [
+                        { "path": "/user", "mockData": "{}" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val svc = ConfigService(fakeProject(dir))
+        val route = svc.getRootConfig().proxyGroups.single().routes.single()
+        assertEquals("Backend", route.name)
+        assertEquals("/api", route.pathPrefix)
+        assertFalse(route.stripPrefix)
+    }
+
+    @Test
+    fun saveRootConfig_does_not_inject_http_routes_into_ws_groups() {
+        val dir = Files.createTempDirectory("iw-conf11").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val wsGroup = ProxyConfig(
+            id = "ws-only",
+            protocol = "WS",
+            routes = mutableListOf(),
+            wsInterceptPrefix = "/ws",
+            wsBaseUrl = "ws://localhost:9000"
+        )
+
+        svc.saveRootConfig(RootConfig(proxyGroups = mutableListOf(wsGroup)))
+        val saved = svc.getRootConfig().proxyGroups.single()
+        assertEquals("WS", saved.protocol)
+        assertTrue(saved.routes.isEmpty())
+    }
 }
