@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.ui
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.services.ConfigService
@@ -38,7 +39,7 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         val id = UUID.randomUUID().toString()
         val p = java.net.ServerSocket(0).use { it.localPort }
         val cfg = ProxyConfig(id = id, name = "PG", port = p, enabled = true,
-            mockApis = mutableListOf(MockApiConfig(path = "/u", mockData = "{}", enabled = true)))
+            routes = mutableListOf(HttpRoute(mockApis = mutableListOf(MockApiConfig(path = "/u", mockData = "{}", enabled = true)))))
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)
         configService.saveRootConfig(root)

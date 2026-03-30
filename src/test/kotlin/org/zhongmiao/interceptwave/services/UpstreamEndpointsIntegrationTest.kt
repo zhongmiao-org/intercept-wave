@@ -3,6 +3,7 @@ package org.zhongmiao.interceptwave.services
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.junit.Assume.assumeTrue
 import org.junit.experimental.categories.Category
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.tags.IntegrationTest
 import java.net.HttpURLConnection
@@ -59,11 +60,9 @@ class UpstreamEndpointsIntegrationTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "Upstream IT",
             port = port,
-            interceptPrefix = "/api",
             stripPrefix = true,
-            baseUrl = upstreamBase(),
             enabled = true,
-            mockApis = mutableListOf()
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = upstreamBase(), stripPrefix = true, enableMock = true))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)

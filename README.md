@@ -69,9 +69,9 @@ Intercept Wave provides the following core functionalities:
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
 <!-- Plugin description end -->
 
-### What's New in v3.0
+### What's New in v4.0
 
-- Config version now aligns with the plugin major.minor (e.g., 3.0). Existing v2.x configs load seamlessly and are saved with `"version": "3.0"` automatically — no manual migration needed.
+- Config version now aligns with the plugin major.minor (e.g., 4.0). Existing legacy configs load seamlessly and are saved with `"version": "4.0"` automatically.
 - Mock JSON normalization and minification: mockData accepts single quotes, comments, unquoted keys, and trailing commas, and is saved as compact JSON. Use "Format JSON" to pretty print when editing.
 
 ## Installation
@@ -316,7 +316,7 @@ All configurations are saved in the `.intercept-wave` folder in the project root
 
 ```json
 {
-  "version": "3.0",
+  "version": "4.0",
   "proxyGroups": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",

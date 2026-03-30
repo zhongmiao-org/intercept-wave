@@ -2,7 +2,6 @@ package org.zhongmiao.interceptwave.util
 
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
-import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.ServerSocket
 
 /**
@@ -57,16 +56,6 @@ object PathPatternUtil {
      * 统计通配符数量，用于优先级排序（通配符越少，匹配越具体）。
      */
     private fun wildcardCount(pattern: String): Int = pattern.count { it == '*' }
-
-    /**
-     * 在给定的 ProxyConfig 中，按请求路径与方法查找匹配的 Mock API。
-     * 优先级：通配符更少 > 方法更具体（非 ALL） > 模式更长。
-     * 先尝试精确匹配，其次匹配通配符并按上述规则排序后取最优。
-     */
-    @Suppress("DEPRECATION")
-    fun findMatchingMockApiInProxy(requestPath: String, method: String, config: ProxyConfig): MockApiConfig? {
-        return findMatchingMockApi(requestPath, method, config.mockApis)
-    }
 
     fun findMatchingMockApiInRoute(requestPath: String, method: String, route: HttpRoute): MockApiConfig? {
         return findMatchingMockApi(requestPath, method, route.mockApis)

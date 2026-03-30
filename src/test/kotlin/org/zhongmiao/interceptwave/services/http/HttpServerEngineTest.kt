@@ -46,8 +46,7 @@ class HttpServerEngineTest {
             routes = mutableListOf(
                 HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = true)
             ),
-            interceptPrefix = "/api",
-            stripPrefix = true,
+            stripPrefix = true
         )
         val out = TestOutput()
         val engine = HttpServerEngine(cfg, out)
@@ -85,12 +84,8 @@ class HttpServerEngineTest {
                     )
                 )
             ),
-            interceptPrefix = "/api",
             stripPrefix = true,
             globalCookie = "sid=abc123",
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/user", mockData = "{\"ok\":true}", method = "GET", enabled = true, useCookie = true)
-            )
         )
         val out = TestOutput()
         val engine = HttpServerEngine(cfg, out)
@@ -136,11 +131,7 @@ class HttpServerEngineTest {
                     )
                 )
             ),
-            interceptPrefix = "/api",
-            stripPrefix = true,
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/user", mockData = "{}", method = "ALL", enabled = true)
-            )
+            stripPrefix = true
         )
         val out = TestOutput()
         val engine = HttpServerEngine(cfg, out)
@@ -170,10 +161,7 @@ class HttpServerEngineTest {
                     mockApis = mutableListOf()
                 )
             ),
-            interceptPrefix = "/api",
-            stripPrefix = true,
-            baseUrl = "http://localhost:9", // irrelevant since forwarding is disabled in tests
-            mockApis = mutableListOf()
+            stripPrefix = true
         )
         val out = TestOutput()
         val engine = HttpServerEngine(cfg, out)

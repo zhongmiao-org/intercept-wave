@@ -28,7 +28,6 @@ object PathUtil {
      * Compute WS match path. Do NOT inherit HTTP prefix when wsInterceptPrefix is empty.
      * Only when stripPrefix is enabled and wsInterceptPrefix is non-empty and matches, strip it.
      */
-    @Suppress("DEPRECATION")
     fun computeWsMatchPath(config: ProxyConfig, requestPath: String): String {
         if (!config.stripPrefix) return requestPath
         val wsPrefix = config.wsInterceptPrefix ?: ""

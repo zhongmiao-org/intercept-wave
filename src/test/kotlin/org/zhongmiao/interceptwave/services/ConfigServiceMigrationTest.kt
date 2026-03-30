@@ -3,7 +3,6 @@ package org.zhongmiao.interceptwave.services
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.io.File
 
-@Suppress("DEPRECATION")
 class ConfigServiceMigrationTest : BasePlatformTestCase() {
 
     private lateinit var configDir: File
@@ -44,14 +43,12 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         val service = ConfigService(project)
         val root = service.getRootConfig()
 
-        // Migration creates v2 RootConfig with one proxy group
+        // Migration creates RootConfig with one proxy group and one HTTP route
         assertTrue(root.proxyGroups.isNotEmpty())
+        assertEquals("4.0", root.version)
         val group = root.proxyGroups.first()
         assertEquals(18888, group.port)
-        assertEquals("/api", group.interceptPrefix)
-        assertEquals("http://localhost:18080", group.baseUrl)
         assertTrue(group.stripPrefix)
-        assertEquals(1, group.mockApis.size)
         assertEquals(1, group.routes.size)
         assertEquals("API", group.routes[0].name)
         assertEquals("/api", group.routes[0].pathPrefix)
@@ -89,6 +86,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(v2WithoutRoutes)
 
         val root = ConfigService(project).getRootConfig()
+        assertEquals("4.0", root.version)
         val group = root.proxyGroups.single()
         assertEquals(1, group.routes.size)
         assertEquals("/api", group.routes[0].pathPrefix)
@@ -113,5 +111,37 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         assertTrue(reloaded.version.matches(Regex("\\d+\\.\\d+")))
         // Ensure it has changed from the original value
         assertTrue(reloaded.version != "1.2")
+    }
+
+    fun `test load version 2 root_config_rolls through to 4_0`() {
+        val v2Root = """
+            {
+              "version": "2.0",
+              "proxyGroups": [
+                {
+                  "id": "http-2",
+                  "name": "Legacy V2 HTTP",
+                  "protocol": "HTTP",
+                  "port": 18890,
+                  "interceptPrefix": "/api",
+                  "baseUrl": "http://localhost:18082",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": [ { "path": "/user", "mockData": "{}" } ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(v2Root)
+
+        val root = ConfigService(project).getRootConfig()
+        assertEquals("4.0", root.version)
+        val group = root.proxyGroups.single()
+        assertEquals(1, group.routes.size)
+        assertEquals("/api", group.routes.single().pathPrefix)
+        assertEquals("http://localhost:18082", group.routes.single().targetBaseUrl)
+        assertEquals("/user", group.routes.single().mockApis.single().path)
     }
 }

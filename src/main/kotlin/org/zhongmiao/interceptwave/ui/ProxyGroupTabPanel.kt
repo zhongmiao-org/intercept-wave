@@ -126,7 +126,7 @@ class ProxyGroupTabPanel(
                 // 顶部基本信息
                 row(message("toolwindow.config.name", configName)) { }
                 row(message("toolwindow.config.port", "$port")) { }
-                row(message("toolwindow.config.stripprefix", if ((primaryRoute?.stripPrefix ?: legacyStripPrefix(cfg)) == true) yes else no)) { }
+                row(message("toolwindow.config.stripprefix", if (primaryRoute?.stripPrefix == true) yes else no)) { }
 
                 if (!isWs) {
                     // HTTP 详细
@@ -173,9 +173,6 @@ class ProxyGroupTabPanel(
         }
         return content
     }
-
-    @Suppress("DEPRECATION")
-    private fun legacyStripPrefix(cfg: org.zhongmiao.interceptwave.model.ProxyConfig?): Boolean? = cfg?.stripPrefix
 
     // HTTP 简表构造已收敛到 HttpMockTableUtil
 

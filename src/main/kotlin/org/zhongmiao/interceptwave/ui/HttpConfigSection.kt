@@ -181,7 +181,6 @@ class HttpConfigSection(
         commitCurrentRoute()
         target.globalCookie = cookieField.text.trim()
         target.routes = workingRoutes.map { copyRoute(it) }.toMutableList()
-        syncLegacyHttpFields(target)
 
         val duplicates = target.routes.groupBy { it.pathPrefix.trim() }.filter { it.key.isNotBlank() && it.value.size > 1 }.keys
         if (duplicates.isNotEmpty()) {
@@ -408,17 +407,13 @@ class HttpConfigSection(
     }
 
     private fun defaultRoute(index: Int = 0): HttpRoute {
-        val prefix = if (index == 0) {
-            legacyInterceptPrefix(config).ifBlank { "/api" }
-        } else {
-            "/api$index"
-        }
+        val prefix = if (index == 0) "/api" else "/api$index"
         return HttpRoute(
             id = UUID.randomUUID().toString(),
             name = if (index == 0) "API" else "API ${index + 1}",
             pathPrefix = prefix,
-            targetBaseUrl = legacyBaseUrl(config).ifBlank { "http://localhost:8080" },
-            stripPrefix = legacyStripPrefix(config),
+            targetBaseUrl = "http://localhost:8080",
+            stripPrefix = true,
             enableMock = true,
             mockApis = mutableListOf()
         )
@@ -426,24 +421,6 @@ class HttpConfigSection(
 
     private fun copyRoute(route: HttpRoute): HttpRoute =
         route.copy(mockApis = route.mockApis.map { it.copy() }.toMutableList())
-
-    @Suppress("DEPRECATION")
-    private fun syncLegacyHttpFields(target: ProxyConfig) {
-        val primary = target.routes.first()
-        target.interceptPrefix = primary.pathPrefix
-        target.baseUrl = primary.targetBaseUrl
-        target.stripPrefix = primary.stripPrefix
-        target.mockApis = primary.mockApis.map { it.copy() }.toMutableList()
-    }
-
-    @Suppress("DEPRECATION")
-    private fun legacyInterceptPrefix(source: ProxyConfig): String = source.interceptPrefix
-
-    @Suppress("DEPRECATION")
-    private fun legacyBaseUrl(source: ProxyConfig): String = source.baseUrl
-
-    @Suppress("DEPRECATION")
-    private fun legacyStripPrefix(source: ProxyConfig): Boolean = source.stripPrefix
     private fun setComponentEnabled(component: Component, enabled: Boolean) {
         component.isEnabled = enabled
         if (component is java.awt.Container) {

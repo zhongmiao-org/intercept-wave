@@ -37,7 +37,6 @@ class MockServerConsoleSubscriber(private val project: Project) : com.intellij.o
     /**
      * 将领域事件映射为 Console 输出（仅展示，不含任何业务判断）。
      */
-    @Suppress("DEPRECATION")
     private fun handle(event: MockServerEvent) {
         when (event) {
             is ServerStarting -> {

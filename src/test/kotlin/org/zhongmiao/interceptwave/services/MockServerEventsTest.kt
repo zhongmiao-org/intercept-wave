@@ -4,6 +4,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.junit.experimental.categories.Category
 import org.junit.Assert.*
 import org.zhongmiao.interceptwave.events.*
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.HttpURLConnection
@@ -90,12 +91,9 @@ class MockServerEventsTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "EvtMock",
             port = port,
-            interceptPrefix = "/api",
             stripPrefix = true,
             enabled = true,
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/user", mockData = "{\"ok\":true}", method = "GET", enabled = true)
-            )
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = true, mockApis = mutableListOf(MockApiConfig(path = "/user", mockData = "{\"ok\":true}", method = "GET", enabled = true))))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)
@@ -136,11 +134,9 @@ class MockServerEventsTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "EvtForward",
             port = port,
-            interceptPrefix = "/api",
             stripPrefix = true,
-            baseUrl = upstreamBase(),
             enabled = true,
-            mockApis = mutableListOf() // 无匹配，强制转发
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = upstreamBase(), stripPrefix = true, enableMock = true))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)
@@ -167,11 +163,9 @@ class MockServerEventsTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "EvtForwardFail",
             port = badPort,
-            interceptPrefix = "/api",
             stripPrefix = true,
-            baseUrl = "http://127.0.0.1:9", // 关闭端口，确保失败
             enabled = true,
-            mockApis = mutableListOf()
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://127.0.0.1:9", stripPrefix = true, enableMock = true))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)

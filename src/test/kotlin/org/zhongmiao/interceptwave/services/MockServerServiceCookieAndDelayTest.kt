@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.HttpURLConnection
@@ -40,20 +41,10 @@ class MockServerServiceCookieAndDelayTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "CookieDelay",
             port = p,
-            interceptPrefix = "/api",
             stripPrefix = true,
             globalCookie = "sessionId=abc123",
             enabled = true,
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/info",
-                    mockData = "{\"ok\":true}",
-                    method = "GET",
-                    enabled = true,
-                    useCookie = true,
-                    delay = 5
-                )
-            )
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = true, mockApis = mutableListOf(MockApiConfig(path = "/info", mockData = "{\"ok\":true}", method = "GET", enabled = true, useCookie = true, delay = 5))))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(config)

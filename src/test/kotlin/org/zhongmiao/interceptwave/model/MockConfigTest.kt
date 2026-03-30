@@ -5,7 +5,6 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
 
-@Suppress("DEPRECATION")
 class MockConfigTest {
 
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true; prettyPrint = false }
@@ -16,10 +15,11 @@ class MockConfigTest {
         assertTrue(p.id.isNotBlank())
         assertEquals("HTTP", p.protocol)
         assertEquals(8888, p.port)
-        assertEquals("/api", p.interceptPrefix)
+        assertEquals(1, p.routes.size)
+        assertEquals("/api", p.routes[0].pathPrefix)
         assertTrue(p.stripPrefix)
         assertTrue(p.enabled)
-        assertTrue(p.mockApis.isEmpty())
+        assertTrue(p.routes[0].mockApis.isEmpty())
         assertNull(p.wsBaseUrl)
         assertNull(p.wsInterceptPrefix)
         assertTrue(p.wsManualPush)
@@ -72,9 +72,9 @@ class MockConfigTest {
     @Test
     fun rootConfig_defaults() {
         val root = RootConfig()
-        assertEquals("2.0", root.version)
+        assertEquals("4.0", root.version)
         assertTrue(root.proxyGroups.isEmpty())
         val s = json.encodeToString(root)
-        assertTrue(s.contains("\"version\":\"2.0\""))
+        assertTrue(s.contains("\"version\":\"4.0\""))
     }
 }

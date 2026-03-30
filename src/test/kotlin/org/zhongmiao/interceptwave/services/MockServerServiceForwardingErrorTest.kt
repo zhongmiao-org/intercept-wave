@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.HttpURLConnection
 import java.net.URI
@@ -42,11 +43,9 @@ class MockServerServiceForwardingErrorTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "ForwardError",
             port = p,
-            interceptPrefix = "/api",
             stripPrefix = true,
-            baseUrl = "http://127.0.0.1:9", // closed port, force ConnectException
             enabled = true,
-            mockApis = mutableListOf()
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://127.0.0.1:9", stripPrefix = true, enableMock = true))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(config)

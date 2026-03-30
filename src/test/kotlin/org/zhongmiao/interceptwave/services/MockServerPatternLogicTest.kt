@@ -1,8 +1,8 @@
 package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
-import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.util.PathPatternUtil
 import java.net.ServerSocket
 
@@ -39,16 +39,16 @@ class MockServerPatternLogicTest : BasePlatformTestCase() {
         assertFalse(PathPatternUtil.pathPatternMatches("/a/b/**", "/a/b"))
     }
 
-    fun `test findMatchingMockApiInProxy prefers fewer wildcards`() {
-        val config = ProxyConfig(
-            interceptPrefix = "/api",
+    fun `test findMatchingMockApiInRoute prefers fewer wildcards`() {
+        val route = HttpRoute(
+            pathPrefix = "/api",
             stripPrefix = true,
             mockApis = mutableListOf(
                 MockApiConfig(path = "/a/**", mockData = "{\"pick\": \"double\"}", method = "GET", enabled = true),
                 MockApiConfig(path = "/a/*/c", mockData = "{\"pick\": \"single\"}", method = "GET", enabled = true),
             )
         )
-        val matched = PathPatternUtil.findMatchingMockApiInProxy("/a/b/c", "GET", config)
+        val matched = PathPatternUtil.findMatchingMockApiInRoute("/a/b/c", "GET", route)
         assertNotNull(matched)
         assertEquals("/a/*/c", matched!!.path)
         assertEquals("{\"pick\": \"single\"}", matched.mockData)

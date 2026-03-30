@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.ui
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.services.ConfigService
@@ -41,7 +42,7 @@ class ProxyGroupTabPanelStartStopTest : BasePlatformTestCase() {
             name = "PanelStartStop",
             port = p,
             enabled = true,
-            mockApis = mutableListOf(MockApiConfig(path = "/ok", mockData = "{}", enabled = true))
+            routes = mutableListOf(HttpRoute(mockApis = mutableListOf(MockApiConfig(path = "/ok", mockData = "{}", enabled = true))))
         )
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)
