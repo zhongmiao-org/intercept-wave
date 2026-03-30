@@ -5,6 +5,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.experimental.categories.Category
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.ProxyConfig
+import org.zhongmiao.interceptwave.model.RootConfig
 import org.zhongmiao.interceptwave.tags.IntegrationTest
 import java.net.HttpURLConnection
 import java.net.URI
@@ -19,6 +20,12 @@ class UpstreamEndpointsIntegrationTest : BasePlatformTestCase() {
 
     private fun upstreamBase(): String =
         System.getProperty("iw.upstream.http") ?: (System.getenv("IW_UPSTREAM_HTTP") ?: "http://localhost:9000")
+
+    private fun upstreamBase(offset: Int): String {
+        val base = URI(upstreamBase())
+        val port = if (base.port >= 0) base.port + offset else 9000 + offset
+        return URI(base.scheme ?: "http", null, base.host ?: "localhost", port, null, null, null).toString()
+    }
 
     private fun isUpstreamAlive(): Boolean = try {
         val clean = upstreamBase().trimEnd('/')
@@ -67,6 +74,20 @@ class UpstreamEndpointsIntegrationTest : BasePlatformTestCase() {
         val root = configService.getRootConfig()
         root.proxyGroups.add(cfg)
         configService.saveRootConfig(root)
+        val ok = mockServerService.startServer(cfg.id)
+        assertTrue(ok)
+    }
+
+    private fun startProxy(port: Int, routes: MutableList<HttpRoute>) {
+        val cfg = ProxyConfig(
+            id = UUID.randomUUID().toString(),
+            name = "Upstream IT",
+            port = port,
+            stripPrefix = true,
+            enabled = true,
+            routes = routes
+        )
+        configService.saveRootConfig(RootConfig(version = "4.0", proxyGroups = mutableListOf(cfg)))
         val ok = mockServerService.startServer(cfg.id)
         assertTrue(ok)
     }
@@ -220,5 +241,60 @@ class UpstreamEndpointsIntegrationTest : BasePlatformTestCase() {
         assertEquals(200, conn.responseCode)
         val bytes = conn.inputStream.readAllBytes()
         assertTrue("Expected payload >= 4096 bytes, got ${'$'}{bytes.size}", bytes.size >= 4096)
+    }
+
+    fun testMultiRouteAliasesForwardToThreeHttpServices() {
+        val base = upstreamBase()
+        assumeTrue("Upstream not available at $base; skipping", isUpstreamAlive())
+        val port = freePort()
+        startProxy(
+            port,
+            mutableListOf(
+                HttpRoute(name = "user", pathPrefix = "/api", targetBaseUrl = upstreamBase(0), stripPrefix = true, enableMock = false),
+                HttpRoute(name = "order", pathPrefix = "/order-api", targetBaseUrl = upstreamBase(1), stripPrefix = true, enableMock = false),
+                HttpRoute(name = "payment", pathPrefix = "/pay-api", targetBaseUrl = upstreamBase(2), stripPrefix = true, enableMock = false)
+            )
+        )
+
+        val userConn = URI("http://localhost:$port/api/users").toURL().openConnection() as HttpURLConnection
+        userConn.requestMethod = "GET"
+        assertEquals(200, userConn.responseCode)
+        val userBody = userConn.inputStream.bufferedReader().readText()
+        assertTrue(userBody.contains("department"))
+        assertTrue(userBody.contains("\"total\""))
+
+        val orderConn = URI("http://localhost:$port/order-api/orders/3009").toURL().openConnection() as HttpURLConnection
+        orderConn.requestMethod = "GET"
+        assertEquals(200, orderConn.responseCode)
+        val orderBody = orderConn.inputStream.bufferedReader().readText()
+        assertTrue(orderBody.contains("SKU-3009"))
+        assertTrue(orderBody.contains("\"id\":\"3009\""))
+
+        val payConn = URI("http://localhost:$port/pay-api/checkout/preview").toURL().openConnection() as HttpURLConnection
+        payConn.requestMethod = "GET"
+        assertEquals(200, payConn.responseCode)
+        val payBody = payConn.inputStream.bufferedReader().readText()
+        assertTrue(payBody.contains("estimatedFees"))
+        assertTrue(payBody.contains("preview"))
+    }
+
+    fun testLongestPrefixRouteCanPointToDifferentUpstream() {
+        val base = upstreamBase()
+        assumeTrue("Upstream not available at $base; skipping", isUpstreamAlive())
+        val port = freePort()
+        startProxy(
+            port,
+            mutableListOf(
+                HttpRoute(name = "user", pathPrefix = "/api", targetBaseUrl = upstreamBase(0), stripPrefix = true, enableMock = false),
+                HttpRoute(name = "admin-order", pathPrefix = "/api/admin", targetBaseUrl = upstreamBase(1), stripPrefix = true, enableMock = false)
+            )
+        )
+
+        val conn = URI("http://localhost:$port/api/admin/orders/summary").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(200, conn.responseCode)
+        val body = conn.inputStream.bufferedReader().readText()
+        assertTrue(body.contains("avgAmount"))
+        assertTrue(body.contains("cancelled"))
     }
 }

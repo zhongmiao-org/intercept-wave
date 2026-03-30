@@ -320,43 +320,44 @@ All configurations are saved in the `.intercept-wave` folder in the project root
   "proxyGroups": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "User Service",
+      "name": "Gateway",
       "port": 8888,
-      "interceptPrefix": "/api",
-      "baseUrl": "http://localhost:8080",
-      "stripPrefix": true,
       "globalCookie": "sessionId=abc123",
       "enabled": true,
-      "mockApis": [
+      "routes": [
         {
-          "path": "/user/info",
-          "enabled": true,
-          "mockData": "{\"code\":0,\"data\":{\"name\":\"John Doe\"}}",
-          "method": "GET",
-          "statusCode": 200,
-          "useCookie": true,
-          "delay": 0
-        }
-      ]
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "name": "Order Service",
-      "port": 8889,
-      "interceptPrefix": "/order-api",
-      "baseUrl": "http://localhost:8081",
-      "stripPrefix": true,
-      "globalCookie": "",
-      "enabled": true,
-      "mockApis": [
+          "name": "User API",
+          "pathPrefix": "/api",
+          "targetBaseUrl": "http://localhost:9000",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/user/info",
+              "enabled": true,
+              "mockData": "{\"code\":0,\"data\":{\"name\":\"John Doe\"}}",
+              "method": "GET",
+              "statusCode": 200,
+              "useCookie": true,
+              "delay": 0
+            }
+          ]
+        },
         {
-          "path": "/orders",
-          "enabled": true,
-          "mockData": "{\"code\":0,\"data\":[]}",
-          "method": "GET",
-          "statusCode": 200,
-          "useCookie": false,
-          "delay": 0
+          "name": "Order API",
+          "pathPrefix": "/order-api",
+          "targetBaseUrl": "http://localhost:9001",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
+        },
+        {
+          "name": "Payment API",
+          "pathPrefix": "/pay-api",
+          "targetBaseUrl": "http://localhost:9002",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
         }
       ]
     }
@@ -456,7 +457,7 @@ Notes:
 
 ### Integration Tests (Docker upstream)
 
-These tests require the upstream service container running (default http://localhost:9000):
+These tests require the upstream service container running (default http://localhost:9000, `intercept-wave-upstream:v0.3.0`):
 
 - Start container:
   - `cd docker`

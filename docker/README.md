@@ -4,6 +4,7 @@ Usage
 - From this folder:
   - `cd docker`
   - Copy `.env.example` to `.env` and adjust values
+  - Use `config.multi-route.example.json` as a ready-made `4.0` multi-route config for upstream `9000/9001/9002`
   - `docker compose -f docker-compose.client.yml up -d` (console + upstream)
   - or `docker compose -f docker-compose.upstream.yml up -d upstream` (upstream only)
 - Open the console: `http://localhost:8080`

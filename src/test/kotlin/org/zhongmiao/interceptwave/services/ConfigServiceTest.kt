@@ -264,6 +264,96 @@ class ConfigServiceTest {
     }
 
     @Test
+    fun loadRootConfig_replaces_placeholder_route_when_legacy_fields_differ() {
+        val dir = Files.createTempDirectory("iw-conf12").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText(
+            """
+            {
+              "version": "3.0",
+              "proxyGroups": [
+                {
+                  "id": "g2",
+                  "name": "Legacy Placeholder",
+                  "protocol": "HTTP",
+                  "port": 18889,
+                  "interceptPrefix": "/backend",
+                  "baseUrl": "http://localhost:5000",
+                  "stripPrefix": false,
+                  "mockApis": [
+                    { "path": "/alive", "mockData": "{}" }
+                  ],
+                  "routes": [
+                    {
+                      "name": "API",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:8080",
+                      "stripPrefix": true,
+                      "enableMock": true,
+                      "mockApis": []
+                    }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val route = ConfigService(fakeProject(dir)).getRootConfig().proxyGroups.single().routes.single()
+        assertEquals("/backend", route.pathPrefix)
+        assertEquals("http://localhost:5000", route.targetBaseUrl)
+        assertFalse(route.stripPrefix)
+        assertEquals("/alive", route.mockApis.single().path)
+    }
+
+    @Test
+    fun loadRootConfig_keeps_invalid_mock_and_ws_templates_as_is() {
+        val dir = Files.createTempDirectory("iw-conf13").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText(
+            """
+            {
+              "version": "4.0",
+              "proxyGroups": [
+                {
+                  "id": "g3",
+                  "name": "Keep Text",
+                  "protocol": "HTTP",
+                  "port": 18890,
+                  "routes": [
+                    {
+                      "name": "API",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:4002",
+                      "stripPrefix": true,
+                      "enableMock": true,
+                      "mockApis": [
+                        { "path": "/user", "mockData": "not-json", "method": "GET" }
+                      ]
+                    }
+                  ],
+                  "wsPushRules": [
+                    {
+                      "path": "/ws/**",
+                      "message": "plain-text",
+                      "timeline": [
+                        { "atMs": 10, "message": "still-text" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val group = ConfigService(fakeProject(dir)).getRootConfig().proxyGroups.single()
+        assertEquals("not-json", group.routes.single().mockApis.single().mockData)
+        assertEquals("plain-text", group.wsPushRules.single().message)
+        assertEquals("still-text", group.wsPushRules.single().timeline.single().message)
+    }
+
+    @Test
     fun saveRootConfig_does_not_inject_http_routes_into_ws_groups() {
         val dir = Files.createTempDirectory("iw-conf11").toFile()
         val svc = ConfigService(fakeProject(dir))

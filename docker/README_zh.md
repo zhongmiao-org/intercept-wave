@@ -4,6 +4,7 @@
 - 进入目录并启动：
   - `cd docker`
   - 将 `.env.example` 复制为 `.env` 并按需修改
+  - 可直接参考 `config.multi-route.example.json`，这是面向 upstream `9000/9001/9002` 的 `4.0` 多路由配置示例
   - `docker compose -f docker-compose.client.yml up -d`（控制台 + 上游）
   - 或 `docker compose -f docker-compose.upstream.yml up -d upstream`（仅上游）
 - 控制台地址：`http://localhost:8080`

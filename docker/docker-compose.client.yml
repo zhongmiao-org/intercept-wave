@@ -1,6 +1,6 @@
 services:
   upstream:
-    image: ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.2.0
+    image: ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.3.0
     container_name: iw-upstream
     restart: unless-stopped
     environment:

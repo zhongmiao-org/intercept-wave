@@ -25,6 +25,20 @@ class PathUtilRouteTest {
     }
 
     @Test
+    fun selectHttpRoute_prefers_earlier_route_when_prefix_length_is_equal() {
+        val config = ProxyConfig(
+            routes = mutableListOf(
+                HttpRoute(name = "first", pathPrefix = "/api", targetBaseUrl = "http://localhost:4001", stripPrefix = true),
+                HttpRoute(name = "second", pathPrefix = "/api/", targetBaseUrl = "http://localhost:4002", stripPrefix = true)
+            )
+        )
+
+        val route = PathUtil.selectHttpRoute(config, "/api/users")
+        assertNotNull(route)
+        assertEquals("first", route!!.name)
+    }
+
+    @Test
     fun computeHttpMatchPath_and_forwardPath_respect_route_strip_prefix() {
         val route = HttpRoute(
             pathPrefix = "/api",

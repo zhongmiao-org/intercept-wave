@@ -23,6 +23,7 @@
 - HTTP 请求处理改为先执行“最长前缀路由匹配”，再决定命中 Mock 还是转发到上游。
 - HTTP 欢迎页 JSON 改为展示 routes 摘要，不再依赖旧的单一前缀 / 目标地址字段。
 - 在 HTTP 组中，`stripPrefix` 现在是路由级配置；组级字段仅保留用于兼容迁移。
+- Docker 上游测试栈默认升级为 `ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.3.0`。
 
 ### 🧪 测试
 
@@ -36,7 +37,7 @@
   - `docker-compose.client.yml` 一键启动“上游 + 控制台”。
   - 控制台通过 `.env`（env_file）读取运行时配置；新增 `.env.example` 示例。
   - 补充双语文档：`docker/README.md`、`docker/README_zh.md`。
-- 独立上游编排迁移至 `docker/docker-compose.upstream.yml`，镜像更新至 `v0.2.0`。
+- 独立上游编排迁移至 `docker/docker-compose.upstream.yml`，镜像更新至 `v0.3.0`。
 - CI：测试任务改用 `docker/docker-compose.upstream.yml` 启动上游服务。
 - Dependabot：开启 `/docker` 目录的 Docker 扫描，自动发现并升级 compose 中使用的 GHCR 镜像标签。
 - 抽离 HTTP 引擎与公共工具：

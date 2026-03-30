@@ -181,6 +181,35 @@ class HttpServerEngineTest {
     }
 
     @Test
+    fun forwarding_disabled_response_contains_headless_hint() {
+        System.clearProperty("interceptwave.allowForwardInTests")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "NoForwardInTests",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:9000",
+                    stripPrefix = true,
+                    enableMock = false
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/api/health").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(502, conn.responseCode)
+        val body = conn.errorStream.bufferedReader().readText()
+        assertTrue(body.contains("Forwarding disabled in tests/headless/CI"))
+
+        engine.stop()
+    }
+
+    @Test
     fun longest_prefix_route_and_disable_mock_behaviour() {
         val port = freePort()
         val cfg = ProxyConfig(

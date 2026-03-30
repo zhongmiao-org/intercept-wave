@@ -23,6 +23,7 @@
 - HTTP request handling now performs longest-prefix route selection before deciding whether to Mock or forward.
 - HTTP welcome JSON now reports configured routes instead of a single legacy prefix/base URL pair.
 - In HTTP groups, `stripPrefix` is now a route-level setting; the group-level field remains only for backward compatibility during migration.
+- Docker upstream test stack now points to `ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.3.0`.
 
 ### 🧪 Testing
 
@@ -36,7 +37,7 @@
   - `docker-compose.client.yml` to start upstream + console.
   - Console reads runtime config via `.env` (env_file); added `.env.example`.
   - Added docs: `docker/README.md` and `docker/README_zh.md`.
-- Standalone upstream compose moved to `docker/docker-compose.upstream.yml` and updated to `v0.2.0`.
+- Standalone upstream compose moved to `docker/docker-compose.upstream.yml` and updated to `v0.3.0`.
 - CI: workflow uses `docker/docker-compose.upstream.yml` to spin up upstream for tests.
 - Dependabot: enabled Docker scans for `/docker` to auto-bump GHCR tags used in compose files.
 - HTTP engine extraction and common utilities:
