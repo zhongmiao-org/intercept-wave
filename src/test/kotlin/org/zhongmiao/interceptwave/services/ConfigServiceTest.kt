@@ -3,7 +3,10 @@ package org.zhongmiao.interceptwave.services
 import org.junit.Assert.*
 import org.junit.Test
 import com.intellij.openapi.project.Project
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import org.zhongmiao.interceptwave.model.HttpRoute
+import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.model.RootConfig
 import java.io.File
@@ -11,6 +14,8 @@ import java.lang.reflect.Proxy
 import java.nio.file.Files
 
 class ConfigServiceTest {
+
+    private val testJson = Json { ignoreUnknownKeys = true }
 
     private fun fakeProject(base: File): Project {
         val cls = Project::class.java
@@ -28,13 +33,6 @@ class ConfigServiceTest {
     }
 
     private fun invokePrivate(service: ConfigService, name: String, vararg args: Any?): Any? {
-        val types = args.map {
-            when (it) {
-                null -> Any::class.java
-                is String -> String::class.java
-                else -> it.javaClass
-            }
-        }.toTypedArray()
         val method = ConfigService::class.java.declaredMethods.first {
             it.name == name && it.parameterTypes.size == args.size
         }
@@ -405,4 +403,237 @@ class ConfigServiceTest {
         assertEquals("WS", saved.protocol)
         assertTrue(saved.routes.isEmpty())
     }
+
+    @Test
+    fun persistAndReloadIfNeeded_when_unchanged_returns_same_config_without_backup() {
+        val dir = Files.createTempDirectory("iw-conf14").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val configDir = File(dir, ".intercept-wave")
+        val configFile = File(configDir, "config.json")
+        val backupFile = File(configDir, "config.json.backup")
+        val before = configFile.readText()
+        val root = svc.getRootConfig()
+
+        val result = invokePrivate(svc, "persistAndReloadIfNeeded", false, root, false) as RootConfig
+
+        assertSame(root, result)
+        assertEquals(before, configFile.readText())
+        assertFalse(backupFile.exists())
+    }
+
+    @Test
+    fun defaultHttpRoute_uses_root_prefix_for_blank_legacy_prefix_and_copies_mock_list() {
+        val dir = Files.createTempDirectory("iw-conf15").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val legacyClass = ConfigService::class.java.declaredClasses.first { it.simpleName == "LegacyHttpGroup" }
+        val ctor = legacyClass.getDeclaredConstructor()
+        ctor.isAccessible = true
+        val legacy = ctor.newInstance()
+        legacyClass.getDeclaredField("interceptPrefix").apply { isAccessible = true }.set(legacy, "")
+        legacyClass.getDeclaredField("baseUrl").apply { isAccessible = true }.set(legacy, "http://localhost:5000")
+        legacyClass.getDeclaredField("stripPrefix").apply { isAccessible = true }.set(legacy, false)
+        val legacyApis = mutableListOf(MockApiConfig(path = "/alive", mockData = "{\"ok\":true}"))
+        legacyClass.getDeclaredField("mockApis").apply { isAccessible = true }.set(legacy, legacyApis)
+
+        val route = invokePrivate(svc, "defaultHttpRoute", legacy) as HttpRoute
+
+        assertEquals("/", route.pathPrefix)
+        assertEquals("http://localhost:5000", route.targetBaseUrl)
+        assertFalse(route.stripPrefix)
+        assertEquals(1, route.mockApis.size)
+        assertNotSame(legacyApis, route.mockApis)
+        legacyApis.first().path = "/changed"
+        assertEquals("/alive", route.mockApis.first().path)
+    }
+
+    @Test
+    fun shouldReplacePlaceholderRoute_handles_empty_routes_placeholder_and_custom_route() {
+        val dir = Files.createTempDirectory("iw-conf16").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val legacyClass = ConfigService::class.java.declaredClasses.first { it.simpleName == "LegacyHttpGroup" }
+        val ctor = legacyClass.getDeclaredConstructor()
+        ctor.isAccessible = true
+        val legacy = ctor.newInstance()
+        legacyClass.getDeclaredField("baseUrl").apply { isAccessible = true }.set(legacy, "http://localhost:5000")
+
+        val emptyGroup = ProxyConfig(routes = mutableListOf())
+        assertEquals(true, invokePrivate(svc, "shouldReplacePlaceholderRoute", emptyGroup, legacy))
+
+        val placeholder = ProxyConfig(
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "API",
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:8080",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf()
+                )
+            )
+        )
+        assertEquals(true, invokePrivate(svc, "shouldReplacePlaceholderRoute", placeholder, legacy))
+
+        val custom = ProxyConfig(
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "Custom",
+                    pathPrefix = "/custom",
+                    targetBaseUrl = "http://localhost:5000",
+                    stripPrefix = false,
+                    enableMock = false
+                )
+            )
+        )
+        assertEquals(false, invokePrivate(svc, "shouldReplacePlaceholderRoute", custom, legacy))
+    }
+
+    @Test
+    fun ensureHttpRoutes_adds_default_route_only_for_http_groups_without_routes() {
+        val dir = Files.createTempDirectory("iw-conf17").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val root = RootConfig(
+            proxyGroups = mutableListOf(
+                ProxyConfig(id = "http-empty", protocol = "HTTP", routes = mutableListOf()),
+                ProxyConfig(id = "ws-empty", protocol = "WS", routes = mutableListOf(), wsInterceptPrefix = "/ws", wsBaseUrl = "ws://localhost:9000")
+            )
+        )
+
+        val result = invokePrivate(svc, "ensureHttpRoutes", root, null)
+        val changed = result!!::class.java.getMethod("component1").invoke(result) as Boolean
+        val normalized = result::class.java.getMethod("component2").invoke(result) as RootConfig
+
+        assertTrue(changed)
+        assertEquals(1, normalized.proxyGroups.first().routes.size)
+        assertEquals("/api", normalized.proxyGroups.first().routes.single().pathPrefix)
+        assertTrue(normalized.proxyGroups.last().routes.isEmpty())
+    }
+
+    @Test
+    fun migrateToLatest_normalizes_unknown_version_when_major_minor_matches_current() {
+        val dir = Files.createTempDirectory("iw-conf18").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        System.setProperty("intercept.wave.version", "4.0.2")
+        val root = RootConfig(
+            version = "4.9.1",
+            proxyGroups = mutableListOf(
+                ProxyConfig(id = "keep", routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:4002")))
+            )
+        )
+
+        val result = invokePrivate(svc, "migrateToLatest", root, null)
+        val changed = result!!::class.java.getMethod("component1").invoke(result) as Boolean
+        val migrated = result::class.java.getMethod("component2").invoke(result) as RootConfig
+
+        assertTrue(changed)
+        assertEquals("4.0", migrated.version)
+        assertEquals("keep", migrated.proxyGroups.single().id)
+    }
+
+    @Test
+    fun ensureHttpRoutes_keeps_explicit_http_routes_without_legacy_data() {
+        val dir = Files.createTempDirectory("iw-conf19").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val root = RootConfig(
+            proxyGroups = mutableListOf(
+                ProxyConfig(
+                    id = "http-explicit",
+                    protocol = "HTTP",
+                    routes = mutableListOf(
+                        HttpRoute(name = "Frontend", pathPrefix = "/", targetBaseUrl = "http://localhost:4001", stripPrefix = false, enableMock = false)
+                    )
+                )
+            )
+        )
+
+        val result = invokePrivate(svc, "ensureHttpRoutes", root, null)
+        val changed = result!!::class.java.getMethod("component1").invoke(result) as Boolean
+        val normalized = result::class.java.getMethod("component2").invoke(result) as RootConfig
+
+        assertFalse(changed)
+        assertEquals("Frontend", normalized.proxyGroups.single().routes.single().name)
+        assertEquals("/", normalized.proxyGroups.single().routes.single().pathPrefix)
+    }
+
+    @Test
+    fun extractLegacyHttpGroup_handles_missing_out_of_range_and_invalid_payloads() {
+        val dir = Files.createTempDirectory("iw-conf20").toFile()
+        val svc = ConfigService(fakeProject(dir))
+
+        assertNull(invokePrivate(svc, "extractLegacyHttpGroup", null, 0))
+
+        val noLegacyRoot = testJson.parseToJsonElement(
+            """
+            {
+              "proxyGroups": [
+                {
+                  "id": "g1",
+                  "protocol": "HTTP",
+                  "routes": []
+                }
+              ]
+            }
+            """.trimIndent()
+        ).let { it as JsonObject }
+        assertNull(invokePrivate(svc, "extractLegacyHttpGroup", noLegacyRoot, 0))
+        assertNull(invokePrivate(svc, "extractLegacyHttpGroup", noLegacyRoot, 2))
+
+        val invalidLegacyRoot = testJson.parseToJsonElement(
+            """
+            {
+              "proxyGroups": [
+                {
+                  "interceptPrefix": 123,
+                  "baseUrl": false
+                }
+              ]
+            }
+            """.trimIndent()
+        ).let { it as JsonObject }
+        assertNull(invokePrivate(svc, "extractLegacyHttpGroup", invalidLegacyRoot, 0))
+    }
+
+    @Test
+    fun extractLegacyHttpGroup_decodes_legacy_fields_when_present() {
+        val dir = Files.createTempDirectory("iw-conf21").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val rootJson = testJson.parseToJsonElement(
+            """
+            {
+              "proxyGroups": [
+                {
+                  "interceptPrefix": "/legacy",
+                  "baseUrl": "http://localhost:7777",
+                  "stripPrefix": false,
+                  "mockApis": [
+                    { "path": "/ping", "mockData": "{}" }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        ).let { it as JsonObject }
+
+        val legacy = invokePrivate(svc, "extractLegacyHttpGroup", rootJson, 0)
+        assertNotNull(legacy)
+        val cls = legacy!!::class.java
+        assertEquals("/legacy", cls.getDeclaredField("interceptPrefix").apply { isAccessible = true }.get(legacy))
+        assertEquals("http://localhost:7777", cls.getDeclaredField("baseUrl").apply { isAccessible = true }.get(legacy))
+    }
+
+    @Test
+    fun createDefaultProxyConfig_uses_generated_indexed_name_when_name_is_null() {
+        val dir = Files.createTempDirectory("iw-conf22").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val cfg = svc.createDefaultProxyConfig(1, null)
+        assertTrue(cfg.name.isNotBlank())
+        assertEquals(8889, cfg.port)
+    }
+
+    @Test
+    fun getProxyGroup_returns_null_for_unknown_id() {
+        val dir = Files.createTempDirectory("iw-conf23").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        assertNull(svc.getProxyGroup("missing"))
+    }
+
 }

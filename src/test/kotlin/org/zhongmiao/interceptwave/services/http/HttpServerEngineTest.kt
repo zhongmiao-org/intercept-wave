@@ -19,6 +19,14 @@ class HttpServerEngineTest {
 
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
+    private fun invokeShouldServeWelcomePage(engine: HttpServerEngine, route: HttpRoute, requestPath: String): Boolean {
+        val method = HttpServerEngine::class.java.declaredMethods.first {
+            it.name == "shouldServeWelcomePage" && it.parameterTypes.size == 2
+        }
+        method.isAccessible = true
+        return method.invoke(engine, route, requestPath) as Boolean
+    }
+
     private fun httpGet(url: String): Pair<Int, Map<String, List<String>>> {
         var last: Pair<Int, Map<String, List<String>>>? = null
         repeat(10) {
@@ -142,6 +150,29 @@ class HttpServerEngineTest {
         conn.requestMethod = "OPTIONS"
         val code = conn.responseCode
         assertEquals(200, code)
+        engine.stop()
+    }
+
+    @Test
+    fun exact_route_prefix_serves_welcome_page_when_strip_prefix_is_enabled() {
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "PrefixWelcome",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = true)
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput())
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/api").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(200, conn.responseCode)
+        val body = conn.inputStream.bufferedReader().readText()
+        assertTrue(body.contains("\"routes\""))
+        assertTrue(body.contains("\"pathPrefix\": \"/api\""))
+
         engine.stop()
     }
 
@@ -289,6 +320,71 @@ class HttpServerEngineTest {
     }
 
     @Test
+    fun disabled_mock_entry_falls_back_to_forwarding() {
+        System.clearProperty("interceptwave.allowForwardInTests")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "DisabledMock",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:4002",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{\"ok\":true}", method = "GET", enabled = false)
+                    )
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/api/user").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(502, conn.responseCode)
+        assertFalse(out.events.any { it is MockMatched })
+        assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://localhost:4002/user" })
+
+        engine.stop()
+    }
+
+    @Test
+    fun forwarding_allowed_but_unreachable_publishes_error_and_returns_502() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "ForwardError",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://127.0.0.1:9",
+                    stripPrefix = true,
+                    enableMock = false
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/api/users?id=1").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(502, conn.responseCode)
+        val body = conn.errorStream.bufferedReader().readText()
+        assertTrue(body.contains("Bad Gateway"))
+        assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://127.0.0.1:9/users?id=1" })
+        assertTrue(out.events.any { it is ErrorOccurred })
+        assertFalse(out.events.any { it is Forwarded })
+
+        engine.stop()
+        System.clearProperty("interceptwave.allowForwardInTests")
+    }
+
+    @Test
     fun start_returns_false_when_port_is_already_occupied() {
         val port = freePort()
         ServerSocket(port).use {
@@ -303,5 +399,37 @@ class HttpServerEngineTest {
             assertFalse(engine.start())
             assertNotNull(engine.lastError)
         }
+    }
+
+    @Test
+    fun shouldServeWelcomePage_returns_false_for_root_prefix_and_strip_disabled() {
+        val engine = HttpServerEngine(
+            ProxyConfig(
+                name = "WelcomeFlags",
+                port = freePort(),
+                routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080"))
+            ),
+            TestOutput()
+        )
+        val rootRoute = HttpRoute(pathPrefix = "/", targetBaseUrl = "http://localhost:4001", stripPrefix = true)
+        val noStripRoute = HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = false)
+
+        assertEquals(false, invokeShouldServeWelcomePage(engine, rootRoute, "/"))
+        assertEquals(false, invokeShouldServeWelcomePage(engine, noStripRoute, "/api"))
+        assertEquals(true, invokeShouldServeWelcomePage(engine, HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true), "/api/"))
+    }
+
+    @Test
+    fun getUrl_returns_localhost_with_configured_port() {
+        val port = freePort()
+        val engine = HttpServerEngine(
+            ProxyConfig(
+                name = "Url",
+                port = port,
+                routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080"))
+            ),
+            TestOutput()
+        )
+        assertEquals("http://localhost:$port", engine.getUrl())
     }
 }
