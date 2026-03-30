@@ -144,4 +144,65 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         assertEquals("http://localhost:18082", group.routes.single().targetBaseUrl)
         assertEquals("/user", group.routes.single().mockApis.single().path)
     }
+
+    fun `test load version 3 legacy group_with_blank_prefix_becomes_root_route`() {
+        val v3Root = """
+            {
+              "version": "3.0",
+              "proxyGroups": [
+                {
+                  "id": "http-root",
+                  "name": "Legacy Root HTTP",
+                  "protocol": "HTTP",
+                  "port": 18891,
+                  "interceptPrefix": "",
+                  "baseUrl": "http://localhost:18083",
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true,
+                  "mockApis": []
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(v3Root)
+
+        val root = ConfigService(project).getRootConfig()
+        assertEquals("4.0", root.version)
+        val route = root.proxyGroups.single().routes.single()
+        assertEquals("/", route.pathPrefix)
+        assertEquals("http://localhost:18083", route.targetBaseUrl)
+        assertTrue(route.stripPrefix)
+    }
+
+    fun `test load version 3 malformed legacy group_falls_back_to_default_http_route`() {
+        val malformedLegacy = """
+            {
+              "version": "3.0",
+              "proxyGroups": [
+                {
+                  "id": "http-bad",
+                  "name": "Broken Legacy HTTP",
+                  "protocol": "HTTP",
+                  "port": 18892,
+                  "interceptPrefix": 123,
+                  "baseUrl": false,
+                  "stripPrefix": "oops",
+                  "enabled": true,
+                  "mockApis": []
+                }
+              ]
+            }
+        """.trimIndent()
+
+        File(configDir, "config.json").writeText(malformedLegacy)
+
+        val root = ConfigService(project).getRootConfig()
+        assertEquals("4.0", root.version)
+        val route = root.proxyGroups.single().routes.single()
+        assertEquals("/api", route.pathPrefix)
+        assertEquals("http://localhost:8080", route.targetBaseUrl)
+        assertTrue(route.stripPrefix)
+    }
 }

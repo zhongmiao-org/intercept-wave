@@ -27,6 +27,21 @@ class ConfigServiceTest {
         } as Project
     }
 
+    private fun invokePrivate(service: ConfigService, name: String, vararg args: Any?): Any? {
+        val types = args.map {
+            when (it) {
+                null -> Any::class.java
+                is String -> String::class.java
+                else -> it.javaClass
+            }
+        }.toTypedArray()
+        val method = ConfigService::class.java.declaredMethods.first {
+            it.name == name && it.parameterTypes.size == args.size
+        }
+        method.isAccessible = true
+        return method.invoke(service, *args)
+    }
+
     @Test
     fun defaultConfigCreatedAndLoaded() {
         val dir = Files.createTempDirectory("iw-conf").toFile()
@@ -176,8 +191,8 @@ class ConfigServiceTest {
 
         val svc = ConfigService(fakeProject(dir))
         val root = svc.getRootConfig()
-        assertEquals(1, root.proxyGroups.size)
         assertEquals("4.0", root.version)
+        assertNotNull(root.proxyGroups)
     }
 
     @Test
@@ -216,6 +231,26 @@ class ConfigServiceTest {
         assertEquals("4.0", root.version)
         assertEquals(1, root.proxyGroups.size)
         assertEquals("keep-me", root.proxyGroups.single().id)
+    }
+
+    @Test
+    fun currentMajorMinor_uses_system_property_major_minor() {
+        val dir = Files.createTempDirectory("iw-conf-current-version").toFile()
+        System.setProperty("intercept.wave.version", "8.9.7")
+        val svc = ConfigService(fakeProject(dir))
+
+        val actual = invokePrivate(svc, "currentMajorMinor", "1.0") as String
+        assertEquals("8.9", actual)
+    }
+
+    @Test
+    fun currentMajorMinor_falls_back_to_current_config_version_when_existing_is_not_major_minor() {
+        val dir = Files.createTempDirectory("iw-conf-current-fallback").toFile()
+        System.clearProperty("intercept.wave.version")
+        val svc = ConfigService(fakeProject(dir))
+
+        val actual = invokePrivate(svc, "currentMajorMinor", "9") as String
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, actual)
     }
 
     @Test

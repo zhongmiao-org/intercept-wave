@@ -96,4 +96,17 @@ class PathUtilRouteTest {
         val emptyWsPrefix = ProxyConfig(wsInterceptPrefix = "", stripPrefix = true)
         assertEquals("/health", PathUtil.computeWsMatchPath(emptyWsPrefix, "/health"))
     }
+
+    @Test
+    fun computeHttpForwardPath_keeps_original_path_when_strip_prefix_is_disabled() {
+        val route = HttpRoute(pathPrefix = "/api/", targetBaseUrl = "http://localhost:4002", stripPrefix = false)
+        assertEquals("/api/users", PathUtil.computeHttpForwardPath(route, "/api/users"))
+        assertEquals("/", PathUtil.computeHttpForwardPath(route, ""))
+    }
+
+    @Test
+    fun selectHttpRoute_returns_null_when_no_routes_are_configured() {
+        val config = ProxyConfig(routes = mutableListOf())
+        assertNull(PathUtil.selectHttpRoute(config, "/api/users"))
+    }
 }
