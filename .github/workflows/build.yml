@@ -149,6 +149,27 @@ jobs:
           name: tests-result
           path: ${{ github.workspace }}/build/reports/tests
 
+      - name: Upload Kover XML
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-xml
+          path: ${{ github.workspace }}/build/reports/kover/report.xml
+
+      - name: Upload Kover HTML
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-html
+          path: ${{ github.workspace }}/build/reports/kover
+
+      - name: Upload Test Report
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: ${{ github.workspace }}/build/reports/tests
+
       # Upload the Kover report to CodeCov
       - name: Upload Code Coverage Report
         uses: codecov/codecov-action@v6
