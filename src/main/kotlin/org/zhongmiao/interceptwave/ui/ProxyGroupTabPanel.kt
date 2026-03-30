@@ -16,6 +16,7 @@ import org.zhongmiao.interceptwave.services.ConsoleService
 import org.zhongmiao.interceptwave.services.MockServerService
 import java.awt.BorderLayout
 import javax.swing.*
+import javax.swing.table.DefaultTableModel
 
 /**
  * 单个配置组的标签页面板
@@ -119,39 +120,101 @@ class ProxyGroupTabPanel(
         val isWs = cfg?.protocol == "WS"
         val yes = message("toolwindow.yes")
         val no = message("toolwindow.no")
-        val primaryRoute = cfg?.routes?.firstOrNull()
+        val routes = cfg?.routes ?: emptyList()
 
         val content = com.intellij.ui.dsl.builder.panel {
             group(message("toolwindow.config.title")) {
                 // 顶部基本信息
                 row(message("toolwindow.config.name", configName)) { }
                 row(message("toolwindow.config.port", "$port")) { }
-                row(message("toolwindow.config.stripprefix", if (primaryRoute?.stripPrefix == true) yes else no)) { }
 
                 if (!isWs) {
                     // HTTP 详细
-                    row(message("toolwindow.config.prefix", primaryRoute?.pathPrefix ?: "")) { }
-                    row(message("toolwindow.config.baseurl", primaryRoute?.targetBaseUrl ?: "")) { }
                     val cookie = (cfg?.globalCookie ?: "").ifEmpty { message("toolwindow.notset") }
                     row(message("toolwindow.config.cookie", cookie)) { }
+                    row(message("toolwindow.config.routes.count", routes.size.toString())) { }
 
-                    // Mock 接口列表（两列：启用复选框 + 路径）
-                    val apis = primaryRoute?.mockApis ?: emptyList()
-                    val model = createHttpShortTableModel(enabledEditable = true)
-                    appendHttpShortRows(model, apis)
-                    val table = JBTable(model).apply {
+                    val routeModel = object : DefaultTableModel(
+                        arrayOf(
+                            message("config.http.route.table.enablemock"),
+                            message("config.http.route.table.name"),
+                            message("config.http.route.table.prefix"),
+                            message("config.http.route.table.baseurl"),
+                            message("config.group.stripprefix")
+                        ),
+                        0
+                    ) {
+                        override fun getColumnClass(column: Int): Class<*> =
+                            if (column == 0 || column == 4) Boolean::class.javaObjectType else String::class.java
+                        override fun isCellEditable(row: Int, column: Int): Boolean = column == 0
+                    }
+                    routes.forEach { route ->
+                        routeModel.addRow(
+                            arrayOf<Any>(
+                                route.enableMock,
+                                route.name,
+                                route.pathPrefix,
+                                route.targetBaseUrl,
+                                route.stripPrefix
+                            )
+                        )
+                    }
+                    val routeTable = JBTable(routeModel).apply {
                         fillsViewportHeight = true
                         UiKit.setEnabledColumnWidth(this, 0)
-                        UiKit.ensureVisibleRows(this, UiKit.DEFAULT_VISIBLE_ROWS)
+                        UiKit.setEnabledColumnWidth(this, 4)
+                        UiKit.ensureVisibleRows(this, 4)
                     }
-                    // 勾选启用后，直接修改内存中的配置以便下一次请求生效
-                    (table.model as javax.swing.table.DefaultTableModel).addTableModelListener { e ->
+                    routeModel.addTableModelListener { e ->
                         if (e is javax.swing.event.TableModelEvent) {
                             val row = e.firstRow
                             val col = e.column
                             if (row >= 0 && (col == 0 || col == javax.swing.event.TableModelEvent.ALL_COLUMNS)) {
                                 val latest = configService.getProxyGroup(configId)
-                                val target = latest?.routes?.firstOrNull()?.mockApis?.getOrNull(row)
+                                val targetRoute = latest?.routes?.getOrNull(row)
+                                if (targetRoute != null) {
+                                    val newVal = (routeTable.model.getValueAt(row, 0) as? Boolean) ?: false
+                                    targetRoute.enableMock = newVal
+                                }
+                            }
+                        }
+                    }
+                    row { cell(JBScrollPane(routeTable)).align(AlignX.FILL) }
+
+                    // Mock 接口列表（汇总所有 route）
+                    val routeMockEntries = routes.flatMapIndexed { routeIndex, route ->
+                        route.mockApis.mapIndexed { apiIndex, api -> Triple(routeIndex, apiIndex, api) }
+                    }
+                    val model = object : DefaultTableModel(
+                        arrayOf(
+                            message("config.table.enabled"),
+                            message("config.http.route.table.name"),
+                            message("config.table.path")
+                        ),
+                        0
+                    ) {
+                        override fun getColumnClass(column: Int): Class<*> =
+                            if (column == 0) Boolean::class.javaObjectType else String::class.java
+                        override fun isCellEditable(row: Int, column: Int): Boolean = column == 0
+                    }
+                    routeMockEntries.forEach { (routeIndex, _, api) ->
+                        model.addRow(arrayOf<Any>(api.enabled, routes[routeIndex].name, api.path))
+                    }
+                    val table = JBTable(model).apply {
+                        fillsViewportHeight = true
+                        UiKit.setEnabledColumnWidth(this, 0)
+                        UiKit.ensureVisibleRows(this, UiKit.DEFAULT_VISIBLE_ROWS)
+                    }
+                    row(message("toolwindow.config.mocklist")) { }
+                    // 勾选启用后，直接修改内存中的配置以便下一次请求生效
+                    (table.model as DefaultTableModel).addTableModelListener { e ->
+                        if (e is javax.swing.event.TableModelEvent) {
+                            val row = e.firstRow
+                            val col = e.column
+                            if (row >= 0 && (col == 0 || col == javax.swing.event.TableModelEvent.ALL_COLUMNS)) {
+                                val latest = configService.getProxyGroup(configId)
+                                val entry = routeMockEntries.getOrNull(row)
+                                val target = entry?.let { latest?.routes?.getOrNull(it.first)?.mockApis?.getOrNull(it.second) }
                                 if (target != null) {
                                     val newVal = (table.model.getValueAt(row, 0) as? Boolean) ?: false
                                     target.enabled = newVal

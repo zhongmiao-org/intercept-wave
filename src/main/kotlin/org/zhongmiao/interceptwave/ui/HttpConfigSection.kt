@@ -44,7 +44,24 @@ class HttpConfigSection(
         0
     ) {
         override fun getColumnClass(column: Int): Class<*> = if (column == 0) Boolean::class.javaObjectType else String::class.java
-        override fun isCellEditable(row: Int, column: Int): Boolean = false
+        override fun isCellEditable(row: Int, column: Int): Boolean = column == 0
+        override fun setValueAt(aValue: Any?, row: Int, column: Int) {
+            if (column == 0 && row in workingRoutes.indices) {
+                val enabled = when (aValue) {
+                    is Boolean -> aValue
+                    else -> aValue?.toString()?.toBooleanStrictOrNull() ?: workingRoutes[row].enableMock
+                }
+                workingRoutes[row].enableMock = enabled
+                super.setValueAt(enabled, row, column)
+                if (row == selectedRouteIndex) {
+                    routeEnableMockCheckBox.isSelected = enabled
+                    updateMockAreaState()
+                }
+                onChanged()
+                return
+            }
+            super.setValueAt(aValue, row, column)
+        }
     }
     private val routeTable = JBTable(routeTableModel)
 
