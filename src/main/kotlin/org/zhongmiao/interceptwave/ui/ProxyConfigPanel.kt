@@ -27,8 +27,6 @@ class ProxyConfigPanel(
     private val protocolCombo = ComboBox(arrayOf("HTTP", "WS"))
     private val nameField = JBTextField(initialConfig.name)
     private val portField = JBTextField(initialConfig.port.toString())
-    // HTTP 专属字段移至 HttpConfigSection 顶部；此处仅保留组级配置
-    private val stripPrefixCheckbox = JBCheckBox(message("config.group.stripprefix"), initialConfig.stripPrefix)
     private val enabledCheckbox = JBCheckBox(message("config.group.enabled"), initialConfig.enabled)
 
     // 标签：用于切换可见性（HTTP 专属已迁移，无需单独标签）
@@ -71,7 +69,6 @@ class ProxyConfigPanel(
         // 工具提示
         nameField.toolTipText = message("config.group.name.tooltip")
         portField.toolTipText = message("config.group.port.tooltip")
-        stripPrefixCheckbox.toolTipText = message("config.group.stripprefix.tooltip")
         enabledCheckbox.toolTipText = message("config.group.enabled.tooltip")
 
         // DSL 面板，复用现有组件，便于与现有逻辑/监听兼容
@@ -85,10 +82,6 @@ class ProxyConfigPanel(
                 }
                 row(message("config.group.port") + ":") {
                     cell(portField).align(AlignX.FILL)
-                }
-                // 剥离前缀（全宽）
-                row {
-                    cell(stripPrefixCheckbox)
                 }
                 // 启用开关（全宽）
                 row {
@@ -105,7 +98,6 @@ class ProxyConfigPanel(
     private fun attachChangeListeners() {
         nameField.document.onAnyChange(onChanged)
         portField.document.onAnyChange(onChanged)
-        stripPrefixCheckbox.addActionListener { onChanged() }
         enabledCheckbox.addActionListener { onChanged() }
         protocolCombo.addActionListener { onChanged() }
     }
@@ -141,7 +133,6 @@ class ProxyConfigPanel(
         config.protocol = (protocolCombo.selectedItem as? String) ?: "HTTP"
         config.name = nameField.text.trim().ifEmpty { message("config.group.default") }
         config.port = portField.text.toIntOrNull() ?: 8888
-        config.stripPrefix = stripPrefixCheckbox.isSelected
         config.enabled = enabledCheckbox.isSelected
 
         httpSection.applyTo(config)

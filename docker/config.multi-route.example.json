@@ -1,0 +1,53 @@
+{
+  "version": "4.0",
+  "proxyGroups": [
+    {
+      "id": "9c1fe798-5b4c-43ce-9dbb-4bb9d2100001",
+      "name": "Upstream Gateway",
+      "protocol": "HTTP",
+      "port": 8888,
+      "stripPrefix": true,
+      "globalCookie": "",
+      "enabled": true,
+      "routes": [
+        {
+          "id": "9c1fe798-5b4c-43ce-9dbb-4bb9d2101001",
+          "name": "User API",
+          "pathPrefix": "/api",
+          "targetBaseUrl": "http://localhost:9000",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/user/info",
+              "enabled": true,
+              "mockData": "{\"code\":0,\"data\":{\"name\":\"Intercept Wave\"},\"message\":\"mocked locally\"}",
+              "method": "GET",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 0
+            }
+          ]
+        },
+        {
+          "id": "9c1fe798-5b4c-43ce-9dbb-4bb9d2101002",
+          "name": "Order API",
+          "pathPrefix": "/order-api",
+          "targetBaseUrl": "http://localhost:9001",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
+        },
+        {
+          "id": "9c1fe798-5b4c-43ce-9dbb-4bb9d2101003",
+          "name": "Payment API",
+          "pathPrefix": "/pay-api",
+          "targetBaseUrl": "http://localhost:9002",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
+        }
+      ]
+    }
+  ]
+}

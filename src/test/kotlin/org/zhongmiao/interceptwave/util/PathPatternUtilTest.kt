@@ -2,8 +2,8 @@ package org.zhongmiao.interceptwave.util
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
-import org.zhongmiao.interceptwave.model.ProxyConfig
 
 class PathPatternUtilTest {
 
@@ -31,9 +31,8 @@ class PathPatternUtilTest {
 
     @Test
     fun findMatchingMockApi_prioritizesSpecificity() {
-        val cfg = ProxyConfig()
-        cfg.mockApis.addAll(
-            listOf(
+        val route = HttpRoute(
+            mockApis = mutableListOf(
                 MockApiConfig(path = "/user/**", method = "ALL", mockData = "{}"),
                 MockApiConfig(path = "/user/*/detail", method = "GET", mockData = "{}"),
                 MockApiConfig(path = "/user/123/detail", method = "GET", mockData = "{}")
@@ -41,22 +40,34 @@ class PathPatternUtilTest {
         )
 
         val req = "/user/123/detail"
-        val match = PathPatternUtil.findMatchingMockApiInProxy(req, "GET", cfg)
+        val match = PathPatternUtil.findMatchingMockApiInRoute(req, "GET", route)
         assertNotNull(match)
         assertEquals("/user/123/detail", match!!.path)
 
         // Method specificity: if exact path with ALL and less specific method, prefer GET on wildcard
-        val cfg2 = ProxyConfig()
-        cfg2.mockApis.addAll(
-            listOf(
+        val route2 = HttpRoute(
+            mockApis = mutableListOf(
                 MockApiConfig(path = "/hello/world", method = "ALL", mockData = "{}"),
                 MockApiConfig(path = "/hello/*", method = "GET", mockData = "{}")
             )
         )
-        val m2 = PathPatternUtil.findMatchingMockApiInProxy("/hello/world", "GET", cfg2)
+        val m2 = PathPatternUtil.findMatchingMockApiInRoute("/hello/world", "GET", route2)
         assertNotNull(m2)
         // exact match without wildcard wins over wildcard, even if method is ALL
         assertEquals("/hello/world", m2!!.path)
     }
-}
 
+    @Test
+    fun findMatchingMockApiInRoute_returns_null_when_nothing_matches() {
+        val route = HttpRoute(
+            pathPrefix = "/api",
+            targetBaseUrl = "http://localhost:4002",
+            mockApis = mutableListOf(
+                MockApiConfig(path = "/user", method = "POST", mockData = "{}")
+            )
+        )
+
+        val match = PathPatternUtil.findMatchingMockApiInRoute("/user", "GET", route)
+        assertNull(match)
+    }
+}

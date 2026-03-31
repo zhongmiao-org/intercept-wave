@@ -10,3 +10,4 @@ build
 
 .gradle-local
 docker/.env
+report

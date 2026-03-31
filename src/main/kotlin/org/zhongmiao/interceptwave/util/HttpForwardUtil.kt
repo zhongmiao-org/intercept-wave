@@ -16,6 +16,7 @@ object HttpForwardUtil {
 
     fun createClient(): HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
+        .version(HttpClient.Version.HTTP_1_1)
         .build()
 
     fun buildRequest(targetUrl: String, exchange: HttpExchange): HttpRequest {
@@ -38,4 +39,3 @@ object HttpForwardUtil {
         return builder.method(method, publisher).build()
     }
 }
-

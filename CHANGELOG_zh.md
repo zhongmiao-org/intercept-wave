@@ -6,6 +6,29 @@
 
 ## [Unreleased]
 
+### ✨ 新增
+
+- HTTP 单组多路由转发能力：
+  - 新增 `HttpRoute` 与 `ProxyConfig.routes`，同一个本地端口可管理多条前缀规则和多个上游目标。
+  - 每条路由独立拥有 `pathPrefix`、`targetBaseUrl`、`stripPrefix`、`enableMock` 与 `mockApis`。
+- HTTP 配置界面支持按路由编辑：
+  - 配置对话框新增路由列表、当前路由详情表单，以及“当前路由专属”的 Mock 接口列表。
+  - 新增路由排序操作（上移 / 下移），当前缀长度相同时时按用户配置顺序匹配。
+- 旧 HTTP 配置自动升级：
+  - 现有单规则 HTTP 配置在加载时会自动转换为一条默认 `API` 路由。
+  - 升级后的配置继续沿用现有版本刷新链路自动回写到配置文件。
+
+### 🔄 变更
+
+- HTTP 请求处理改为先执行“最长前缀路由匹配”，再决定命中 Mock 还是转发到上游。
+- HTTP 欢迎页 JSON 改为展示 routes 摘要，不再依赖旧的单一前缀 / 目标地址字段。
+- 在 HTTP 组中，`stripPrefix` 现在是路由级配置；组级字段仅保留用于兼容迁移。
+- Docker 上游测试栈默认升级为 `ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.3.0`。
+
+### 🧪 测试
+
+- 补充了路由序列化、旧配置迁移到 `routes`、最长前缀匹配、路由级剥离前缀等测试覆盖。
+
 ## [3.1.0]
 
 ### ✨ 新增
@@ -14,7 +37,7 @@
   - `docker-compose.client.yml` 一键启动“上游 + 控制台”。
   - 控制台通过 `.env`（env_file）读取运行时配置；新增 `.env.example` 示例。
   - 补充双语文档：`docker/README.md`、`docker/README_zh.md`。
-- 独立上游编排迁移至 `docker/docker-compose.upstream.yml`，镜像更新至 `v0.2.0`。
+- 独立上游编排迁移至 `docker/docker-compose.upstream.yml`，镜像更新至 `v0.3.0`。
 - CI：测试任务改用 `docker/docker-compose.upstream.yml` 启动上游服务。
 - Dependabot：开启 `/docker` 目录的 Docker 扫描，自动发现并升级 compose 中使用的 GHCR 镜像标签。
 - 抽离 HTTP 引擎与公共工具：

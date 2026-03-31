@@ -29,6 +29,7 @@ Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and inte
 
 **Smart Interception & Proxy**:
 - 🎯 Configure intercept prefix (e.g., `/api`) to precisely target specific request paths
+- 🧭 Configure multiple HTTP routes inside one HTTP group, each with its own prefix, upstream target, strip-prefix rule, and Mock switch
 - 🔄 **With Mock Config**: Returns preset mock data for offline development
 - 🌐 **Without Mock Config**: Acts as a proxy server, forwarding requests with complete HTTP headers to get real data
 - 🔀 Smart path matching with prefix stripping support
@@ -68,9 +69,9 @@ Intercept Wave provides the following core functionalities:
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
 <!-- Plugin description end -->
 
-### What's New in v3.0
+### What's New in v4.0
 
-- Config version now aligns with the plugin major.minor (e.g., 3.0). Existing v2.x configs load seamlessly and are saved with `"version": "3.0"` automatically — no manual migration needed.
+- Config version now aligns with the plugin major.minor (e.g., 4.0). Existing legacy configs load seamlessly and are saved with `"version": "4.0"` automatically.
 - Mock JSON normalization and minification: mockData accepts single quotes, comments, unquoted keys, and trailing commas, and is saved as compact JSON. Use "Format JSON" to pretty print when editing.
 
 ## Installation
@@ -159,9 +160,18 @@ Each configuration group contains the following settings:
 
 HTTP configuration groups provide additional HTTP-specific settings:
 
-- **Intercept Prefix**: API path prefix to intercept (default: `/api`)
-- **Base URL**: Base URL of the original server (e.g., `http://localhost:8080`)
 - **Global Cookie**: Configure global cookie value (e.g., `sessionId=abc123; userId=456`)
+- **Routes**: Maintain multiple HTTP routes inside one group. Each route defines:
+  - **Route Name**: Display name, such as `API` or `Frontend`
+  - **Path Prefix**: Prefix used for longest-prefix matching, such as `/api` or `/`
+  - **Target Base URL**: Upstream target for forwarding, such as `http://localhost:8080`
+  - **Strip Prefix**: Whether the route prefix is removed before Mock matching and forwarding
+  - **Enable Mock**: Whether this route first checks its own Mock API list before forwarding
+- **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix` and `Strip Prefix` rules.
+
+Example multi-route setup:
+- Route 1: `pathPrefix="/"`, `enableMock=false`, `targetBaseUrl=http://localhost:4001`
+- Route 2: `pathPrefix="/api"`, `enableMock=true`, `targetBaseUrl=http://localhost:4002`
 
 #### WebSocket Group Settings (Protocol = WS)
 
@@ -306,47 +316,48 @@ All configurations are saved in the `.intercept-wave` folder in the project root
 
 ```json
 {
-  "version": "3.0",
+  "version": "4.0",
   "proxyGroups": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "User Service",
+      "name": "Gateway",
       "port": 8888,
-      "interceptPrefix": "/api",
-      "baseUrl": "http://localhost:8080",
-      "stripPrefix": true,
       "globalCookie": "sessionId=abc123",
       "enabled": true,
-      "mockApis": [
+      "routes": [
         {
-          "path": "/user/info",
-          "enabled": true,
-          "mockData": "{\"code\":0,\"data\":{\"name\":\"John Doe\"}}",
-          "method": "GET",
-          "statusCode": 200,
-          "useCookie": true,
-          "delay": 0
-        }
-      ]
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "name": "Order Service",
-      "port": 8889,
-      "interceptPrefix": "/order-api",
-      "baseUrl": "http://localhost:8081",
-      "stripPrefix": true,
-      "globalCookie": "",
-      "enabled": true,
-      "mockApis": [
+          "name": "User API",
+          "pathPrefix": "/api",
+          "targetBaseUrl": "http://localhost:9000",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/user/info",
+              "enabled": true,
+              "mockData": "{\"code\":0,\"data\":{\"name\":\"John Doe\"}}",
+              "method": "GET",
+              "statusCode": 200,
+              "useCookie": true,
+              "delay": 0
+            }
+          ]
+        },
         {
-          "path": "/orders",
-          "enabled": true,
-          "mockData": "{\"code\":0,\"data\":[]}",
-          "method": "GET",
-          "statusCode": 200,
-          "useCookie": false,
-          "delay": 0
+          "name": "Order API",
+          "pathPrefix": "/order-api",
+          "targetBaseUrl": "http://localhost:9001",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
+        },
+        {
+          "name": "Payment API",
+          "pathPrefix": "/pay-api",
+          "targetBaseUrl": "http://localhost:9002",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
         }
       ]
     }
@@ -446,7 +457,7 @@ Notes:
 
 ### Integration Tests (Docker upstream)
 
-These tests require the upstream service container running (default http://localhost:9000):
+These tests require the upstream service container running (default http://localhost:9000, `intercept-wave-upstream:v0.3.0`):
 
 - Start container:
   - `cd docker`

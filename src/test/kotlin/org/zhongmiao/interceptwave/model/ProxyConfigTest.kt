@@ -7,7 +7,7 @@ import org.junit.Assert.*
 import java.util.UUID
 
 /**
- * Tests for RootConfig and ProxyConfig data models (v2.0)
+ * Tests for RootConfig and ProxyConfig data models
  */
 class ProxyConfigTest {
 
@@ -17,14 +17,14 @@ class ProxyConfigTest {
     fun `test RootConfig default values`() {
         val rootConfig = RootConfig()
 
-        assertEquals("2.0", rootConfig.version)
+        assertEquals("4.0", rootConfig.version)
         assertTrue(rootConfig.proxyGroups.isEmpty())
     }
 
     @Test
     fun `test RootConfig with proxy groups`() {
         val rootConfig = RootConfig(
-            version = "2.0",
+            version = "4.0",
             proxyGroups = mutableListOf(
                 ProxyConfig(
                     name = "User Service",
@@ -37,7 +37,7 @@ class ProxyConfigTest {
             )
         )
 
-        assertEquals("2.0", rootConfig.version)
+        assertEquals("4.0", rootConfig.version)
         assertEquals(2, rootConfig.proxyGroups.size)
         assertEquals("User Service", rootConfig.proxyGroups[0].name)
         assertEquals("Order Service", rootConfig.proxyGroups[1].name)
@@ -46,7 +46,7 @@ class ProxyConfigTest {
     @Test
     fun `test RootConfig serialization`() {
         val rootConfig = RootConfig(
-            version = "2.0",
+            version = "4.0",
             proxyGroups = mutableListOf(
                 ProxyConfig(
                     name = "Test Service",
@@ -71,12 +71,15 @@ class ProxyConfigTest {
         assertNotNull(config.id)
         assertEquals("默认配置", config.name)
         assertEquals(8888, config.port)
-        assertEquals("/api", config.interceptPrefix)
-        assertEquals("http://localhost:8080", config.baseUrl)
+        assertEquals(1, config.routes.size)
+        assertEquals("/api", config.routes[0].pathPrefix)
+        assertEquals("http://localhost:8080", config.routes[0].targetBaseUrl)
+        assertTrue(config.routes[0].stripPrefix)
+        assertTrue(config.routes[0].enableMock)
         assertTrue(config.stripPrefix)
         assertEquals("", config.globalCookie)
         assertTrue(config.enabled)
-        assertTrue(config.mockApis.isEmpty())
+        assertTrue(config.routes[0].mockApis.isEmpty())
     }
 
     @Test
@@ -86,15 +89,21 @@ class ProxyConfigTest {
             id = id,
             name = "Custom Service",
             port = 9000,
-            interceptPrefix = "/v1",
-            baseUrl = "https://api.example.com",
             stripPrefix = false,
             globalCookie = "sessionId=abc123",
             enabled = false,
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/test",
-                    mockData = "{\"status\": \"ok\"}"
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/v1",
+                    targetBaseUrl = "https://api.example.com",
+                    stripPrefix = false,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(
+                            path = "/api/test",
+                            mockData = "{\"status\": \"ok\"}"
+                        )
+                    )
                 )
             )
         )
@@ -102,12 +111,12 @@ class ProxyConfigTest {
         assertEquals(id, config.id)
         assertEquals("Custom Service", config.name)
         assertEquals(9000, config.port)
-        assertEquals("/v1", config.interceptPrefix)
-        assertEquals("https://api.example.com", config.baseUrl)
         assertFalse(config.stripPrefix)
         assertEquals("sessionId=abc123", config.globalCookie)
         assertFalse(config.enabled)
-        assertEquals(1, config.mockApis.size)
+        assertEquals(1, config.routes.size)
+        assertEquals("/v1", config.routes[0].pathPrefix)
+        assertEquals(1, config.routes[0].mockApis.size)
     }
 
     @Test
@@ -126,17 +135,23 @@ class ProxyConfigTest {
             id = "test-id-123",
             name = "Test Config",
             port = 8765,
-            interceptPrefix = "/test",
-            baseUrl = "http://test.local",
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/test",
+                    targetBaseUrl = "http://test.local",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(
+                            path = "/api/user",
+                            mockData = "{\"id\": 1}"
+                        )
+                    )
+                )
+            ),
             stripPrefix = true,
             globalCookie = "cookie=value",
-            enabled = true,
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/api/user",
-                    mockData = "{\"id\": 1}"
-                )
-            )
+            enabled = true
         )
 
         val jsonString = json.encodeToString(config)
@@ -145,28 +160,33 @@ class ProxyConfigTest {
         assertEquals(config.id, decoded.id)
         assertEquals(config.name, decoded.name)
         assertEquals(config.port, decoded.port)
-        assertEquals(config.interceptPrefix, decoded.interceptPrefix)
-        assertEquals(config.baseUrl, decoded.baseUrl)
+        assertEquals(1, decoded.routes.size)
+        assertEquals("/test", decoded.routes[0].pathPrefix)
+        assertEquals("http://test.local", decoded.routes[0].targetBaseUrl)
         assertEquals(config.stripPrefix, decoded.stripPrefix)
         assertEquals(config.globalCookie, decoded.globalCookie)
         assertEquals(config.enabled, decoded.enabled)
-        assertEquals(config.mockApis.size, decoded.mockApis.size)
+        assertEquals(1, decoded.routes[0].mockApis.size)
     }
 
     @Test
     fun `test ProxyConfig with multiple mock APIs`() {
         val config = ProxyConfig(
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/api/user", mockData = "{\"user\": 1}"),
-                MockApiConfig(path = "/api/order", mockData = "{\"order\": 1}"),
-                MockApiConfig(path = "/api/product", mockData = "{\"product\": 1}")
+            routes = mutableListOf(
+                HttpRoute(
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/api/user", mockData = "{\"user\": 1}"),
+                        MockApiConfig(path = "/api/order", mockData = "{\"order\": 1}"),
+                        MockApiConfig(path = "/api/product", mockData = "{\"product\": 1}")
+                    )
+                )
             )
         )
 
-        assertEquals(3, config.mockApis.size)
-        assertEquals("/api/user", config.mockApis[0].path)
-        assertEquals("/api/order", config.mockApis[1].path)
-        assertEquals("/api/product", config.mockApis[2].path)
+        assertEquals(3, config.routes[0].mockApis.size)
+        assertEquals("/api/user", config.routes[0].mockApis[0].path)
+        assertEquals("/api/order", config.routes[0].mockApis[1].path)
+        assertEquals("/api/product", config.routes[0].mockApis[2].path)
     }
 
     @Test
@@ -194,10 +214,9 @@ class ProxyConfigTest {
     }
 
     @Test
-    fun `test ProxyConfig with empty interceptPrefix`() {
-        val config = ProxyConfig(interceptPrefix = "")
-
-        assertEquals("", config.interceptPrefix)
+    fun `test ProxyConfig with empty route prefix`() {
+        val config = ProxyConfig(routes = mutableListOf(HttpRoute(pathPrefix = "")))
+        assertEquals("", config.routes[0].pathPrefix)
     }
 
     @Test
@@ -256,31 +275,38 @@ class ProxyConfigTest {
     fun `test ProxyConfig stripPrefix behavior documentation`() {
         // stripPrefix = true (推荐)
         val config1 = ProxyConfig(
-            interceptPrefix = "/api",
-            stripPrefix = true,
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/user", mockData = "{}")  // 相对路径
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    stripPrefix = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{}")
+                    )
+                )
             )
         )
         assertTrue(config1.stripPrefix)
-        assertEquals("/user", config1.mockApis[0].path)
+        assertEquals("/user", config1.routes[0].mockApis[0].path)
 
         // stripPrefix = false
         val config2 = ProxyConfig(
-            interceptPrefix = "/api",
-            stripPrefix = false,
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/api/user", mockData = "{}")  // 完整路径
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    stripPrefix = false,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/api/user", mockData = "{}")
+                    )
+                )
             )
         )
-        assertFalse(config2.stripPrefix)
-        assertEquals("/api/user", config2.mockApis[0].path)
+        assertEquals("/api/user", config2.routes[0].mockApis[0].path)
     }
 
     @Test
     fun `test RootConfig version validation`() {
-        val rootConfig = RootConfig(version = "2.0")
-        assertEquals("2.0", rootConfig.version)
+        val rootConfig = RootConfig(version = "4.0")
+        assertEquals("4.0", rootConfig.version)
 
         rootConfig.version = "3.0"
         assertEquals("3.0", rootConfig.version)
@@ -300,8 +326,11 @@ class ProxyConfigTest {
         config.enabled = false
         assertFalse(config.enabled)
 
-        config.mockApis.add(MockApiConfig(path = "/test", mockData = "{}"))
-        assertEquals(1, config.mockApis.size)
+        config.routes.add(HttpRoute(pathPrefix = "/extra", targetBaseUrl = "http://localhost:9000"))
+        assertEquals(2, config.routes.size)
+
+        config.routes[0].mockApis.add(MockApiConfig(path = "/test", mockData = "{}"))
+        assertEquals(1, config.routes[0].mockApis.size)
     }
 
     @Test
@@ -326,29 +355,35 @@ class ProxyConfigTest {
             id = "unique-id-123",
             name = "Full Config",
             port = 7777,
-            interceptPrefix = "/v2/api",
-            baseUrl = "https://prod.example.com",
             stripPrefix = false,
             globalCookie = "auth=token123; session=xyz",
             enabled = false,
-            mockApis = mutableListOf(
-                MockApiConfig(
-                    path = "/v2/api/user/1",
-                    mockData = "{\"id\": 1, \"name\": \"Test User\"}",
-                    method = "GET",
-                    statusCode = 200,
-                    delay = 500L,
-                    enabled = true,
-                    useCookie = true
-                ),
-                MockApiConfig(
-                    path = "/v2/api/order",
-                    mockData = "{\"orders\": []}",
-                    method = "POST",
-                    statusCode = 201,
-                    delay = 1000L,
-                    enabled = false,
-                    useCookie = false
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/v2/api",
+                    targetBaseUrl = "https://prod.example.com",
+                    stripPrefix = false,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(
+                            path = "/v2/api/user/1",
+                            mockData = "{\"id\": 1, \"name\": \"Test User\"}",
+                            method = "GET",
+                            statusCode = 200,
+                            delay = 500L,
+                            enabled = true,
+                            useCookie = true
+                        ),
+                        MockApiConfig(
+                            path = "/v2/api/order",
+                            mockData = "{\"orders\": []}",
+                            method = "POST",
+                            statusCode = 201,
+                            delay = 1000L,
+                            enabled = false,
+                            useCookie = false
+                        )
+                    )
                 )
             )
         )
@@ -360,28 +395,28 @@ class ProxyConfigTest {
         assertEquals("unique-id-123", decoded.id)
         assertEquals("Full Config", decoded.name)
         assertEquals(7777, decoded.port)
-        assertEquals("/v2/api", decoded.interceptPrefix)
-        assertEquals("https://prod.example.com", decoded.baseUrl)
         assertFalse(decoded.stripPrefix)
         assertEquals("auth=token123; session=xyz", decoded.globalCookie)
         assertFalse(decoded.enabled)
-
-        assertEquals(2, decoded.mockApis.size)
+        assertEquals(1, decoded.routes.size)
+        assertEquals("/v2/api", decoded.routes[0].pathPrefix)
+        assertEquals("https://prod.example.com", decoded.routes[0].targetBaseUrl)
+        assertEquals(2, decoded.routes[0].mockApis.size)
 
         // Verify first mock API
-        assertEquals("/v2/api/user/1", decoded.mockApis[0].path)
-        assertEquals("GET", decoded.mockApis[0].method)
-        assertEquals(200, decoded.mockApis[0].statusCode)
-        assertEquals(500L, decoded.mockApis[0].delay)
-        assertTrue(decoded.mockApis[0].enabled)
-        assertTrue(decoded.mockApis[0].useCookie)
+        assertEquals("/v2/api/user/1", decoded.routes[0].mockApis[0].path)
+        assertEquals("GET", decoded.routes[0].mockApis[0].method)
+        assertEquals(200, decoded.routes[0].mockApis[0].statusCode)
+        assertEquals(500L, decoded.routes[0].mockApis[0].delay)
+        assertTrue(decoded.routes[0].mockApis[0].enabled)
+        assertTrue(decoded.routes[0].mockApis[0].useCookie)
 
         // Verify second mock API
-        assertEquals("/v2/api/order", decoded.mockApis[1].path)
-        assertEquals("POST", decoded.mockApis[1].method)
-        assertEquals(201, decoded.mockApis[1].statusCode)
-        assertEquals(1000L, decoded.mockApis[1].delay)
-        assertFalse(decoded.mockApis[1].enabled)
-        assertFalse(decoded.mockApis[1].useCookie)
+        assertEquals("/v2/api/order", decoded.routes[0].mockApis[1].path)
+        assertEquals("POST", decoded.routes[0].mockApis[1].method)
+        assertEquals(201, decoded.routes[0].mockApis[1].statusCode)
+        assertEquals(1000L, decoded.routes[0].mockApis[1].delay)
+        assertFalse(decoded.routes[0].mockApis[1].enabled)
+        assertFalse(decoded.routes[0].mockApis[1].useCookie)
     }
 }

@@ -4,12 +4,12 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
- * 根配置 - v2.0 多配置组支持
+ * 根配置
  */
 @Serializable
 data class RootConfig(
     // 配置版本号
-    var version: String = "2.0",
+    var version: String = "4.0",
 
     // 代理配置组列表
     var proxyGroups: MutableList<ProxyConfig> = mutableListOf()
@@ -32,22 +32,10 @@ data class ProxyConfig(
     // Mock服务的本地端口
     var port: Int = 8888,
 
-    // 需要劫持的接口地址前缀
-    var interceptPrefix: String = "/api",
+    // HTTP 路由规则列表（HTTP 组使用）
+    var routes: MutableList<HttpRoute> = mutableListOf(HttpRoute()),
 
-    // 原始接口的基础URL
-    var baseUrl: String = "http://localhost:8080",
-
-    // 是否在匹配时去掉前缀（默认true，推荐）
-    // mockApis中的path配置为相对路径（不含interceptPrefix）
-    //
-    // 当stripPrefix=true时（推荐）：
-    //   - 请求 /api/user -> 去掉 /api -> /user -> 匹配 mockApis中的path="/user"
-    //   - mockApis配置简洁，只需写 "/user" 即可
-    //
-    // 当stripPrefix=false时：
-    //   - 请求 /api/user -> /api/user -> 需要 mockApis中的path="/api/user" 才能匹配
-    //   - 需要在每个path配置中都写完整路径
+    // WS 组使用的组级 stripPrefix；HTTP 组使用 route.stripPrefix
     var stripPrefix: Boolean = true,
 
     // 全局Cookie，例如: sessionId=abc123; userId=456
@@ -56,14 +44,11 @@ data class ProxyConfig(
     // 是否启用该配置组
     var enabled: Boolean = true,
 
-    // Mock接口配置列表（HTTP 组使用）
-    var mockApis: MutableList<MockApiConfig> = mutableListOf(),
-
     // ================= WS 组相关（当 protocol=WS 时） =================
     // 上游 WebSocket 地址（支持 ws:// 或 wss://）。当为 WS 组时建议填写。
     var wsBaseUrl: String? = null,
 
-    // WS 的拦截前缀（为空则复用 interceptPrefix）
+    // WS 的拦截前缀
     var wsInterceptPrefix: String? = null,
 
     // 是否在工具窗口显示手动推送面板
@@ -78,9 +63,19 @@ data class ProxyConfig(
     var wssKeystorePassword: String? = null
 )
 
+@Serializable
+data class HttpRoute(
+    var id: String = UUID.randomUUID().toString(),
+    var name: String = "API",
+    var pathPrefix: String = "/api",
+    var targetBaseUrl: String = "http://localhost:8080",
+    var stripPrefix: Boolean = true,
+    var enableMock: Boolean = true,
+    var mockApis: MutableList<MockApiConfig> = mutableListOf()
+)
+
 /**
- * Mock服务的全局配置（保留用于向后兼容）
- * @deprecated 使用 RootConfig 和 ProxyConfig 替代 10 个迭代后废弃
+ * Mock服务的全局配置（仅用于旧配置迁移）
  */
 @Serializable
 data class MockConfig(

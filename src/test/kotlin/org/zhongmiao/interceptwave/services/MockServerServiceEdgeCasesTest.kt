@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.net.HttpURLConnection
@@ -46,12 +47,9 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "Forward Disabled",
             port = p1,
-            interceptPrefix = "/api",
             stripPrefix = true,
             enabled = true,
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/exists", mockData = "{}", enabled = true)
-            )
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = true, mockApis = mutableListOf(MockApiConfig(path = "/exists", mockData = "{}", enabled = true))))
         )
         addProxyConfig(config)
         mockServerService.startServer(config.id)
@@ -88,12 +86,9 @@ class MockServerServiceEdgeCasesTest : BasePlatformTestCase() {
             id = UUID.randomUUID().toString(),
             name = "No Prefix Welcome",
             port = p3,
-            interceptPrefix = "/api",
             stripPrefix = false,
             enabled = true,
-            mockApis = mutableListOf(
-                MockApiConfig(path = "/api/user", mockData = "{}", enabled = true)
-            )
+            routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:8080", stripPrefix = false, mockApis = mutableListOf(MockApiConfig(path = "/api/user", mockData = "{}", enabled = true))))
         )
         addProxyConfig(config)
         mockServerService.startServer(config.id)

@@ -6,6 +6,29 @@
 
 ## [Unreleased]
 
+### ✨ Added
+
+- HTTP multi-route forwarding within a single HTTP group:
+  - Added `HttpRoute` and `ProxyConfig.routes` so one local port can manage multiple prefixes and upstream targets.
+  - Each route now owns its own `pathPrefix`, `targetBaseUrl`, `stripPrefix`, `enableMock`, and `mockApis`.
+- HTTP configuration UI now supports route-based editing:
+  - Added a route list, current route detail form, and per-route Mock API list in the Config dialog.
+  - Added route ordering controls (`Move Up` / `Move Down`) so equal-length prefixes still follow user-defined order.
+- Automatic config upgrade for legacy HTTP groups:
+  - Existing single-rule HTTP configs are converted into a default `API` route on load.
+  - Upgraded configs are written back through the existing versioned config refresh flow.
+
+### 🔄 Changed
+
+- HTTP request handling now performs longest-prefix route selection before deciding whether to Mock or forward.
+- HTTP welcome JSON now reports configured routes instead of a single legacy prefix/base URL pair.
+- In HTTP groups, `stripPrefix` is now a route-level setting; the group-level field remains only for backward compatibility during migration.
+- Docker upstream test stack now points to `ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.3.0`.
+
+### 🧪 Testing
+
+- Added coverage for route serialization, legacy config migration to `routes`, longest-prefix route matching, and route-level strip-prefix behavior.
+
 ## [3.1.0] - 2025-11-29
 
 ### ✨ Added
@@ -14,7 +37,7 @@
   - `docker-compose.client.yml` to start upstream + console.
   - Console reads runtime config via `.env` (env_file); added `.env.example`.
   - Added docs: `docker/README.md` and `docker/README_zh.md`.
-- Standalone upstream compose moved to `docker/docker-compose.upstream.yml` and updated to `v0.2.0`.
+- Standalone upstream compose moved to `docker/docker-compose.upstream.yml` and updated to `v0.3.0`.
 - CI: workflow uses `docker/docker-compose.upstream.yml` to spin up upstream for tests.
 - Dependabot: enabled Docker scans for `/docker` to auto-bump GHCR tags used in compose files.
 - HTTP engine extraction and common utilities:

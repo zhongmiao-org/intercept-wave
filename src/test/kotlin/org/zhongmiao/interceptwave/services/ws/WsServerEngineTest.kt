@@ -34,7 +34,6 @@ class WsServerEngineTest {
         val cfg = ProxyConfig(
             protocol = "WS",
             port = 9999,
-            interceptPrefix = "/api",
             wsInterceptPrefix = "/ws",
             stripPrefix = true,
             wsBaseUrl = "ws://upstream/service/"
@@ -62,7 +61,7 @@ class WsServerEngineTest {
 
     @Test
     fun routeMatching_glob() {
-        val cfg = ProxyConfig(protocol = "WS", port = 9998, interceptPrefix = "/api", wsInterceptPrefix = null, stripPrefix = false, wsBaseUrl = "ws://up")
+        val cfg = ProxyConfig(protocol = "WS", port = 9998, wsInterceptPrefix = null, stripPrefix = false, wsBaseUrl = "ws://up")
         val out = TestOutput()
         val engine = WsServerEngine(cfg, out)
         val ok1 = invokePrivate(engine, "matchRoute", "/room/123/detail", "/room/*/detail") as Boolean

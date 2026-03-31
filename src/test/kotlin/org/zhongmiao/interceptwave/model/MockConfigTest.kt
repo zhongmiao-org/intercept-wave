@@ -15,10 +15,11 @@ class MockConfigTest {
         assertTrue(p.id.isNotBlank())
         assertEquals("HTTP", p.protocol)
         assertEquals(8888, p.port)
-        assertEquals("/api", p.interceptPrefix)
+        assertEquals(1, p.routes.size)
+        assertEquals("/api", p.routes[0].pathPrefix)
         assertTrue(p.stripPrefix)
         assertTrue(p.enabled)
-        assertTrue(p.mockApis.isEmpty())
+        assertTrue(p.routes[0].mockApis.isEmpty())
         assertNull(p.wsBaseUrl)
         assertNull(p.wsInterceptPrefix)
         assertTrue(p.wsManualPush)
@@ -35,6 +36,18 @@ class MockConfigTest {
         assertEquals(200, api.statusCode)
         assertFalse(api.useCookie)
         assertEquals(0L, api.delay)
+    }
+
+    @Test
+    fun httpRoute_defaults() {
+        val route = HttpRoute()
+        assertTrue(route.id.isNotBlank())
+        assertEquals("API", route.name)
+        assertEquals("/api", route.pathPrefix)
+        assertEquals("http://localhost:8080", route.targetBaseUrl)
+        assertTrue(route.stripPrefix)
+        assertTrue(route.enableMock)
+        assertTrue(route.mockApis.isEmpty())
     }
 
     @Test
@@ -59,10 +72,9 @@ class MockConfigTest {
     @Test
     fun rootConfig_defaults() {
         val root = RootConfig()
-        assertEquals("2.0", root.version)
+        assertEquals("4.0", root.version)
         assertTrue(root.proxyGroups.isEmpty())
         val s = json.encodeToString(root)
-        assertTrue(s.contains("\"version\":\"2.0\""))
+        assertTrue(s.contains("\"version\":\"4.0\""))
     }
 }
-

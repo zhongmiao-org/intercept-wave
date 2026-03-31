@@ -16,7 +16,7 @@ fun createWsRuleTableModel(enabledEditable: Boolean = false): DefaultTableModel 
     ),
     0
 ) {
-    override fun getColumnClass(column: Int): Class<*> = if (column == 0) java.lang.Boolean::class.java else String::class.java
+    override fun getColumnClass(column: Int): Class<*> = if (column == 0) Boolean::class.javaObjectType else String::class.java
     override fun isCellEditable(row: Int, column: Int): Boolean = enabledEditable && column == 0
 }
 

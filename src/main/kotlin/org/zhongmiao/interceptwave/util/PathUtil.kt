@@ -1,20 +1,27 @@
 package org.zhongmiao.interceptwave.util
 
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.ProxyConfig
 
 /**
  * Small helpers to compute the path used for matching in HTTP/WS engines.
  */
 object PathUtil {
-    /**
-     * Compute HTTP match path. When stripPrefix is enabled and interceptPrefix is non-empty,
-     * strip the prefix for matching; otherwise use original requestPath.
-     */
-    fun computeHttpMatchPath(config: ProxyConfig, requestPath: String): String {
-        if (!config.stripPrefix) return requestPath
-        val prefix = config.interceptPrefix
-        return if (prefix.isNotEmpty() && requestPath.startsWith(prefix))
-            requestPath.removePrefix(prefix).ifEmpty { "/" } else requestPath
+    fun selectHttpRoute(config: ProxyConfig, requestPath: String): HttpRoute? {
+        val candidates = config.routes.withIndex().filter { (_, route) -> routeMatches(route, requestPath) }
+        if (candidates.isEmpty()) return config.routes.singleOrNull()
+        return candidates.maxWithOrNull(
+            compareBy<IndexedValue<HttpRoute>> { normalizedPathPrefix(it.value.pathPrefix).length }
+                .thenBy { -it.index }
+        )?.value
+    }
+
+    fun computeHttpMatchPath(route: HttpRoute, requestPath: String): String {
+        return computePathWithOptionalStrip(requestPath, normalizedPathPrefix(route.pathPrefix), route.stripPrefix)
+    }
+
+    fun computeHttpForwardPath(route: HttpRoute, requestPath: String): String {
+        return computePathWithOptionalStrip(requestPath, normalizedPathPrefix(route.pathPrefix), route.stripPrefix)
     }
 
     /**
@@ -27,5 +34,20 @@ object PathUtil {
         return if (wsPrefix.isNotEmpty() && requestPath.startsWith(wsPrefix))
             requestPath.removePrefix(wsPrefix).ifEmpty { "/" } else requestPath
     }
-}
 
+    private fun routeMatches(route: HttpRoute, requestPath: String): Boolean {
+        val prefix = normalizedPathPrefix(route.pathPrefix)
+        return prefix == "/" || requestPath.startsWith(prefix)
+    }
+
+    private fun normalizedPathPrefix(prefix: String): String {
+        if (prefix.isBlank()) return "/"
+        if (prefix == "/") return "/"
+        return prefix.trimEnd('/').ifEmpty { "/" }
+    }
+
+    private fun computePathWithOptionalStrip(requestPath: String, prefix: String, stripPrefix: Boolean): String {
+        if (!stripPrefix || prefix == "/") return requestPath.ifEmpty { "/" }
+        return if (requestPath.startsWith(prefix)) requestPath.removePrefix(prefix).ifEmpty { "/" } else requestPath.ifEmpty { "/" }
+    }
+}

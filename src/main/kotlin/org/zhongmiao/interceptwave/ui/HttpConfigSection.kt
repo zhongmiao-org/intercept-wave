@@ -1,7 +1,8 @@
 package org.zhongmiao.interceptwave.ui
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
@@ -9,21 +10,62 @@ import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.table.JBTable
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
+import java.awt.Component
+import java.util.UUID
+import javax.swing.JButton
+import javax.swing.JOptionPane
+import javax.swing.event.ListSelectionEvent
+import javax.swing.table.DefaultTableModel
 
-/** HTTP 内容区（API 列表等） */
+/** HTTP 内容区：路由列表 + 路由详情 + 当前路由 Mock 列表 */
 class HttpConfigSection(
     private val project: Project,
     private val config: ProxyConfig,
     private val onChanged: () -> Unit = {}
 ) {
-    // 顶部 HTTP 基本设置（与 WS 保持一致的布局：上游、前缀、全局 Cookie）
-    private val baseUrlField = JBTextField(config.baseUrl)
-    private val prefixField = JBTextField(config.interceptPrefix)
     private val cookieField = JBTextField(config.globalCookie)
+    private val routeNameField = JBTextField()
+    private val routePrefixField = JBTextField()
+    private val routeBaseUrlField = JBTextField()
+    private val routeStripPrefixCheckBox = JBCheckBox(message("config.group.stripprefix"))
+    private val routeEnableMockCheckBox = JBCheckBox(message("config.http.route.enablemock"))
+    private val routeMockHintLabel = JBLabel(message("config.http.route.mock.hint"))
 
-    private val tableModel = object : javax.swing.table.DefaultTableModel(
+    private val routeTableModel = object : DefaultTableModel(
+        arrayOf(
+            message("config.http.route.table.enablemock"),
+            message("config.http.route.table.name"),
+            message("config.http.route.table.prefix"),
+            message("config.http.route.table.baseurl")
+        ),
+        0
+    ) {
+        override fun getColumnClass(column: Int): Class<*> = if (column == 0) Boolean::class.javaObjectType else String::class.java
+        override fun isCellEditable(row: Int, column: Int): Boolean = column == 0
+        override fun setValueAt(aValue: Any?, row: Int, column: Int) {
+            if (column == 0 && row in workingRoutes.indices) {
+                val enabled = when (aValue) {
+                    is Boolean -> aValue
+                    else -> aValue?.toString()?.toBooleanStrictOrNull() ?: workingRoutes[row].enableMock
+                }
+                workingRoutes[row].enableMock = enabled
+                super.setValueAt(enabled, row, column)
+                if (row == selectedRouteIndex) {
+                    routeEnableMockCheckBox.isSelected = enabled
+                    updateMockAreaState()
+                }
+                onChanged()
+                return
+            }
+            super.setValueAt(aValue, row, column)
+        }
+    }
+    private val routeTable = JBTable(routeTableModel)
+
+    private val mockTableModel = object : DefaultTableModel(
         arrayOf(
             message("config.table.enabled"),
             message("config.table.path"),
@@ -33,153 +75,373 @@ class HttpConfigSection(
         ),
         0
     ) {
-        override fun getColumnClass(column: Int): Class<*> = if (column == 0) java.lang.Boolean::class.java else String::class.java
-        override fun isCellEditable(row: Int, column: Int): Boolean = true
+        override fun getColumnClass(column: Int): Class<*> = if (column == 0) Boolean::class.javaObjectType else String::class.java
+        override fun isCellEditable(row: Int, column: Int): Boolean = false
     }
-    private val mockTable = JBTable(tableModel)
+    private val mockTable = JBTable(mockTableModel)
+    private val mockAddButton = JButton()
+    private val mockEditButton = JButton()
+    private val mockDeleteButton = JButton()
+
+    private val workingRoutes = initialRoutes()
+    private var selectedRouteIndex = -1
+    private var syncingRouteDetails = false
 
     fun panel(): JBPanel<JBPanel<*>> {
-        loadMockApis()
-        setupEditors()
+        cookieField.toolTipText = message("config.group.cookie.tooltip")
+        routePrefixField.toolTipText = message("config.http.route.prefix.tooltip")
+        routeBaseUrlField.toolTipText = message("config.group.baseurl.tooltip")
+        routeStripPrefixCheckBox.toolTipText = message("config.http.route.stripprefix.tooltip")
+        routeEnableMockCheckBox.toolTipText = message("config.http.route.enablemock.tooltip")
+        routeMockHintLabel.toolTipText = message("config.http.route.mock.hint")
+
+        routeTable.fillsViewportHeight = true
+        mockTable.fillsViewportHeight = true
+        UiKit.ensureVisibleRows(routeTable, 5)
+        UiKit.ensureVisibleRows(mockTable, UiKit.DEFAULT_VISIBLE_ROWS)
+        UiKit.setEnabledColumnWidth(routeTable, 0)
+        UiKit.setEnabledColumnWidth(mockTable, 0)
+
+        attachListeners()
+        reloadRoutesTable()
+        ensureSelection()
 
         val rootPanel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
-
-        // 提示信息：与 WS 配置保持一致地提供 tooltip，说明填写规则
-        baseUrlField.toolTipText = message("config.group.baseurl.tooltip")
-        prefixField.toolTipText = message("config.group.prefix.tooltip")
-        cookieField.toolTipText = message("config.group.cookie.tooltip")
-
-        mockTable.fillsViewportHeight = true
-        // 统一可见行数与启用列宽
-        UiKit.ensureVisibleRows(mockTable, UiKit.DEFAULT_VISIBLE_ROWS)
-        UiKit.setEnabledColumnWidth(mockTable, 0)
-        val tableScroll = JBScrollPane(mockTable).apply {
-            // 列表无标题与边框
+        val routeScroll = JBScrollPane(routeTable).apply {
+            border = null
+            viewportBorder = null
+        }
+        val mockScroll = JBScrollPane(mockTable).apply {
             border = null
             viewportBorder = null
         }
 
-        // 使用 DSL group 作为外层边框与内边距
         val content = panel {
             group(message("config.http.title")) {
-                row(message("config.group.baseurl") + ":") { cell(baseUrlField).align(AlignX.FILL) }
-                row(message("config.group.prefix") + ":") { cell(prefixField).align(AlignX.FILL) }
                 row(message("config.group.cookie") + ":") { cell(cookieField).align(AlignX.FILL) }
-                row { cell(tableScroll).align(AlignX.FILL) }
+
+                row { cell(routeScroll).align(AlignX.FILL) }
                 row {
-                    button(message("mockapi.add.button")) { addApi() }
+                    button(message("config.http.route.add")) { addRoute() }
                         .applyToComponent {
                             icon = com.intellij.icons.AllIcons.General.Add
                             isFocusPainted = false
                         }
-                    button(message("mockapi.edit.button")) { editApi() }
-                        .applyToComponent {
-                            icon = com.intellij.icons.AllIcons.Actions.Edit
-                            isFocusPainted = false
-                        }
-                    button(message("mockapi.delete.button")) { deleteApi() }
+                    button(message("config.http.route.delete")) { deleteRoute() }
                         .applyToComponent {
                             icon = com.intellij.icons.AllIcons.General.Remove
                             isFocusPainted = false
+                        }
+                    button(message("config.http.route.move.up")) { moveRoute(-1) }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.Actions.MoveUp
+                            isFocusPainted = false
+                        }
+                    button(message("config.http.route.move.down")) { moveRoute(1) }
+                        .applyToComponent {
+                            icon = com.intellij.icons.AllIcons.Actions.MoveDown
+                            isFocusPainted = false
+                        }
+                }
+
+                separator()
+
+                row(message("config.http.route.name") + ":") { cell(routeNameField).align(AlignX.FILL) }
+                row(message("config.group.prefix") + ":") { cell(routePrefixField).align(AlignX.FILL) }
+                row(message("config.group.baseurl") + ":") { cell(routeBaseUrlField).align(AlignX.FILL) }
+                row { cell(routeStripPrefixCheckBox) }
+                row { cell(routeEnableMockCheckBox) }
+
+                row { cell(routeMockHintLabel).align(AlignX.FILL) }
+                row { cell(mockScroll).align(AlignX.FILL) }
+                row {
+                    button(message("mockapi.add.button")) { addApi() }
+                        .applyToComponent {
+                            mockAddButton.text = text
+                            mockAddButton.icon = com.intellij.icons.AllIcons.General.Add
+                            mockAddButton.isFocusPainted = false
+                            icon = com.intellij.icons.AllIcons.General.Add
+                            isFocusPainted = false
+                            mockAddButton.model = model
+                        }
+                    button(message("mockapi.edit.button")) { editApi() }
+                        .applyToComponent {
+                            mockEditButton.text = text
+                            mockEditButton.icon = com.intellij.icons.AllIcons.Actions.Edit
+                            mockEditButton.isFocusPainted = false
+                            icon = com.intellij.icons.AllIcons.Actions.Edit
+                            isFocusPainted = false
+                            mockEditButton.model = model
+                        }
+                    button(message("mockapi.delete.button")) { deleteApi() }
+                        .applyToComponent {
+                            mockDeleteButton.text = text
+                            mockDeleteButton.icon = com.intellij.icons.AllIcons.General.Remove
+                            mockDeleteButton.isFocusPainted = false
+                            icon = com.intellij.icons.AllIcons.General.Remove
+                            isFocusPainted = false
+                            mockDeleteButton.model = model
                         }
                 }
             }
         }
         rootPanel.add(content, BorderLayout.CENTER)
-
-        // 顶部字段联动变更（使用通用扩展）
-        baseUrlField.document.onAnyChange(onChanged)
-        prefixField.document.onAnyChange(onChanged)
-        cookieField.document.onAnyChange(onChanged)
-
-        // 监听表格内容变化，标记变更
-        tableModel.addTableModelListener { onChanged() }
-
+        updateRouteDetails()
+        updateMockAreaState()
         return rootPanel
     }
 
-    private fun setupEditors() {
-        val methodColumn = mockTable.columnModel.getColumn(2)
-        val methodCombo = ComboBox(arrayOf("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"))
-        methodColumn.cellEditor = javax.swing.DefaultCellEditor(methodCombo)
-    }
+    fun applyTo(target: ProxyConfig) {
+        if (workingRoutes.isEmpty()) {
+            workingRoutes.add(defaultRoute())
+        }
+        commitCurrentRoute()
+        target.globalCookie = cookieField.text.trim()
+        target.routes = workingRoutes.map { copyRoute(it) }.toMutableList()
 
-    private fun loadMockApis() {
-        tableModel.rowCount = 0
-        config.mockApis.forEach { api ->
-            tableModel.addRow(arrayOf<Any>(api.enabled, api.path, api.method, api.statusCode.toString(), api.delay.toString()))
+        val duplicates = target.routes.groupBy { it.pathPrefix.trim() }.filter { it.key.isNotBlank() && it.value.size > 1 }.keys
+        if (duplicates.isNotEmpty()) {
+            JOptionPane.showMessageDialog(
+                routeTable,
+                message("config.http.route.duplicate.warning", duplicates.joinToString(", ")),
+                message("config.message.info"),
+                JOptionPane.WARNING_MESSAGE
+            )
         }
     }
 
+    private fun attachListeners() {
+        cookieField.document.onAnyChange(onChanged)
+        routeNameField.document.onAnyChange { onRouteDetailChanged() }
+        routePrefixField.document.onAnyChange { onRouteDetailChanged() }
+        routeBaseUrlField.document.onAnyChange { onRouteDetailChanged() }
+        routeStripPrefixCheckBox.addActionListener { onRouteDetailChanged() }
+        routeEnableMockCheckBox.addActionListener {
+            onRouteDetailChanged()
+            updateMockAreaState()
+        }
+        routeTable.selectionModel.addListSelectionListener { event: ListSelectionEvent ->
+            if (!event.valueIsAdjusting) handleRouteSelectionChanged()
+        }
+    }
+
+    private fun handleRouteSelectionChanged() {
+        val newIndex = routeTable.selectedRow
+        if (newIndex < 0 || newIndex >= workingRoutes.size) return
+        if (newIndex == selectedRouteIndex) return
+        commitCurrentRoute()
+        selectedRouteIndex = newIndex
+        updateRouteDetails()
+        updateMockTable()
+        updateMockAreaState()
+    }
+
+    private fun onRouteDetailChanged() {
+        if (syncingRouteDetails) return
+        commitCurrentRoute()
+        reloadRoutesTable()
+        if (selectedRouteIndex in 0 until routeTable.rowCount) {
+            routeTable.setRowSelectionInterval(selectedRouteIndex, selectedRouteIndex)
+        }
+        updateMockAreaState()
+        onChanged()
+    }
+
+    private fun commitCurrentRoute() {
+        if (selectedRouteIndex !in workingRoutes.indices) return
+        val route = workingRoutes[selectedRouteIndex]
+        route.name = routeNameField.text.trim().ifEmpty { "API" }
+        route.pathPrefix = routePrefixField.text.trim().ifEmpty { "/" }
+        route.targetBaseUrl = routeBaseUrlField.text.trim().ifEmpty { "http://localhost:8080" }
+        route.stripPrefix = routeStripPrefixCheckBox.isSelected
+        route.enableMock = routeEnableMockCheckBox.isSelected
+    }
+
+    private fun updateRouteDetails() {
+        syncingRouteDetails = true
+        try {
+            val route = currentRoute() ?: defaultRoute()
+            routeNameField.text = route.name
+            routePrefixField.text = route.pathPrefix
+            routeBaseUrlField.text = route.targetBaseUrl
+            routeStripPrefixCheckBox.isSelected = route.stripPrefix
+            routeEnableMockCheckBox.isSelected = route.enableMock
+        } finally {
+            syncingRouteDetails = false
+        }
+        updateMockTable()
+    }
+
+    private fun reloadRoutesTable() {
+        routeTableModel.rowCount = 0
+        workingRoutes.forEach { route ->
+            routeTableModel.addRow(arrayOf<Any>(route.enableMock, route.name, route.pathPrefix, route.targetBaseUrl))
+        }
+    }
+
+    private fun updateMockTable() {
+        mockTableModel.rowCount = 0
+        currentRoute()?.mockApis?.forEach { api ->
+            mockTableModel.addRow(arrayOf<Any>(api.enabled, api.path, api.method, api.statusCode.toString(), api.delay.toString()))
+        }
+    }
+
+    private fun updateMockAreaState() {
+        val enabled = currentRoute()?.enableMock == true
+        routeMockHintLabel.isEnabled = enabled
+        setComponentEnabled(mockTable, enabled)
+        mockTable.isEnabled = enabled
+        mockAddButton.isEnabled = enabled
+        mockEditButton.isEnabled = enabled
+        mockDeleteButton.isEnabled = enabled
+    }
+
+    private fun addRoute() {
+        commitCurrentRoute()
+        workingRoutes.add(defaultRoute(index = workingRoutes.size))
+        reloadRoutesTable()
+        selectedRouteIndex = workingRoutes.lastIndex
+        routeTable.setRowSelectionInterval(selectedRouteIndex, selectedRouteIndex)
+        updateRouteDetails()
+        onChanged()
+    }
+
+    private fun deleteRoute() {
+        if (workingRoutes.size <= 1) {
+            JOptionPane.showMessageDialog(
+                routeTable,
+                message("config.http.route.delete.atleastone"),
+                message("config.message.info"),
+                JOptionPane.WARNING_MESSAGE
+            )
+            return
+        }
+        val row = routeTable.selectedRow
+        if (row < 0) {
+            JOptionPane.showMessageDialog(
+                routeTable,
+                message("config.http.route.select.first"),
+                message("config.message.info"),
+                JOptionPane.INFORMATION_MESSAGE
+            )
+            return
+        }
+        workingRoutes.removeAt(row)
+        reloadRoutesTable()
+        selectedRouteIndex = (row - 1).coerceAtLeast(0)
+        routeTable.setRowSelectionInterval(selectedRouteIndex, selectedRouteIndex)
+        updateRouteDetails()
+        onChanged()
+    }
+
+    private fun moveRoute(direction: Int) {
+        val row = routeTable.selectedRow
+        val next = row + direction
+        if (row < 0 || next !in workingRoutes.indices) return
+        commitCurrentRoute()
+        val route = workingRoutes.removeAt(row)
+        workingRoutes.add(next, route)
+        reloadRoutesTable()
+        selectedRouteIndex = next
+        routeTable.setRowSelectionInterval(next, next)
+        updateRouteDetails()
+        onChanged()
+    }
+
     private fun addApi() {
+        val route = currentRoute() ?: return
+        if (!route.enableMock) return
         val dialog = MockApiDialog(project, null)
         if (dialog.showAndGet()) {
-            val newApi = dialog.getMockApiConfig()
-            config.mockApis.add(newApi)
-            loadMockApis()
+            route.mockApis.add(dialog.getMockApiConfig())
+            updateMockTable()
             onChanged()
         }
     }
 
     private fun editApi() {
+        val route = currentRoute() ?: return
+        if (!route.enableMock) return
         val row = mockTable.selectedRow
-        if (row >= 0) {
-            val api = config.mockApis[row]
-            val dialog = MockApiDialog(project, api)
-            if (dialog.showAndGet()) {
-                config.mockApis[row] = dialog.getMockApiConfig()
-                loadMockApis()
-                onChanged()
-            }
-        } else {
-            javax.swing.JOptionPane.showMessageDialog(
+        if (row < 0 || row >= route.mockApis.size) {
+            JOptionPane.showMessageDialog(
                 mockTable,
                 message("mockapi.select.first.edit"),
                 message("config.message.info"),
-                javax.swing.JOptionPane.INFORMATION_MESSAGE
+                JOptionPane.INFORMATION_MESSAGE
             )
+            return
+        }
+        val dialog = MockApiDialog(project, route.mockApis[row])
+        if (dialog.showAndGet()) {
+            route.mockApis[row] = dialog.getMockApiConfig()
+            updateMockTable()
+            onChanged()
         }
     }
 
     private fun deleteApi() {
+        val route = currentRoute() ?: return
+        if (!route.enableMock) return
         val row = mockTable.selectedRow
-        if (row >= 0) {
-            val result = javax.swing.JOptionPane.showConfirmDialog(
-                mockTable,
-                message("mockapi.delete.confirm"),
-                message("config.message.confirm.title"),
-                javax.swing.JOptionPane.YES_NO_OPTION
-            )
-            if (result == javax.swing.JOptionPane.YES_OPTION) {
-                config.mockApis.removeAt(row)
-                loadMockApis()
-                onChanged()
-            }
-        } else {
-            javax.swing.JOptionPane.showMessageDialog(
+        if (row < 0 || row >= route.mockApis.size) {
+            JOptionPane.showMessageDialog(
                 mockTable,
                 message("mockapi.select.first.delete"),
                 message("config.message.info"),
-                javax.swing.JOptionPane.INFORMATION_MESSAGE
+                JOptionPane.INFORMATION_MESSAGE
             )
+            return
+        }
+        val result = JOptionPane.showConfirmDialog(
+            mockTable,
+            message("mockapi.delete.confirm"),
+            message("config.message.confirm.title"),
+            JOptionPane.YES_NO_OPTION
+        )
+        if (result == JOptionPane.YES_OPTION) {
+            route.mockApis.removeAt(row)
+            updateMockTable()
+            onChanged()
         }
     }
 
-    fun applyTo(target: ProxyConfig) {
-        // 顶部 HTTP 基本设置
-        target.baseUrl = baseUrlField.text
-        target.interceptPrefix = prefixField.text
-        target.globalCookie = cookieField.text.trim()
-        // 覆盖目标 mockApis 中已存在的行（保留长度一致的策略）
-        for (i in 0 until tableModel.rowCount) {
-            if (i < target.mockApis.size) {
-                val api = target.mockApis[i]
-                api.enabled = tableModel.getValueAt(i, 0) as Boolean
-                api.path = tableModel.getValueAt(i, 1) as String
-                api.method = tableModel.getValueAt(i, 2) as String
-                api.statusCode = (tableModel.getValueAt(i, 3) as String).toIntOrNull() ?: 200
-                api.delay = (tableModel.getValueAt(i, 4) as String).toLongOrNull() ?: 0L
-            }
+    private fun ensureSelection() {
+        if (workingRoutes.isEmpty()) workingRoutes.add(defaultRoute())
+        if (selectedRouteIndex !in workingRoutes.indices) {
+            selectedRouteIndex = 0
+        }
+        if (routeTable.rowCount > 0) {
+            routeTable.setRowSelectionInterval(selectedRouteIndex, selectedRouteIndex)
+        }
+    }
+
+    private fun currentRoute(): HttpRoute? = workingRoutes.getOrNull(selectedRouteIndex)
+
+    private fun initialRoutes(): MutableList<HttpRoute> {
+        val source = if (config.routes.isNotEmpty()) config.routes else mutableListOf(defaultRoute())
+        return source.map { copyRoute(it) }.toMutableList()
+    }
+
+    private fun defaultRoute(index: Int = 0): HttpRoute {
+        val prefix = if (index == 0) "/api" else "/api$index"
+        return HttpRoute(
+            id = UUID.randomUUID().toString(),
+            name = if (index == 0) "API" else "API ${index + 1}",
+            pathPrefix = prefix,
+            targetBaseUrl = "http://localhost:8080",
+            stripPrefix = true,
+            enableMock = true,
+            mockApis = mutableListOf()
+        )
+    }
+
+    private fun copyRoute(route: HttpRoute): HttpRoute =
+        route.copy(mockApis = route.mockApis.map { it.copy() }.toMutableList())
+    private fun setComponentEnabled(component: Component, enabled: Boolean) {
+        component.isEnabled = enabled
+        if (component is java.awt.Container) {
+            component.components.forEach { child -> setComponentEnabled(child, enabled) }
         }
     }
 }
