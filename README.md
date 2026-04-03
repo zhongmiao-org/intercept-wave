@@ -37,7 +37,7 @@ Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and inte
 
 **Developer-Friendly Features**:
 - 👥 **Target Users**: Frontend Engineers, QA Engineers, Full-Stack Developers
-- 🎨 Visual configuration UI, no manual config file editing needed
+- 🎨 Visual configuration UI, with optional direct editing of the project config file when needed
 - 💾 Persistent configuration with project-level isolation
 - 🌐 Automatic CORS handling
 - ⏱️ Network delay simulation support
@@ -106,6 +106,10 @@ The tool window provides global operations at the top:
 - **Start All**: Start all enabled configuration groups
 - **Stop All**: Stop all running services
 - **Configuration**: Open the configuration dialog to manage all configuration groups
+
+The tool window title bar also provides quick file-oriented actions:
+- **Open Config File**: Open `.intercept-wave/config.json` directly in the IDE editor
+- **Reload Config**: Save unsaved IDE documents, reload the config from disk, and refresh the tool window while restarting only the groups that were already running
 
 #### Tab Explanation
 - Each tab represents a configuration group (e.g., "User Service", "Order Service")

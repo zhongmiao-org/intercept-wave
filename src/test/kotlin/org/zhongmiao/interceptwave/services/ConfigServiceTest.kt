@@ -78,6 +78,70 @@ class ConfigServiceTest {
     }
 
     @Test
+    fun ensureConfigFile_creates_default_config_when_missing() {
+        val dir = Files.createTempDirectory("iw-conf-ensure").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val configFile = File(dir, ".intercept-wave/config.json")
+        assertTrue(configFile.delete())
+
+        val ensured = svc.ensureConfigFile()
+
+        assertEquals(configFile.absolutePath, ensured.absolutePath)
+        assertTrue(ensured.exists())
+        assertTrue(svc.getRootConfig().proxyGroups.isNotEmpty())
+    }
+
+    @Test
+    fun reloadFromDisk_updates_in_memory_root_config() {
+        val dir = Files.createTempDirectory("iw-conf-reload").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val configFile = svc.ensureConfigFile()
+        configFile.writeText(
+            """
+            {
+              "version": "4.0",
+              "proxyGroups": [
+                {
+                  "id": "reloaded-group",
+                  "name": "Reloaded Group",
+                  "protocol": "HTTP",
+                  "port": 18888,
+                  "enabled": true,
+                  "routes": [
+                    {
+                      "name": "API",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:4002",
+                      "stripPrefix": true,
+                      "enableMock": true,
+                      "mockApis": []
+                    }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val reloaded = svc.reloadFromDisk()
+
+        assertEquals("reloaded-group", reloaded.proxyGroups.single().id)
+        assertEquals("Reloaded Group", svc.getRootConfig().proxyGroups.single().name)
+    }
+
+    @Test
+    fun reloadFromDisk_keeps_previous_config_when_new_file_is_invalid() {
+        val dir = Files.createTempDirectory("iw-conf-reload-invalid").toFile()
+        val svc = ConfigService(fakeProject(dir))
+        val previous = svc.getRootConfig()
+        svc.ensureConfigFile().writeText("{bad json")
+
+        runCatching { svc.reloadFromDisk() }
+
+        assertEquals(previous.proxyGroups.first().id, svc.getRootConfig().proxyGroups.first().id)
+    }
+
+    @Test
     fun defaultProxyConfig_contains_default_route() {
         val dir = Files.createTempDirectory("iw-conf4").toFile()
         val svc = ConfigService(fakeProject(dir))
