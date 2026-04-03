@@ -75,11 +75,13 @@ class WsServerEngine(
                     val computed = PathUtil.computeWsMatchPath(config, pathOnly)
                     val fullForwardPath = computeForwardPath(resource)
                     val upstreamUrl = buildUpstreamUrl(fullForwardPath)
-                    output.publish(WebSocketConnecting(config.id, config.name, computed, upstreamUrl))
 
                     val ctx = ConnCtx(conn, computed, fullForwardPath, upstreamUrl)
                     this@WsServerEngine.connections[conn] = ctx
-                    attachUpstream(ctx, upstreamUrl)
+                    if (hasUpstreamBridge()) {
+                        output.publish(WebSocketConnecting(config.id, config.name, computed, upstreamUrl))
+                        attachUpstream(ctx, upstreamUrl)
+                    }
 
                     // Auto push: schedule per matching rule (downstream connected)
                     scheduleAutoPush(ctx)
@@ -227,6 +229,8 @@ class WsServerEngine(
         val base = config.wsBaseUrl?.trim() ?: ""
         return if (base.endsWith("/") && forwardPathWithQuery.startsWith("/")) base.dropLast(1) + forwardPathWithQuery else base + forwardPathWithQuery
     }
+
+    private fun hasUpstreamBridge(): Boolean = !config.wsBaseUrl.isNullOrBlank()
 
     private fun computeForwardPath(resource: String): String {
         // 新策略：WS 转发保留原始路径前缀；stripPrefix 仅用于匹配与展示

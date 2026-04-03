@@ -16,4 +16,3 @@ fun formatWsRuleMatcher(r: WsPushRule): String {
     if (dir != "both") parts.add("dir: $dir")
     return if (parts.isEmpty()) "-" else parts.joinToString(", ")
 }
-

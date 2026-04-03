@@ -8,7 +8,7 @@ import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.MockServerService
 import java.util.UUID
 import javax.swing.JButton
-import javax.swing.JTextArea
+import javax.swing.JLabel
 
 class ProxyGroupTabPanelTest : BasePlatformTestCase() {
 
@@ -64,12 +64,11 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         assertFalse(stopBtn.isEnabled)
     }
 
-    fun `test getPanel shows notfound when config missing`() {
+    fun `test missing config shows placeholder url`() {
         val missingId = "missing"
         val panel = ProxyGroupTabPanel(project, missingId, "Missing", 19099, true) {}
         panel.getPanel()
-        val area = panel.javaClass.getDeclaredField("configInfoArea").apply { isAccessible = true }.get(panel) as JTextArea
-        val text = area.text
-        assertTrue(text.contains("Configuration not found"))
+        val urlLabel = panel.javaClass.getDeclaredField("urlValueLabel").apply { isAccessible = true }.get(panel) as JLabel
+        assertEquals("Not running yet", urlLabel.text)
     }
 }

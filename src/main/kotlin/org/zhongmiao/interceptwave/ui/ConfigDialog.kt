@@ -11,6 +11,7 @@ import com.intellij.ui.dsl.builder.panel
 import java.awt.BorderLayout
 import com.intellij.util.ui.JBUI
 import javax.swing.*
+import javax.swing.ScrollPaneConstants
 
 /**
  * 配置对话框
@@ -19,6 +20,9 @@ import javax.swing.*
 class ConfigDialog(
     private val project: Project,
     val initialSelectedIndex: Int? = null,
+    val initialRouteIndex: Int? = null,
+    val initialMockIndex: Int? = null,
+    val initialWsRuleIndex: Int? = null,
     val autoAddOnOpen: Boolean = false,
 ) : DialogWrapper(project) {
 
@@ -54,6 +58,7 @@ class ConfigDialog(
     init {
         init()
         title = message("config.dialog.title")
+        setResizable(true)
 
         // 如果没有配置组，创建一个默认的（国际化）
         if (proxyGroups.isEmpty()) {
@@ -72,14 +77,13 @@ class ConfigDialog(
 
     override fun createCenterPanel(): JComponent {
         val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
-        panel.preferredSize = JBUI.size(900, 650)
+        panel.preferredSize = JBUI.size(900, 560)
+        panel.minimumSize = JBUI.size(760, 460)
 
-        // 添加标签页
-        panel.add(tabbedPane, BorderLayout.CENTER)
-
-        // 底部按钮面板
-        val bottomPanel = createBottomButtonPanel()
-        panel.add(bottomPanel, BorderLayout.SOUTH)
+        val topPanel = JBPanel<JBPanel<*>>(BorderLayout(0, 8))
+        topPanel.add(createBottomButtonPanel(), BorderLayout.NORTH)
+        topPanel.add(tabbedPane, BorderLayout.CENTER)
+        panel.add(topPanel, BorderLayout.CENTER)
 
         return panel
     }
@@ -92,12 +96,23 @@ class ConfigDialog(
         tabPanels.clear()
 
         proxyGroups.forEachIndexed { index, config ->
-            val configPanel = ProxyConfigPanel(project, config) { markDirty() }
+            val configPanel = ProxyConfigPanel(
+                project,
+                config,
+                initialRouteIndex = if (index == initialSelectedIndex) initialRouteIndex else null,
+                initialMockIndex = if (index == initialSelectedIndex) initialMockIndex else null,
+                initialWsRuleIndex = if (index == initialSelectedIndex) initialWsRuleIndex else null
+            ) { markDirty() }
             tabPanels[index] = configPanel
 
             // 创建标签，显示配置组名称和端口
             val tabTitle = "${config.name} (:${config.port})"
-            tabbedPane.addTab(tabTitle, configPanel.getPanel())
+            val scrollPane = JBScrollPane(configPanel.getPanel()).apply {
+                border = null
+                horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+                verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+            }
+            tabbedPane.addTab(tabTitle, scrollPane)
         }
 
         // 如果有标签，默认选中第一个（后续外层可能覆盖）
@@ -122,43 +137,33 @@ class ConfigDialog(
      * 创建底部按钮面板
      */
     private fun createBottomButtonPanel(): JComponent {
-        // 使用 UI DSL 统一按钮样式 / 焦点链路
-        val container = JBPanel<JBPanel<*>>(BorderLayout())
-
-        val left = panel {
-            row {
-                button(message("config.group.add")) { addNewProxyGroup() }
-                    .applyToComponent {
-                        icon = AllIcons.General.Add
-                        isFocusPainted = false
-                    }
-                button(message("config.group.delete")) { deleteCurrentProxyGroup() }
-                    .applyToComponent {
-                        icon = AllIcons.General.Remove
-                        isFocusPainted = false
-                    }
+        return panel {
+            group(message("config.group.toolbar")) {
+                row {
+                    button(message("config.group.add")) { addNewProxyGroup() }
+                        .applyToComponent {
+                            icon = AllIcons.General.Add
+                            isFocusPainted = false
+                        }
+                    button(message("config.group.delete")) { deleteCurrentProxyGroup() }
+                        .applyToComponent {
+                            icon = AllIcons.General.Remove
+                            isFocusPainted = false
+                        }
+                    button(message("config.group.move.left")) { moveCurrentTab(-1) }
+                        .applyToComponent {
+                            icon = AllIcons.Actions.Back
+                            isFocusPainted = false
+                        }
+                    button(message("config.group.move.right")) { moveCurrentTab(1) }
+                        .applyToComponent {
+                            horizontalTextPosition = SwingConstants.LEFT
+                            icon = AllIcons.Actions.Forward
+                            isFocusPainted = false
+                        }
+                }
             }
         }
-        val right = panel {
-            row {
-                button(message("config.group.move.left")) { moveCurrentTab(-1) }
-                    .applyToComponent {
-                        icon = AllIcons.Actions.Back
-                        isFocusPainted = false
-                    }
-                button(message("config.group.move.right")) { moveCurrentTab(1) }
-                    .applyToComponent {
-                        // 右移保持图标在右侧
-                        horizontalTextPosition = SwingConstants.LEFT
-                        icon = AllIcons.Actions.Forward
-                        isFocusPainted = false
-                    }
-            }
-        }
-
-        container.add(left, BorderLayout.WEST)
-        container.add(right, BorderLayout.EAST)
-        return container
     }
 
     /**

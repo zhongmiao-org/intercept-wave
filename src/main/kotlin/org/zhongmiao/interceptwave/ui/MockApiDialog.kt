@@ -10,10 +10,14 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import java.awt.BorderLayout
+import java.awt.Font
+import java.awt.Dimension
 import com.intellij.util.ui.JBUI
 import javax.swing.*
 
@@ -33,14 +37,22 @@ class MockApiDialog(
     private val mockDataArea = JTextArea(existingApi?.mockData ?: "{}").apply {
         lineWrap = true
         wrapStyleWord = true
-        rows = 10
+        rows = 8
+        font = Font(Font.MONOSPACED, Font.PLAIN, font.size)
         toolTipText = message("mockapi.mockdata.tooltip")
     }
     private val enabledCheckBox = JCheckBox(message("mockapi.enabled"), existingApi?.enabled ?: true)
 
     init {
+        methodComboBox.preferredSize = Dimension(JBUI.scale(120), methodComboBox.preferredSize.height)
+        statusCodeField.preferredSize = Dimension(JBUI.scale(90), statusCodeField.preferredSize.height)
+        delayField.preferredSize = Dimension(JBUI.scale(90), delayField.preferredSize.height)
+    }
+
+    init {
         init()
         title = if (existingApi == null) message("mockapi.dialog.title.add") else message("mockapi.dialog.title.edit")
+        setResizable(true)
 
         existingApi?.let {
             methodComboBox.selectedItem = it.method
@@ -49,8 +61,9 @@ class MockApiDialog(
 
     override fun createCenterPanel(): JComponent {
         // 容器：顶部 DSL 表单 + 中部 JSON 编辑区
-        val root = JPanel(BorderLayout(10, 10))
-        root.preferredSize = JBUI.size(600, 500)
+        val root = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
+        root.preferredSize = JBUI.size(640, 400)
+        root.minimumSize = JBUI.size(520, 320)
 
         // 顶部基本信息（UI DSL，复用既有组件，保持监听/校验逻辑不变）
         pathField.toolTipText = message("mockapi.path.tooltip")
@@ -62,34 +75,50 @@ class MockApiDialog(
             group(message("mockapi.group.basic")) {
                 row {
                     cell(enabledCheckBox)
+                    cell(useCookieCheckBox)
                 }
                 row(message("mockapi.path")) {
                     cell(pathField).align(AlignX.FILL)
                 }
-                row(message("mockapi.method")) {
-                    cell(methodComboBox).align(AlignX.FILL)
-                }
-                row(message("mockapi.statuscode")) {
-                    cell(statusCodeField).align(AlignX.FILL)
-                }
-                row(message("mockapi.delay")) {
-                    cell(delayField).align(AlignX.FILL)
-                }
                 row {
-                    cell(useCookieCheckBox)
+                    label(message("mockapi.method"))
+                    cell(methodComboBox)
+                    label(message("mockapi.statuscode"))
+                    cell(statusCodeField)
+                    label(message("mockapi.delay"))
+                    cell(delayField)
                 }
             }
         }
         root.add(topForm, BorderLayout.NORTH)
 
         // 中部：Mock 数据编辑区（DSL）
-        val editorForm = panel {
-            row(message("mockapi.mockdata")) {
-                cell(JBScrollPane(mockDataArea)).align(AlignX.FILL)
+        val editorScroll = JBScrollPane(mockDataArea).apply {
+            minimumSize = JBUI.size(320, 110)
+            preferredSize = JBUI.size(0, 150)
+            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        }
+
+        val editorHeader = panel {
+            group(message("mockapi.editor.title")) {
+                row {
+                    val hint = JBLabel(message("mockapi.editor.hint"))
+                    hint.foreground = com.intellij.ui.JBColor.GRAY
+                    cell(hint).align(AlignX.FILL)
+                }
+                row {
+                    val label = JBLabel(message("mockapi.mockdata"))
+                    cell(label).align(AlignX.FILL)
+                }
             }
         }
 
-        root.add(editorForm, BorderLayout.CENTER)
+        val editorContainer = JBPanel<JBPanel<*>>(BorderLayout(0, 8)).apply {
+            add(editorHeader, BorderLayout.NORTH)
+            add(editorScroll, BorderLayout.CENTER)
+        }
+        root.add(editorContainer, BorderLayout.CENTER)
 
         return root
     }

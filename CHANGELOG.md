@@ -24,10 +24,32 @@
 - HTTP welcome JSON now reports configured routes instead of a single legacy prefix/base URL pair.
 - In HTTP groups, `stripPrefix` is now a route-level setting; the group-level field remains only for backward compatibility during migration.
 - Docker upstream test stack now points to `ghcr.io/zhongmiao-org/intercept-wave-upstream:v0.3.0`.
+- Tool window UI is now more status-first and scannable:
+  - Added a lightweight summary row for enabled groups, running instances, and the currently selected group.
+  - Reworked per-group status into clearer config/runtime badges plus a selectable URL field with placeholder text when stopped.
+  - HTTP/WS detail panels now use overview blocks, empty states, and table tooltips to reduce visual density.
+- Config dialog editing flow is now easier to follow:
+  - Moved group management actions closer to the tabs in a dedicated toolbar section.
+  - Added protocol-specific section headings so switching between HTTP and WS keeps context visible.
+  - HTTP editing is now structured into Routes, Selected Route, and Mock APIs for Current Route, with explicit empty/disabled states.
+- Mock API editor now emphasizes the JSON payload area:
+  - Expanded the response JSON editor, switched it to a monospaced presentation, and added helper copy above the editor.
+- Tool window and config UI were further polished across both HTTP and WS flows:
+  - HTTP main panel now uses route tree cards with per-route Mock child items, direct edit actions, fixed header status, and a scrollable content area.
+  - HTTP config editing now uses a sidebar-first route selector, faster route/Mock focus, safer button enablement, and more compact dialogs for smaller screens.
+  - WS main panel now follows the same information hierarchy as HTTP, replacing legacy mixed table blocks with rule cards and inline send/edit interactions.
+  - WS config editing now follows the HTTP-style “select on the left, edit current item on the right” workflow instead of relying on a separate rule dialog for routine changes.
+- UI feedback and state language are now more consistent:
+  - Replaced heavy status chips and ambiguous icons with lighter badges, colored dots, copy/send success notifications, and clearer placeholders.
+  - Refined light/dark theme selection states, empty states, toolbar-style actions, and compact spacing across the tool window and dialogs.
+- WebSocket runtime semantics are now clearer in the UI:
+  - WS rules and cards now emphasize matching mode, direction, status code, delay, and intercept behavior without implying server runtime states where no real connection state is shown yet.
+
 
 ### 🧪 Testing
 
 - Added coverage for route serialization, legacy config migration to `routes`, longest-prefix route matching, and route-level strip-prefix behavior.
+- Updated UI-focused tests to match the new component structure and added coverage for disabling the per-route Mock area state.
 
 ## [3.1.0] - 2025-11-29
 

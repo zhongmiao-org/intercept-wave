@@ -21,6 +21,9 @@ import javax.swing.JPanel
 class ProxyConfigPanel(
     project: Project,
     private val initialConfig: ProxyConfig,
+    private val initialRouteIndex: Int? = null,
+    private val initialMockIndex: Int? = null,
+    private val initialWsRuleIndex: Int? = null,
     private val onChanged: () -> Unit = {}
 ) {
     // 顶部（全局）控件
@@ -32,8 +35,13 @@ class ProxyConfigPanel(
     // 标签：用于切换可见性（HTTP 专属已迁移，无需单独标签）
 
     // 中部内容分离
-    private val httpSection = HttpConfigSection(project, initialConfig) { onChanged() }
-    private val wsSection = WsConfigSection(project, initialConfig) { onChanged() }
+    private val httpSection = HttpConfigSection(
+        project,
+        initialConfig,
+        initialRouteIndex = initialRouteIndex,
+        initialMockIndex = initialMockIndex
+    ) { onChanged() }
+    private val wsSection = WsConfigSection(project, initialConfig, initialWsRuleIndex = initialWsRuleIndex) { onChanged() }
 
     init {
         protocolCombo.selectedItem = initialConfig.protocol
@@ -52,15 +60,14 @@ class ProxyConfigPanel(
         centerCard.add(httpSection.panel(), "HTTP")
         centerCard.add(wsSection.panel(), "WS")
         (centerCard.layout as CardLayout).show(centerCard, initialConfig.protocol)
+
         mainPanel.add(centerCard, BorderLayout.CENTER)
 
         // 协议切换时联动
         protocolCombo.addActionListener {
             val sel = protocolCombo.selectedItem as String
             (centerCard.layout as CardLayout).show(centerCard, sel)
-            updateGlobalVisibility()
         }
-        updateGlobalVisibility()
 
         return mainPanel
     }
@@ -91,10 +98,6 @@ class ProxyConfigPanel(
         }
     }
 
-    private fun updateGlobalVisibility() {
-        // 统一：全局区仅显示通用字段，无需按协议切换可见性
-    }
-
     private fun attachChangeListeners() {
         nameField.document.onAnyChange(onChanged)
         portField.document.onAnyChange(onChanged)
@@ -116,7 +119,7 @@ class ProxyConfigPanel(
         val protocol = protocolCombo.selectedItem as? String ?: "HTTP"
         if (protocol == "WS") {
             val wsUrl = wsSection.getWsBaseUrl().trim()
-            if (wsUrl.isEmpty() || !(wsUrl.startsWith("ws://") || wsUrl.startsWith("wss://"))) {
+            if (wsUrl.isNotEmpty() && !(wsUrl.startsWith("ws://") || wsUrl.startsWith("wss://"))) {
                 javax.swing.JOptionPane.showMessageDialog(
                     null,
                     message("config.ws.baseurl.tooltip"),
