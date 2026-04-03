@@ -115,11 +115,13 @@ The tool window provides global operations at the top:
 
 #### Individual Service Control
 Each tab panel displays:
-- ☑/☐ **Enabled Status**: Shows whether this configuration group is enabled
-- 🟢/⚫ **Running Status**: Running / Stopped
+- **Config Status**: Shows whether this configuration group is enabled
+- **Running Status**: Running / Stopped
 - 🔗 **Access URL**: Service access URL when running
 - **Start Service** / **Stop Service**: Control individual service start/stop
-- **Current Configuration**: Displays port, protocol, upstream address, and details such as HTTP mock APIs or WS push rules.
+- **Current Configuration**:
+  - HTTP groups now use route tree cards, with child Mock items and quick edit entry points.
+  - WS groups now use rule cards, with clearer connection state, send actions, and inline editing entry points.
 
 ### 3. Configure Proxy Groups
 
@@ -139,7 +141,6 @@ Each configuration group contains the following settings:
 - **Protocol**: `HTTP` or `WS`. HTTP groups handle HTTP APIs; WS groups handle WebSocket connections.
 - **Configuration Group Name**: Custom name (e.g., "User Service", "Order Service")
 - **Port Number**: The port this service listens on (e.g., 8888, 8889)
-- **Strip Prefix**: When enabled, matching removes the configured prefix when computing match paths (applies to both HTTP and WS groups).
 - **Enable This Configuration Group**: When checked, this configuration group will be included in "Start All"
 
 #### Mock API Configuration
@@ -161,13 +162,13 @@ Each configuration group contains the following settings:
 HTTP configuration groups provide additional HTTP-specific settings:
 
 - **Global Cookie**: Configure global cookie value (e.g., `sessionId=abc123; userId=456`)
-- **Routes**: Maintain multiple HTTP routes inside one group. Each route defines:
+- **Routes**: Maintain multiple HTTP routes inside one group. The config dialog uses a left sidebar to choose the current route and a right-side editor for the selected route. Each route defines:
   - **Route Name**: Display name, such as `API` or `Frontend`
   - **Path Prefix**: Prefix used for longest-prefix matching, such as `/api` or `/`
   - **Target Base URL**: Upstream target for forwarding, such as `http://localhost:8080`
   - **Strip Prefix**: Whether the route prefix is removed before Mock matching and forwarding
   - **Enable Mock**: Whether this route first checks its own Mock API list before forwarding
-- **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix` and `Strip Prefix` rules.
+- **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix` and `Strip Prefix` rules. The current route's Mock list is edited directly on the right side of the config dialog.
 
 Example multi-route setup:
 - Route 1: `pathPrefix="/"`, `enableMock=false`, `targetBaseUrl=http://localhost:4001`
@@ -175,17 +176,21 @@ Example multi-route setup:
 
 #### WebSocket Group Settings (Protocol = WS)
 
-WS configuration groups share the same basic settings (name, port, strip prefix, enabled), and add WS-specific options:
+WS configuration groups share the same basic settings (name, port, enabled), and add WS-specific options:
 
-- **Upstream WebSocket URL**: Upstream `ws://` or `wss://` address (for example, `ws://localhost:8080/ws/chat`). Required for WS groups.
-- **WS Prefix (optional)**: Path prefix for WebSocket matching. When `Strip Prefix` is enabled and WS prefix is non-empty, that prefix is removed before matching push rules. When empty, WS paths are matched as-is (no inheritance from the HTTP intercept prefix).
+- **Upstream WebSocket URL (optional)**: Upstream `ws://` or `wss://` address (for example, `ws://localhost:8080/ws/chat`). Leave it empty to run in local-only WS server mode.
+- **WS Prefix (optional)**: Path prefix for WebSocket matching. When configured, it is used to help organize WS route matching; when empty, WS paths are matched as-is.
 - **Manual Push Panel**: Toggle whether the tool window shows a WS manual push panel for this group.
-- **WS Push Rules**: A table of rules used for automatic and manual pushes:
+- **WS Push Rules**: The config dialog now uses a left-side rule list and a right-side current rule editor:
   - Match by path pattern (supports `*`/`**` like HTTP mocks) and optional JSON event key/value.
   - Choose direction: `in` (upstream → client), `out` (client → upstream), or `both`.
   - Set mode: `off`, `periodic` (send every N seconds, optional `onOpenFire` on connect), or `timeline` (send a sequence at specific milliseconds, optional `loop`).
   - Provide message content, which is used for auto-push and as the default template when manually sending.
   - Optionally intercept matching messages instead of forwarding them.
+
+In the tool window, WS groups now clearly distinguish:
+- **Local WS Server mode**: no upstream configured; only accepts and pushes to local clients.
+- **Upstream Bridge mode**: local WS service plus upstream bridging/forwarding.
 
 #### Path Matching Rules (Wildcards)
 Support wildcards in `path` for flexible matching (behavior of `stripPrefix` and `interceptPrefix` remains unchanged):
