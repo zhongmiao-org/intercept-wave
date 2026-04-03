@@ -1,8 +1,16 @@
 package org.zhongmiao.interceptwave.ui
 
 import com.intellij.icons.AllIcons
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
@@ -85,6 +93,62 @@ class InterceptWaveToolWindow(private val project: Project) {
         updateGlobalButtonStates()
         updateSummaryLabels()
         return rootPanel
+    }
+
+    fun openConfigFile() {
+        val configIoFile = configService.ensureConfigFile()
+        val virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(configIoFile)
+        if (virtualFile == null) {
+            notify(
+                message("toolwindow.action.open.config.failed.title"),
+                message("toolwindow.action.open.config.failed.message", configIoFile.absolutePath),
+                NotificationType.ERROR
+            )
+            return
+        }
+        FileEditorManager.getInstance(project).openFile(virtualFile, true)
+    }
+
+    fun reloadConfigFromDisk() {
+        // Pick up edits made in the IDE editor before reading config.json from disk.
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        val previouslyRunning = mockServerService.getRunningServers().map { it.first }.toSet()
+        if (previouslyRunning.isNotEmpty()) {
+            mockServerService.stopAllServers()
+        }
+
+        try {
+            configService.reloadFromDisk()
+            setupTabs()
+
+            val restartableIds = configService.getEnabledProxyGroups().map { it.id }.toSet()
+            val skippedIds = previouslyRunning.filterNot { it in restartableIds }
+            previouslyRunning
+                .filter { it in restartableIds }
+                .forEach { id -> runCatching { mockServerService.startServer(id) } }
+
+            refreshAllTabs()
+            consoleService.printInfo(message("toolwindow.action.reload.config.success"))
+            notify(
+                message("toolwindow.action.reload.config.title"),
+                if (skippedIds.isEmpty()) {
+                    message("toolwindow.action.reload.config.success")
+                } else {
+                    message("toolwindow.action.reload.config.partial", skippedIds.size)
+                },
+                NotificationType.INFORMATION
+            )
+        } catch (e: Exception) {
+            thisLogger().warn("Failed to reload config from disk", e)
+            previouslyRunning.forEach { id -> runCatching { mockServerService.startServer(id) } }
+            refreshAllTabs()
+            notify(
+                message("toolwindow.action.reload.config.failed.title"),
+                message("toolwindow.action.reload.config.failed.message", e.message ?: e.javaClass.simpleName),
+                NotificationType.ERROR
+            )
+        }
     }
 
     private fun createSummaryPanel(): JComponent {
@@ -279,9 +343,40 @@ class InterceptWaveToolWindow(private val project: Project) {
         refreshAllTabs()
     }
 
+    private fun notify(title: String, content: String, type: NotificationType) {
+        runCatching {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("InterceptWave")
+                .createNotification(title, content, type)
+                .notify(project)
+        }.onFailure {
+            thisLogger().warn("Failed to show tool window notification: ${it.message}")
+        }
+    }
+
     private fun indexOfConfig(configId: String): Int? {
         val configs = configService.getAllProxyGroups()
         val index = configs.indexOfFirst { it.id == configId }
         return index.takeIf { it >= 0 }
+    }
+}
+
+class ReloadConfigAction(private val panel: InterceptWaveToolWindow) : DumbAwareAction(
+    message("toolwindow.action.reload.config.title"),
+    message("toolwindow.action.reload.config.description"),
+    AllIcons.Actions.Refresh
+) {
+    override fun actionPerformed(e: AnActionEvent) {
+        panel.reloadConfigFromDisk()
+    }
+}
+
+class OpenConfigFileAction(private val panel: InterceptWaveToolWindow) : DumbAwareAction(
+    message("toolwindow.action.open.config.title"),
+    message("toolwindow.action.open.config.description"),
+    AllIcons.Actions.MenuOpen
+) {
+    override fun actionPerformed(e: AnActionEvent) {
+        panel.openConfigFile()
     }
 }

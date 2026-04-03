@@ -70,30 +70,7 @@ class ConfigService(private val project: Project) {
      */
     private fun loadRootConfig(): RootConfig {
         return try {
-            if (configFile.exists()) {
-                val content = configFile.readText()
-                val jsonObject = json.parseToJsonElement(content).jsonObject
-
-                if (jsonObject.containsKey("version") && jsonObject.containsKey("proxyGroups")) {
-                    val loaded = json.decodeFromString(RootConfig.serializer(), content)
-                    val migrated = migrateToLatest(loaded, jsonObject)
-                    val fixed = normalizeAndMinifyMockData(migrated.second)
-                    val withVersion = ensureVersionMajorMinor(fixed.second)
-                    val changed = migrated.first || fixed.first || withVersion.version != loaded.version
-                    persistAndReloadIfNeeded(changed, withVersion)
-                } else {
-                    thisLogger().info("Detected v1.0 config, starting rolling migration...")
-                    val migratedV2 = migrateFromV1ToV2(content)
-                    val migrated = migrateToLatest(migratedV2, null)
-                    val fixed = normalizeAndMinifyMockData(migrated.second)
-                    val withVersion = ensureVersionMajorMinor(fixed.second)
-                    persistAndReloadIfNeeded(true, withVersion, notifyMigration = true)
-                }
-            } else {
-                val created = createDefaultConfig()
-                val withVersion = ensureVersionMajorMinor(created)
-                persistAndReloadIfNeeded(withVersion.version != created.version, withVersion)
-            }
+            readRootConfigFromDisk()
         } catch (e: Exception) {
             if (Env.isNoUi()) {
                 thisLogger().warn("Failed to load config", e)
@@ -104,6 +81,33 @@ class ConfigService(private val project: Project) {
         }.also {
             rootConfig = it
         }
+    }
+
+    private fun readRootConfigFromDisk(): RootConfig {
+        if (configFile.exists()) {
+            val content = configFile.readText()
+            val jsonObject = json.parseToJsonElement(content).jsonObject
+
+            return if (jsonObject.containsKey("version") && jsonObject.containsKey("proxyGroups")) {
+                val loaded = json.decodeFromString(RootConfig.serializer(), content)
+                val migrated = migrateToLatest(loaded, jsonObject)
+                val fixed = normalizeAndMinifyMockData(migrated.second)
+                val withVersion = ensureVersionMajorMinor(fixed.second)
+                val changed = migrated.first || fixed.first || withVersion.version != loaded.version
+                persistAndReloadIfNeeded(changed, withVersion)
+            } else {
+                thisLogger().info("Detected v1.0 config, starting rolling migration...")
+                val migratedV2 = migrateFromV1ToV2(content)
+                val migrated = migrateToLatest(migratedV2, null)
+                val fixed = normalizeAndMinifyMockData(migrated.second)
+                val withVersion = ensureVersionMajorMinor(fixed.second)
+                persistAndReloadIfNeeded(true, withVersion, notifyMigration = true)
+            }
+        }
+
+        val created = createDefaultConfig()
+        val withVersion = ensureVersionMajorMinor(created)
+        return persistAndReloadIfNeeded(withVersion.version != created.version, withVersion)
     }
 
     /**
@@ -302,6 +306,23 @@ class ConfigService(private val project: Project) {
             } else {
                 thisLogger().error("Failed to save root config", e)
             }
+            throw e
+        }
+    }
+
+    fun ensureConfigFile(): File {
+        if (!configFile.exists()) {
+            rootConfig = createDefaultConfig()
+        }
+        return configFile
+    }
+
+    fun reloadFromDisk(): RootConfig {
+        val previous = rootConfig
+        return try {
+            readRootConfigFromDisk().also { rootConfig = it }
+        } catch (e: Exception) {
+            rootConfig = previous
             throw e
         }
     }

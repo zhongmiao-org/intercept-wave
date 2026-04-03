@@ -6,6 +6,7 @@ import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 public final class IWToolWindowFactory implements ToolWindowFactory, DumbAware {
@@ -13,6 +14,7 @@ public final class IWToolWindowFactory implements ToolWindowFactory, DumbAware {
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         InterceptWaveToolWindow panel = new InterceptWaveToolWindow(project);
+        toolWindow.setTitleActions(List.of(new OpenConfigFileAction(panel), new ReloadConfigAction(panel)));
         Content content = ContentFactory.getInstance().createContent(panel.getContent(), null, false);
         toolWindow.getContentManager().addContent(content);
     }
@@ -22,4 +24,3 @@ public final class IWToolWindowFactory implements ToolWindowFactory, DumbAware {
         return true;
     }
 }
-

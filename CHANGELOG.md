@@ -17,6 +17,9 @@
 - Automatic config upgrade for legacy HTTP groups:
   - Existing single-rule HTTP configs are converted into a default `API` route on load.
   - Upgraded configs are written back through the existing versioned config refresh flow.
+- Tool window title actions for config-file workflows:
+  - Added `Open Config File` to jump directly to `.intercept-wave/config.json` in the IDE editor.
+  - Added `Reload Config` to reload the config from disk and restart only the groups that were already running.
 
 ### 🔄 Changed
 
@@ -44,12 +47,14 @@
   - Refined light/dark theme selection states, empty states, toolbar-style actions, and compact spacing across the tool window and dialogs.
 - WebSocket runtime semantics are now clearer in the UI:
   - WS rules and cards now emphasize matching mode, direction, status code, delay, and intercept behavior without implying server runtime states where no real connection state is shown yet.
+- Config reload now saves unsaved IDE documents before reading `.intercept-wave/config.json`, so edits made in the editor are applied immediately.
 
 
 ### 🧪 Testing
 
 - Added coverage for route serialization, legacy config migration to `routes`, longest-prefix route matching, and route-level strip-prefix behavior.
 - Updated UI-focused tests to match the new component structure and added coverage for disabling the per-route Mock area state.
+- Added tests for config-file creation, disk reload fallback behavior, and reloading unsaved editor changes from the tool window.
 
 ## [3.1.0] - 2025-11-29
 
