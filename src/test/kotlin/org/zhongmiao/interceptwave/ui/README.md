@@ -1,10 +1,10 @@
 # UI Tests for Intercept Wave Plugin
 
-This directory contains UI tests for the Intercept Wave plugin using IntelliJ Remote Robot.
+This directory contains UI tests for the Intercept Wave plugin built with IntelliJ Remote Robot.
 
 ## Overview
 
-UI tests verify the user interface behavior of the plugin, including:
+These tests verify key UI behavior, including:
 - Tool window interactions
 - Dialog operations
 - Button clicks
@@ -35,19 +35,19 @@ Before running UI tests for the first time, you need to install the Robot Server
 
 1. Download the robot-server plugin from [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/17153-robot-server-plugin)
 2. Or install it manually in your IDE: Settings → Plugins → Search for "Robot Server Plugin"
-3. The plugin will automatically be available when running `runIdeForUiTests`
+3. The plugin is loaded automatically when you run `runIdeForUiTests`
 
 ### Locally
 
-1. **Start IDE with robot-server:**
+1. **Start the IDE with robot-server enabled:**
    ```bash
    ./gradlew runIdeForUiTests
    ```
-   This will start IntelliJ IDEA with your plugin. The robot-server plugin will listen on port 8082.
+   This starts IntelliJ IDEA with your plugin loaded. The robot-server plugin listens on port 8082.
 
-   **Note**: On first run, you may need to manually install the Robot Server Plugin in the started IDE.
+   **Note**: On the first run, you may still need to install the Robot Server Plugin manually in the launched IDE.
 
-2. **Run UI tests** (in a separate terminal):
+2. **Run the UI tests** in a separate terminal:
    ```bash
    ./gradlew testUi
    ```
@@ -165,12 +165,18 @@ To find the correct XPath for UI elements:
 
 4. **Use step() for better test output:**
    ```kotlin
-   step("Open configuration") { ... }
-   step("Fill form") { ... }
-   step("Verify result") { ... }
+   step("Open configuration") {
+       // ...
+   }
+   step("Fill form") {
+       // ...
+   }
+   step("Verify result") {
+       // ...
+   }
    ```
 
-5. **Test one feature per test method:**
+5. **Keep each test focused on one feature:**
    - ❌ `testEverything()`
    - ✅ `test tool window opens`
    - ✅ `test server starts successfully`

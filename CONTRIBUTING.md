@@ -1,6 +1,6 @@
 # Contributing to Intercept Wave
 
-Thank you for your interest in contributing to Intercept Wave! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Intercept Wave. This guide explains how to get set up, work within the project structure, and submit changes smoothly.
 
 [简体中文版](./CONTRIBUTING_zh.md)
 
@@ -51,13 +51,13 @@ Before you begin, ensure you have the following installed:
 
 1. Open IntelliJ IDEA
 2. Select **File > Open**
-3. Navigate to the cloned repository and select the `build.gradle.kts` file
-4. Click **Open as Project**
+3. Navigate to the cloned repository and select the project root or `build.gradle.kts`
+4. Open it as an IntelliJ project and wait for Gradle import to finish
 5. Wait for Gradle to sync and download dependencies
 
 ### 2. Configure Plugin SDK
 
-The project uses the IntelliJ Platform Gradle Plugin, which automatically configures the plugin SDK. No manual SDK setup is required.
+The project uses the IntelliJ Platform Gradle Plugin, so the plugin SDK is configured automatically. No manual SDK setup is required.
 
 ### 3. Run the Plugin
 
@@ -130,7 +130,7 @@ intercept-wave/
 git checkout -b feature/your-feature-name
 ```
 
-Use branch naming conventions:
+Recommended branch prefixes:
 - `feature/` for new features
 - `fix/` for bug fixes
 - `docs/` for documentation changes
@@ -194,7 +194,7 @@ Run UI tests:
 ./gradlew testUi
 ```
 
-Note: UI tests require more memory and time, so they run separately from unit tests.
+Note: UI tests take more time and memory, so they run separately from unit tests.
 
 ### Test Coverage
 
@@ -207,7 +207,7 @@ The report will be generated in `build/reports/kover/`.
 
 ### Manual Testing Checklist
 
-When testing manually, verify:
+When testing manually, verify the following:
 
 - [ ] Plugin loads without errors
 - [ ] Configuration dialog opens and saves correctly
@@ -396,7 +396,7 @@ If you have questions about contributing:
 
 ## License
 
-By contributing to Intercept Wave, you agree that your contributions will be licensed under the same license as the project.
+When you contribute to Intercept Wave, you agree that your contributions will be released under the same license used by this project.
 
 ---
 

@@ -1,144 +1,151 @@
-# Mock 服务欢迎页面功能
+# Welcome Page Guide
 
-## 功能说明
+[简体中文](./WELCOME_PAGE_zh.md)
 
-当直接访问 Mock 服务的根路径（例如 `http://localhost:8888/`）时，不再返回错误信息，而是返回一个友好的 JSON 格式欢迎页面，显示服务状态和配置信息。
+## Overview
 
-## 欢迎页面返回示例
+When you access the root path of a mock service, for example `http://localhost:8888/`, the server returns a JSON welcome payload instead of an error. This response helps you inspect the current service status and route summary quickly.
 
-### 无 Mock 配置时
+## Example Responses
+
+### When No Mock Is Available
 
 ```json
 {
   "status": "running",
-  "message": "Intercept Wave Mock 服务运行中",
+  "message": "Intercept Wave Mock Server is running",
+  "configGroup": "Gateway",
   "server": {
     "port": 8888,
-    "baseUrl": "http://localhost:8080",
-    "interceptPrefix": "/api"
+    "routes": 1
   },
   "mockApis": {
     "total": 0,
     "enabled": 0
   },
   "usage": {
-    "description": "访问配置的 Mock 接口路径即可获取 Mock 数据",
-    "example": "GET http://localhost:8888/api/your-api-path",
-    "configPath": "请在 IntelliJ IDEA 的 Intercept Wave 工具窗口中配置 Mock 接口"
+    "description": "Access configured paths to get mock data or trigger forwarding",
+    "example": "GET http://localhost:8888/your-api-path"
   },
-  "apis": []
+  "routes": [
+    {"name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:8080", "stripPrefix": true, "enableMock": true, "mockApis": 0}
+  ],
+  "examples": []
 }
 ```
 
-### 有 Mock 配置时
+### When Mock APIs Are Available
 
 ```json
 {
   "status": "running",
-  "message": "Intercept Wave Mock 服务运行中",
+  "message": "Intercept Wave Mock Server is running",
+  "configGroup": "Gateway",
   "server": {
     "port": 8888,
-    "baseUrl": "http://localhost:8080",
-    "interceptPrefix": "/api"
+    "routes": 2
   },
   "mockApis": {
     "total": 3,
     "enabled": 2
   },
   "usage": {
-    "description": "访问配置的 Mock 接口路径即可获取 Mock 数据",
-    "example": "GET http://localhost:8888/api/your-api-path",
-    "configPath": "请在 IntelliJ IDEA 的 Intercept Wave 工具窗口中配置 Mock 接口"
+    "description": "Access configured paths to get mock data or trigger forwarding",
+    "example": "GET http://localhost:8888/your-api-path"
   },
-  "apis": [
-    {"path": "/api/user/info", "method": "GET", "enabled": true},
-    {"path": "/api/posts", "method": "ALL", "enabled": true},
-    {"path": "/api/login", "method": "POST", "enabled": false}
+  "routes": [
+    {"name": "User API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "enableMock": true, "mockApis": 2},
+    {"name": "Order API", "pathPrefix": "/order-api", "targetBaseUrl": "http://localhost:9001", "stripPrefix": true, "enableMock": false, "mockApis": 1}
+  ],
+  "examples": [
+    {"route": "User API", "method": "GET", "url": "http://localhost:8888/api/user/info"},
+    {"route": "User API", "method": "ALL", "url": "http://localhost:8888/api/posts"}
   ]
 }
 ```
 
-## 返回字段说明
+## Field Reference
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
-| `status` | string | 服务状态，固定为 "running" |
-| `message` | string | 欢迎消息 |
-| `server.port` | number | Mock 服务监听端口 |
-| `server.baseUrl` | string | 原始接口的基础 URL |
-| `server.interceptPrefix` | string | 拦截的接口路径前缀 |
-| `mockApis.total` | number | Mock 接口总数 |
-| `mockApis.enabled` | number | 已启用的 Mock 接口数量 |
-| `usage.description` | string | 使用说明 |
-| `usage.example` | string | 使用示例 |
-| `usage.configPath` | string | 配置路径说明 |
-| `apis` | array | 所有 Mock 接口列表 |
-| `apis[].path` | string | 接口路径 |
-| `apis[].method` | string | HTTP 方法 |
-| `apis[].enabled` | boolean | 是否启用 |
+| `status` | string | Service status, always `"running"` |
+| `message` | string | Welcome message |
+| `configGroup` | string | Current proxy group name |
+| `server.port` | number | Listening port of the mock service |
+| `server.routes` | number | Number of routes in the current group |
+| `mockApis.total` | number | Total number of mock APIs |
+| `mockApis.enabled` | number | Number of enabled mock APIs |
+| `usage.description` | string | Short usage hint |
+| `usage.example` | string | Example request |
+| `routes` | array | Route list for the current group |
+| `routes[].pathPrefix` | string | Route prefix |
+| `routes[].targetBaseUrl` | string | Upstream target for that route |
+| `routes[].mockApis` | number | Number of mock APIs under that route |
+| `examples` | array | Directly usable example requests |
 
-## 使用场景
+## Typical Uses
 
-### 1. 检查服务是否正常运行
+### 1. Check Whether the Service Is Running
 
-在浏览器中访问 `http://localhost:8888/`，如果能看到 JSON 响应，说明服务正常运行。
+Open `http://localhost:8888/` in a browser. If you receive the JSON payload, the service is running normally.
 
-### 2. 查看当前 Mock 配置
+### 2. Review the Current Mock Setup
 
-通过返回的 `apis` 数组，可以快速了解当前配置了哪些 Mock 接口。
+The `routes` and `examples` arrays let you quickly inspect which routes are configured and which example URLs are ready to use.
 
-### 3. 获取服务配置信息
+### 3. Confirm Active Service Settings
 
-通过 `server` 对象，可以查看端口、原始接口地址等配置信息。
+The `server` and `routes` sections help you verify the listening port, number of routes, and upstream targets.
 
-### 4. 用于健康检查
+### 4. Use It as a Health Check Endpoint
 
-可以将根路径作为健康检查端点，返回 200 状态码表示服务正常。
+You can treat the root path as a health check endpoint. A `200` response indicates that the service is available.
 
-## 实现细节
+## Implementation Details
 
-### 代码位置
-`src/main/kotlin/org/zhongmiao/interceptwave/services/MockServerService.kt`
+### Source Location
+`src/main/kotlin/org/zhongmiao/interceptwave/util/HttpWelcomeUtil.kt`
 
-### 关键方法
+### Key Method
 ```kotlin
-private fun handleWelcomePage(exchange: HttpExchange, config: MockConfig)
+fun buildWelcomeJson(config: ProxyConfig): String
 ```
 
-### 触发条件
-当请求路径为 `/` 或空字符串时，返回欢迎页面，不再尝试转发到原始服务器。
+### When It Is Returned
 
-### 响应头
+The welcome payload is returned when the request path is `/`. It may also be returned for a route prefix root path when `stripPrefix` is enabled.
+
+### Response Headers
 - `Content-Type: application/json; charset=UTF-8`
 - `Access-Control-Allow-Origin: *`
 
-## 注意事项
+## Notes
 
-1. **仅根路径生效**：只有访问 `/` 才会返回欢迎页面，其他路径正常处理
-2. **JSON 格式**：返回纯 JSON 数据，方便程序解析
-3. **CORS 支持**：添加了 CORS 头，可以被前端直接访问
-4. **实时配置**：显示的是当前实际生效的配置，而不是缓存数据
+1. **Only specific entry points return the welcome payload**: Usually `/` returns it, and some prefix root paths can also return it when `stripPrefix` is enabled
+2. **JSON format**: The response is plain JSON, so scripts and tools can parse it easily
+3. **CORS support**: The response includes CORS headers and can be accessed directly from frontend code
+4. **Live configuration snapshot**: The payload reflects the currently active config
 
-## 示例：使用 curl 测试
+## Test with `curl`
 
 ```bash
-# 查看欢迎页面
+# View the welcome response
 curl http://localhost:8888/
 
-# 格式化输出
+# Pretty-print it
 curl http://localhost:8888/ | jq
 
-# 只查看 API 列表
-curl http://localhost:8888/ | jq '.apis'
+# View only the routes
+curl http://localhost:8888/ | jq '.routes'
 
-# 查看服务配置
+# View server information
 curl http://localhost:8888/ | jq '.server'
 ```
 
-## 改进建议（未来可以添加）
+## Possible Future Enhancements
 
-1. **HTML 版本**：根据 Accept 头返回 HTML 或 JSON
-2. **统计信息**：添加请求次数、响应时间等统计
-3. **在线测试**：在 HTML 版本中添加接口测试功能
-4. **配置编辑**：在 HTML 版本中支持在线编辑配置
-5. **日志查看**：显示最近的请求日志
+1. **HTML mode**: Return HTML or JSON depending on the `Accept` header
+2. **Metrics**: Show request counts and response timing
+3. **Inline testing**: Add quick API testing to an HTML page
+4. **Config editing**: Support editing config from the welcome page
+5. **Recent logs**: Show the latest request history
