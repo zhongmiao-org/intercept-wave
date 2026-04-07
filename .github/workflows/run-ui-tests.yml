@@ -7,7 +7,7 @@
 #
 # Workflow is triggered manually.
 
-name: Run UI Tests
+name: UITests
 on:
   workflow_dispatch:
   pull_request:
@@ -83,6 +83,16 @@ jobs:
       - name: Tests
         run: ./gradlew testUi
 
+      - name: Dump Remote Robot DOM On Failure
+        if: failure()
+        shell: bash
+        run: |
+          curl -sS http://127.0.0.1:8082 > remote-robot-dom.html || true
+          if [ -f remote-robot-dom.html ]; then
+            echo "===== remote-robot-dom excerpt ====="
+            rg -n "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow" remote-robot-dom.html | sed -n '1,250p' || true
+          fi
+
       - name: Show IDE Logs On Failure
         if: failure()
         shell: bash
@@ -109,3 +119,4 @@ jobs:
             ui-ide.log
             ui-ide.err.log
             xfvb.log
+            remote-robot-dom.html
