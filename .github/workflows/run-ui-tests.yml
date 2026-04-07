@@ -23,22 +23,11 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            runIdeShell: bash
-            runIde: |
-              export DISPLAY=:99.0
-              Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
-              nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
+            platform: linux
           - os: windows-latest
-            runIdeShell: pwsh
-            runIde: |
-              Start-Process -FilePath .\gradlew.bat `
-                -ArgumentList 'runIdeForUiTests','--stacktrace','--console=plain' `
-                -RedirectStandardOutput 'ui-ide.log' `
-                -RedirectStandardError 'ui-ide.err.log'
+            platform: windows
           - os: macos-latest
-            runIdeShell: bash
-            runIde: |
-              nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
+            platform: macos
 
     steps:
 
@@ -59,10 +48,28 @@ jobs:
         with:
           cache-read-only: true
 
-      # Run IDEA prepared for UI testing
-      - name: Run IDE
-        shell: ${{ matrix.runIdeShell }}
-        run: ${{ matrix.runIde }}
+      - name: Run IDE on Linux
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          export DISPLAY=:99.0
+          Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
+
+      - name: Run IDE on macOS
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
+
+      - name: Run IDE on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Start-Process -FilePath .\gradlew.bat `
+            -ArgumentList 'runIdeForUiTests','--stacktrace','--console=plain' `
+            -RedirectStandardOutput 'ui-ide.log' `
+            -RedirectStandardError 'ui-ide.err.log'
 
       # Wait for IDEA to be started
       - name: Health Check
