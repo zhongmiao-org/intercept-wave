@@ -10,7 +10,7 @@ import javax.swing.JPanel
  */
 class ConfigDialogTest : BasePlatformTestCase() {
 
-    fun `test ConfigDialog uses JetBrains UI components`() {
+    fun testConfigDialogUsesJetBrainsUiComponents() {
         try {
             ConfigDialog(project)
             // Test passes if dialog can be instantiated without exception
@@ -22,7 +22,7 @@ class ConfigDialogTest : BasePlatformTestCase() {
         }
     }
 
-    fun `test ConfigDialog can be closed`() {
+    fun testConfigDialogCanBeClosed() {
         try {
             ConfigDialog(project)
             // Test passes if no exception during creation
@@ -37,7 +37,7 @@ class ConfigDialogTest : BasePlatformTestCase() {
      * Verify that JBPanel is being used in the codebase
      * This is a code structure test
      */
-    fun `test JBPanel class is available`() {
+    fun testJBPanelClassIsAvailable() {
         // Verify JBPanel class exists
         val jbPanelClass: Class<JBPanel<*>> = JBPanel::class.java
         assertNotNull(jbPanelClass)
@@ -49,7 +49,7 @@ class ConfigDialogTest : BasePlatformTestCase() {
     /**
      * Verify that JBCheckBox is being used in the codebase
      */
-    fun `test JBCheckBox class is available`() {
+    fun testJBCheckBoxClassIsAvailable() {
         // Verify JBCheckBox class exists
         val jbCheckBoxClass: Class<JBCheckBox> = JBCheckBox::class.java
         assertNotNull(jbCheckBoxClass)

@@ -4,10 +4,12 @@ import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
+import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.File
 import java.time.Duration
 
 /**
@@ -25,13 +27,148 @@ import java.time.Duration
 class InterceptWaveToolWindowUiTest {
 
     private val remoteRobot = RemoteRobot("http://127.0.0.1:8082")
+    private val uiProjectName = System.getProperty("intercept.wave.ui.projectName")
+        ?: error("Missing system property: intercept.wave.ui.projectName")
+    private val workspaceProjectName = File(System.getProperty("user.dir")).name
+
+    private val toolWindowButtonLocator = byXpath(
+        "//div[" +
+            "@class='SquareStripeButton' and (" +
+            "@accessiblename='InterceptWave' or " +
+            "@tooltiptext='InterceptWave' or " +
+            "@tooltiptext.key='toolwindow.stripe.InterceptWave'" +
+            ")" +
+            "]"
+    )
+
+    private val startAllButtonLocator = byXpath(
+        "//div[@class='JButton' and (@text='启动所有' or @text='Start All')]"
+    )
+
+    private val toolWindowContentLocator = byXpath(
+        "//div[" +
+            "contains(@accessiblename, 'InterceptWave') or " +
+            "contains(@visible_text, 'Intercept Wave') or " +
+            "contains(@visible_text, 'User Service') or " +
+            "contains(@visible_text, 'Payment Service') or " +
+            "contains(@visible_text, 'Ticker WS')" +
+            "]"
+    )
+
+    private val configButtonLocator = byXpath(
+        "//div[@class='JButton' and (@text='配置' or @text='Configure')]"
+    )
+
+    private val addGroupButtonLocator = byXpath(
+        "//div[@class='JButton' and (@text='新增配置组' or @text='Add Group')]"
+    )
+
+    private val configDialogLocator = byXpath(
+        "//div[@class='MyDialog' and contains(@title, 'Mock')]"
+    )
+
+    private val projectFrameLocator = byXpath("//div[@class='IdeFrameImpl']")
+
+    private val welcomeFrameLocator = byXpath(
+        "//div[@class='FlatWelcomeFrame']"
+    )
+
+    private val recentProjectsLocator = byXpath(
+        "//div[@accessiblename='Recent Projects']"
+    )
+
+    private fun hasComponent(locator: com.intellij.remoterobot.search.locators.Locator): Boolean =
+        remoteRobot.findAll<ComponentFixture>(locator).isNotEmpty()
+
+    private fun waitForProjectUiReady() {
+        waitFor(Duration.ofMinutes(2)) {
+            runCatching { remoteRobot.callJs<Boolean>("true") }.getOrDefault(false) &&
+                hasComponent(projectFrameLocator)
+        }
+    }
+
+    private fun openProjectFromWelcomeIfNeeded() {
+        if (hasComponent(projectFrameLocator)) return
+
+        waitFor(Duration.ofMinutes(1)) {
+            hasComponent(welcomeFrameLocator)
+        }
+
+        step("Open a visible recent project from the Welcome screen") {
+            val recentProjects = remoteRobot.find<JTreeFixture>(recentProjectsLocator)
+
+            val openedKnownProject = runCatching {
+                recentProjects.doubleClickRowWithText(uiProjectName, fullMatch = false)
+                true
+            }.recoverCatching {
+                recentProjects.doubleClickRowWithText(workspaceProjectName, fullMatch = false)
+                true
+            }.getOrDefault(false)
+
+            if (!openedKnownProject) {
+                recentProjects.clickRow(0)
+                remoteRobot.keyboard { enter() }
+            }
+        }
+    }
+
+    private fun applyUiFixtureConfig() {
+        val projectDir = System.getProperty("intercept.wave.ui.projectDir")
+            ?: error("Missing system property: intercept.wave.ui.projectDir")
+        val fixtureResource = System.getProperty("intercept.wave.ui.fixtureResource")
+            ?: error("Missing system property: intercept.wave.ui.fixtureResource")
+        val fixtureContent = checkNotNull(javaClass.getResource(fixtureResource)) {
+            "Missing UI fixture resource: $fixtureResource"
+        }.readText()
+
+        listOf(
+            File(projectDir),
+            File(System.getProperty("user.dir"))
+        ).distinctBy { it.absolutePath }
+            .forEach { targetDir ->
+                val configDir = File(targetDir, ".intercept-wave").apply { mkdirs() }
+                File(configDir, "config.json").writeText(fixtureContent)
+            }
+    }
+
+    private fun configDialog(): CommonContainerFixture =
+        remoteRobot.find(configDialogLocator)
+
+    private fun hasConfigGroup(groupName: String): Boolean =
+        configDialog().findAll<ComponentFixture>(
+            byXpath(
+                "//div[" +
+                    "(@class='JLabel' or @class='JBTextField') and " +
+                    "(" +
+                    "@visible_text='$groupName' or " +
+                    "@text='$groupName' or " +
+                    "@accessiblename='$groupName (:8893)'" +
+                    ")" +
+                    "]"
+            )
+        ).isNotEmpty()
+
+    private fun isToolWindowVisible(): Boolean =
+        remoteRobot.findAll<ComponentFixture>(toolWindowContentLocator).isNotEmpty() &&
+            remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty()
+
+    private fun ensureToolWindowOpen() {
+        if (isToolWindowVisible()) return
+
+        step("Ensure Intercept Wave tool window is open") {
+            remoteRobot.find<ComponentFixture>(toolWindowButtonLocator).click()
+        }
+
+        waitFor(Duration.ofSeconds(10)) {
+            isToolWindowVisible()
+        }
+    }
 
     @BeforeEach
     fun setUp() {
-        // Wait for IDE to be ready
-        waitFor(Duration.ofMinutes(2)) {
-            runCatching { remoteRobot.callJs<Boolean>("true") }.isSuccess
-        }
+        applyUiFixtureConfig()
+        openProjectFromWelcomeIfNeeded()
+        waitForProjectUiReady()
     }
 
     @AfterEach
@@ -50,37 +187,23 @@ class InterceptWaveToolWindowUiTest {
 
     @Test
     fun `test tool window is available`() = with(remoteRobot) {
-        step("Open Intercept Wave tool window") {
-            // Find and click the tool window stripe button
-            // Note: Adjust the locator based on your actual plugin name
-            find<ComponentFixture>(
-                byXpath("//div[@tooltiptext.key='plugin.name']")
-            ).click()
-        }
+        ensureToolWindowOpen()
 
         step("Verify tool window is opened") {
             // Wait for tool window content to appear
             waitFor(Duration.ofSeconds(10)) {
-                findAll<ComponentFixture>(
-                    byXpath("//div[contains(@text, 'Intercept Wave')]")
-                ).isNotEmpty()
+                isToolWindowVisible()
             }
         }
     }
 
     @Test
     fun `test start all button is visible`() = with(remoteRobot) {
-        step("Open tool window") {
-            find<ComponentFixture>(
-                byXpath("//div[@tooltiptext.key='plugin.name']")
-            ).click()
-        }
+        ensureToolWindowOpen()
 
         step("Verify Start All button exists") {
             waitFor(Duration.ofSeconds(10)) {
-                findAll<JButtonFixture>(
-                    byXpath("//div[@class='JButton' and @text='启动所有']")
-                ).isNotEmpty()
+                findAll<JButtonFixture>(startAllButtonLocator).isNotEmpty()
             }
         }
     }
@@ -88,30 +211,20 @@ class InterceptWaveToolWindowUiTest {
     @Test
     fun `test configuration dialog can be opened`() {
         with(remoteRobot) {
-            step("Open tool window") {
-                find<ComponentFixture>(
-                    byXpath("//div[@tooltiptext.key='plugin.name']")
-                ).click()
-            }
+            ensureToolWindowOpen()
 
             step("Click configuration button") {
-                find<JButtonFixture>(
-                    byXpath("//div[@class='JButton' and @text='配置']")
-                ).click()
+                find<JButtonFixture>(configButtonLocator).click()
             }
 
             step("Verify configuration dialog is opened") {
                 waitFor(Duration.ofSeconds(10)) {
-                    findAll<CommonContainerFixture>(
-                        byXpath("//div[@class='MyDialog' and contains(@title, 'Mock')]")
-                    ).isNotEmpty()
+                    findAll<CommonContainerFixture>(configDialogLocator).isNotEmpty()
                 }
             }
 
             step("Close dialog") {
-                find<CommonContainerFixture>(
-                    byXpath("//div[@class='MyDialog']")
-                ).apply {
+                configDialog().apply {
                     find<JButtonFixture>(byXpath("//div[@text='Cancel']")).click()
                 }
             }
@@ -125,38 +238,24 @@ class InterceptWaveToolWindowUiTest {
     @Test
     fun `test add new proxy group workflow`() {
         with(remoteRobot) {
-            step("Open tool window") {
-                find<ComponentFixture>(
-                    byXpath("//div[@tooltiptext.key='plugin.name']")
-                ).click()
-            }
+            ensureToolWindowOpen()
 
             step("Open configuration dialog") {
-                find<JButtonFixture>(
-                    byXpath("//div[@class='JButton' and @text='配置']")
-                ).click()
+                find<JButtonFixture>(configButtonLocator).click()
             }
 
             step("Click add group button") {
-                // Find the "Add Group" button in the dialog
-                find<JButtonFixture>(
-                    byXpath("//div[@class='JButton' and contains(@text, '新增配置组')]")
-                ).click()
+                configDialog().find<JButtonFixture>(addGroupButtonLocator).click()
             }
 
-            step("Verify new tab is created") {
-                // Check that a new tab appeared
-                waitFor(Duration.ofSeconds(5)) {
-                    findAll<ComponentFixture>(
-                        byXpath("//div[contains(@text, '配置组')]")
-                    ).size > 1
+            step("Verify new group is created") {
+                waitFor(Duration.ofSeconds(10)) {
+                    hasConfigGroup("Group 6") || hasConfigGroup("配置组 6")
                 }
             }
 
             step("Close dialog without saving") {
-                find<CommonContainerFixture>(
-                    byXpath("//div[@class='MyDialog']")
-                ).apply {
+                configDialog().apply {
                     find<JButtonFixture>(byXpath("//div[@text='Cancel']")).click()
                 }
             }

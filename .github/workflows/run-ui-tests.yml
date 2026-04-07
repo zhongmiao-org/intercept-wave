@@ -62,4 +62,4 @@ jobs:
 
       # Run tests
       - name: Tests
-        run: ./gradlew test
+        run: ./gradlew testUi

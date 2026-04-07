@@ -2,8 +2,19 @@ import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.gradle.process.CommandLineArgumentProvider
-import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformTestingExtension
 import java.time.Duration
+
+val commonTestJvmArgs = listOf(
+    "-Djava.awt.headless=true",
+    "-Didea.force.use.core.classloader=true",
+    "-Didea.use.core.classloader.for.plugin.path=true"
+)
+
+val commonTestModuleOpens = listOf(
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED"
+)
 
 plugins {
     id("java") // Java support
@@ -66,6 +77,12 @@ kover {
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
+    constraints {
+        testImplementation("org.assertj:assertj-core:3.27.7") {
+            because("3.27.7 fixes CVE-2026-24400 in older assertj-core versions")
+        }
+    }
+
     implementation(libs.kotlinx.serialization.json)
     implementation("org.java-websocket:Java-WebSocket:1.6.0")
 
@@ -177,27 +194,105 @@ tasks.withType<Test>().configureEach {
         }
         // Note: JUnit4 Categories (Vintage) are exposed as tags via their fully qualified names.
     }
+
+    // Remote Robot + Gson on JDK 21 needs these packages opened for reflective
+    // access when deserializing server-side errors and fixture payloads.
+    jvmArgs(commonTestJvmArgs + commonTestModuleOpens)
 }
 
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
-val runIdeForUiTestsConfig: RegisteringDomainObjectDelegateProviderWithAction<
-        out NamedDomainObjectContainer<IntelliJPlatformTestingExtension.RunIdeParameters>, IntelliJPlatformTestingExtension.RunIdeParameters
-        > = intellijPlatformTesting.runIde.registering {
-            task {
-                jvmArgumentProviders += CommandLineArgumentProvider {
-                    listOf(
-                        "-Drobot-server.port=8082",
-                        "-Dide.mac.message.dialogs.as.sheets=false",
-                        "-Djb.privacy.policy.text=<!--999.999-->",
-                        "-Djb.consents.confirmation.enabled=false",
-                        "-Xshare:off", // 关闭 CDS
-                    )
-                }
-            }
-
-            plugins { robotServerPlugin() }
+val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
+    task {
+        jvmArgumentProviders += CommandLineArgumentProvider {
+            listOf(
+                "-Drobot-server.port=8082",
+                "-Dide.mac.message.dialogs.as.sheets=false",
+                "-Djb.privacy.policy.text=<!--999.999-->",
+                "-Djb.consents.confirmation.enabled=false",
+                "-Xshare:off", // 关闭 CDS
+            )
         }
+    }
+
+    plugins { robotServerPlugin() }
+}
+
+val prepareUiTestProject = tasks.register("prepareUiTestProject") {
+    val uiProjectDir = layout.buildDirectory.dir("ui-test-project/intercept-wave-ui-project")
+    outputs.dir(uiProjectDir)
+
+    doLast {
+        val dir = uiProjectDir.get().asFile
+        dir.mkdirs()
+        dir.resolve(".gitignore").writeText(
+            """
+            .idea/
+            .intercept-wave/
+            """.trimIndent()
+        )
+        dir.resolve("README.md").writeText("# UI Test Project\n")
+    }
+}
+
+val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
+    val platformType = providers.gradleProperty("platformType")
+    val platformVersion = providers.gradleProperty("platformVersion")
+    val uiProjectDir = layout.buildDirectory.dir("ui-test-project/intercept-wave-ui-project")
+    val projectName = "intercept-wave-ui-project"
+    val userHome = System.getProperty("user.home")
+    val optionsDir = layout.buildDirectory.dir(
+        platformType.zip(platformVersion) { type, version ->
+            "idea-sandbox/$type-$version/config/options"
+        }
+    )
+
+    outputs.dir(optionsDir)
+    dependsOn(prepareUiTestProject)
+
+    doLast {
+        val projectPath = uiProjectDir.get().asFile.absolutePath
+        val projectPathForIde = projectPath.replace(userHome, "${'$'}USER_HOME${'$'}")
+        val dir = optionsDir.get().asFile.apply { mkdirs() }
+        dir.resolve("trusted-paths.xml").writeText(
+            """
+            <application>
+              <component name="Trusted.Paths">
+                <option name="TRUSTED_PROJECT_PATHS">
+                  <map>
+                    <entry key="$projectPathForIde" value="true" />
+                  </map>
+                </option>
+              </component>
+            </application>
+            """.trimIndent()
+        )
+        dir.resolve("recentProjects.xml").writeText(
+            """
+            <application>
+              <component name="RecentProjectsManager">
+                <option name="additionalInfo">
+                  <map>
+                    <entry key="$projectPathForIde">
+                      <value>
+                        <RecentProjectMetaInfo frameTitle="$projectName" projectWorkspaceId="ui-tests-$projectName">
+                          <option name="activationTimestamp" value="1760000000000" />
+                          <option name="binFolder" value="${'$'}APPLICATION_HOME_DIR${'$'}/bin" />
+                          <option name="build" value="${platformType.get()}-${platformVersion.get()}" />
+                          <option name="productionCode" value="${platformType.get()}" />
+                          <option name="projectOpenTimestamp" value="1760000000000" />
+                        </RecentProjectMetaInfo>
+                      </value>
+                    </entry>
+                  </map>
+                </option>
+                <option name="lastOpenedProject" value="$projectPathForIde" />
+              </component>
+            </application>
+            """.trimIndent()
+        )
+    }
+}
 
 
 tasks {
@@ -218,12 +313,6 @@ tasks {
         timeout.set(Duration.ofMinutes(10))
 
         // Configure JVM args for headless testing
-        jvmArgs(
-            "-Djava.awt.headless=true",
-            "-Didea.force.use.core.classloader=true",
-            "-Didea.use.core.classloader.for.plugin.path=true"
-        )
-
         // Increase heap size for tests
         maxHeapSize = "1024m"
 
@@ -236,8 +325,8 @@ tasks {
         // capturing IntelliJ test initialization state that breaks VFS startup.
         notCompatibleWithConfigurationCache("IntelliJ Platform tests require fresh IDE boot per run")
 
-        // Exclude UI tests from regular test task
-        exclude("**/ui/**")
+        // Exclude Remote Robot UI tests from the regular test task.
+        exclude("**/*UiTest.class")
 
         // In CI environment, exclude Platform tests that require IDE instance
         if (System.getenv("CI") == "true") {
@@ -249,23 +338,34 @@ tasks {
     register<Test>("testUi") {
         description = "Runs UI tests with a running IDE instance"
         group = "verification"
+        val testSourceSet = sourceSets.named("test").get()
 
         // Use JUnit Platform for JUnit 5 tests
         useJUnitPlatform()
 
-        // Include only UI tests
-        include("**/ui/**")
+        testClassesDirs = testSourceSet.output.classesDirs
+        classpath = testSourceSet.runtimeClasspath
+        systemProperty("intercept.wave.ui.projectDir", layout.buildDirectory.dir("ui-test-project/intercept-wave-ui-project").get().asFile.absolutePath)
+        systemProperty("intercept.wave.ui.projectName", "intercept-wave-ui-project")
+        systemProperty("intercept.wave.ui.fixtureResource", "/fixtures/diverse-config.json")
+
+        // Include only Remote Robot UI tests that require a separately launched IDE.
+        include("**/*UiTest.class")
 
         // Use the same JVM configuration as regular tests
         jvmArgs(
-            "-Djava.awt.headless=true",
-            "-Didea.force.use.core.classloader=true",
-            "-Didea.use.core.classloader.for.plugin.path=true"
+            *commonTestJvmArgs.toTypedArray(),
+            *commonTestModuleOpens.toTypedArray()
         )
 
         maxHeapSize = "2048m" // UI tests may need more memory
         timeout.set(Duration.ofMinutes(20)) // UI tests take longer
 
+        dependsOn(prepareUiTestProject)
         shouldRunAfter(named<Test>("test"))
+    }
+
+    named("runIdeForUiTests") {
+        dependsOn(prepareUiTestWelcomeState)
     }
 }

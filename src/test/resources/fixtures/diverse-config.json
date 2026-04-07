@@ -1,0 +1,304 @@
+{
+  "version": "4.0",
+  "proxyGroups": [
+    {
+      "id": "a3c501b2-15f1-4e41-b471-6057cb5ee1cd",
+      "name": "User Service",
+      "protocol": "HTTP",
+      "port": 8888,
+      "routes": [
+        {
+          "id": "7c20dc9b-089a-4496-9226-5071a48f2f94",
+          "name": "API",
+          "pathPrefix": "/api",
+          "targetBaseUrl": "http://localhost:9000",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/user/info",
+              "enabled": true,
+              "mockData": "{\"code\":\"1\",\"name\":\"Intercept Wave\"}",
+              "method": "GET",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 0
+            }
+          ]
+        }
+      ],
+      "stripPrefix": true,
+      "globalCookie": "",
+      "enabled": true,
+      "wsBaseUrl": null,
+      "wsInterceptPrefix": null,
+      "wsManualPush": true,
+      "wsPushRules": [],
+      "wssEnabled": false,
+      "wssKeystorePath": null,
+      "wssKeystorePassword": null
+    },
+    {
+      "id": "8ff03c3f-b9c3-4ce6-b3e4-78d87a5515e9",
+      "name": "Order Service",
+      "protocol": "HTTP",
+      "port": 8889,
+      "routes": [
+        {
+          "id": "173c004b-7edd-4653-8efc-4564412cb1c8",
+          "name": "API",
+          "pathPrefix": "/order-api",
+          "targetBaseUrl": "http://localhost:9001",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
+        }
+      ],
+      "stripPrefix": true,
+      "globalCookie": "",
+      "enabled": false,
+      "wsBaseUrl": null,
+      "wsInterceptPrefix": null,
+      "wsManualPush": true,
+      "wsPushRules": [],
+      "wssEnabled": false,
+      "wssKeystorePath": null,
+      "wssKeystorePassword": null
+    },
+    {
+      "id": "a4686158-0f81-44aa-8ec2-04c166a3037b",
+      "name": "Payment Service",
+      "protocol": "HTTP",
+      "port": 8890,
+      "routes": [
+        {
+          "id": "639751a1-0058-42eb-a409-bd63d9e5fcd9",
+          "name": "API",
+          "pathPrefix": "/pay-api",
+          "targetBaseUrl": "http://localhost:9002",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/test",
+              "enabled": false,
+              "mockData": "{\"message\":\"你好,我是樊峰\"}",
+              "method": "ALL",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 0
+            },
+            {
+              "path": "/test",
+              "enabled": true,
+              "mockData": "{\"message\":\"你好,我是樊峰\"}",
+              "method": "GET",
+              "statusCode": 300,
+              "useCookie": false,
+              "delay": 0
+            },
+            {
+              "path": "/test",
+              "enabled": true,
+              "mockData": "{}",
+              "method": "POST",
+              "statusCode": 400,
+              "useCookie": false,
+              "delay": 0
+            },
+            {
+              "path": "/test",
+              "enabled": true,
+              "mockData": "{}",
+              "method": "PUT",
+              "statusCode": 500,
+              "useCookie": false,
+              "delay": 0
+            },
+            {
+              "path": "/test",
+              "enabled": true,
+              "mockData": "{}",
+              "method": "DELETE",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 0
+            },
+            {
+              "path": "/test",
+              "enabled": true,
+              "mockData": "{}",
+              "method": "PATCH",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 0
+            }
+          ]
+        },
+        {
+          "id": "56434d2a-3dc0-4f45-8d3e-07394c254c40",
+          "name": "API 2",
+          "pathPrefix": "/api1",
+          "targetBaseUrl": "http://localhost:8080",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/test",
+              "enabled": true,
+              "mockData": "{\"data\":12}",
+              "method": "ALL",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 0
+            }
+          ]
+        },
+        {
+          "id": "ccee5744-d930-4503-9ac5-40e0bf947a3a",
+          "name": "API 3",
+          "pathPrefix": "/api3",
+          "targetBaseUrl": "http://localhost:8081",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": []
+        },
+        {
+          "id": "5702d0b3-2309-43f9-84be-c647774cc323",
+          "name": "API 4",
+          "pathPrefix": "/api4",
+          "targetBaseUrl": "http://localhost:8080",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/test",
+              "enabled": false,
+              "mockData": "{\"ok\":true}",
+              "method": "GET",
+              "statusCode": 200,
+              "useCookie": false,
+              "delay": 30
+            }
+          ]
+        },
+        {
+          "id": "fee83de9-abfb-4322-8842-6a0436e300ee",
+          "name": "API 5",
+          "pathPrefix": "/api5",
+          "targetBaseUrl": "http://localhost:8080",
+          "stripPrefix": true,
+          "enableMock": false,
+          "mockApis": []
+        }
+      ],
+      "stripPrefix": true,
+      "globalCookie": "sessionId=pay-123; userId=42",
+      "enabled": true,
+      "wsBaseUrl": null,
+      "wsInterceptPrefix": null,
+      "wsManualPush": true,
+      "wsPushRules": [],
+      "wssEnabled": false,
+      "wssKeystorePath": null,
+      "wssKeystorePassword": null
+    },
+    {
+      "id": "cdf70a68-7504-483a-8307-10f584f921e4",
+      "name": "User WS",
+      "protocol": "WS",
+      "port": 8891,
+      "routes": [],
+      "stripPrefix": true,
+      "globalCookie": "",
+      "enabled": true,
+      "wsBaseUrl": "ws://localhost:9003",
+      "wsInterceptPrefix": "/ws",
+      "wsManualPush": true,
+      "wsPushRules": [
+        {
+          "enabled": true,
+          "path": "/echo",
+          "eventKey": "action",
+          "eventValue": "test",
+          "direction": "both",
+          "intercept": true,
+          "mode": "off",
+          "periodSec": 5,
+          "message": "{\"message\":\"Hello\"}",
+          "timeline": [],
+          "loop": false,
+          "onOpenFire": false
+        },
+        {
+          "enabled": false,
+          "path": "/echo",
+          "eventKey": "action",
+          "eventValue": "test2",
+          "direction": "out",
+          "intercept": true,
+          "mode": "timeline",
+          "periodSec": 5,
+          "message": "{\"action\":\"阿姆斯特朗螺旋喷气加速\"}",
+          "timeline": [
+            {
+              "atMs": 10000,
+              "message": "{\"message\":\"123456\"}"
+            }
+          ],
+          "loop": true,
+          "onOpenFire": false
+        },
+        {
+          "enabled": true,
+          "path": "/ws/f6b0",
+          "eventKey": "action",
+          "eventValue": "test3",
+          "direction": "in",
+          "intercept": true,
+          "mode": "periodic",
+          "periodSec": 5,
+          "message": "{\"message\":\"连接成功\"}",
+          "timeline": [],
+          "loop": false,
+          "onOpenFire": true
+        }
+      ],
+      "wssEnabled": false,
+      "wssKeystorePath": null,
+      "wssKeystorePassword": null
+    },
+    {
+      "id": "0057a71b-80f2-401a-854b-e81dbc8d2d12",
+      "name": "Ticker WS",
+      "protocol": "WS",
+      "port": 8892,
+      "routes": [],
+      "stripPrefix": true,
+      "globalCookie": "",
+      "enabled": true,
+      "wsBaseUrl": null,
+      "wsInterceptPrefix": null,
+      "wsManualPush": true,
+      "wsPushRules": [
+        {
+          "enabled": true,
+          "path": "/ticker/**",
+          "eventKey": "type",
+          "eventValue": "price",
+          "direction": "both",
+          "intercept": false,
+          "mode": "periodic",
+          "periodSec": 3,
+          "message": "{\"symbol\":\"BTCUSDT\",\"price\":70234}",
+          "timeline": [],
+          "loop": false,
+          "onOpenFire": true
+        }
+      ],
+      "wssEnabled": false,
+      "wssKeystorePath": null,
+      "wssKeystorePassword": null
+    }
+  ]
+}

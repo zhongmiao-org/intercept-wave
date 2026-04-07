@@ -30,7 +30,7 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         }
     }
 
-    fun `test openConfigFile opens project config json in editor`() {
+    fun testOpenConfigFileOpensProjectConfigJsonInEditor() {
         val toolWindow = InterceptWaveToolWindow(project)
         toolWindow.getContent()
 
@@ -41,7 +41,7 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         assertTrue(File(project.basePath, ".intercept-wave/config.json").exists())
     }
 
-    fun `test reloadConfigFromDisk refreshes config and restarts previously running group`() {
+    fun testReloadConfigFromDiskRefreshesConfigAndRestartsPreviouslyRunningGroup() {
         val port = java.net.ServerSocket(0).use { it.localPort }
         val cfg = ProxyConfig(
             id = "reload-running",
@@ -100,7 +100,7 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         assertTrue(mockServerService.getServerStatus(cfg.id))
     }
 
-    fun `test reloadConfigFromDisk saves unsaved editor changes before reloading`() {
+    fun testReloadConfigFromDiskSavesUnsavedEditorChangesBeforeReloading() {
         val toolWindow = InterceptWaveToolWindow(project)
         toolWindow.getContent()
         val configFile = configService.ensureConfigFile()
