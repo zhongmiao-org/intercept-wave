@@ -7,6 +7,9 @@
   [![Version](https://img.shields.io/jetbrains/plugin/v/28728.svg?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
   [![Downloads](https://img.shields.io/jetbrains/plugin/d/28728.svg?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
   [![Rating](https://img.shields.io/jetbrains/plugin/r/rating/28728?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+  [![JetBrains IDEs](https://img.shields.io/badge/JetBrains%20IDEs-supported-000000?style=flat-square&logo=jetbrains&logoColor=white)](https://www.jetbrains.com/)
+  [![UI Tests](https://github.com/zhongmiao-org/intercept-wave/actions/workflows/run-ui-tests.yml/badge.svg)](https://github.com/zhongmiao-org/intercept-wave/actions/workflows/run-ui-tests.yml)
   [![License](https://img.shields.io/github/license/zhongmiao-org/intercept-wave?style=flat-square)](https://github.com/zhongmiao-org/intercept-wave/blob/main/LICENSE)
 
   [English](./README.md) | 简体中文
