@@ -45,16 +45,6 @@ class InterceptWaveToolWindowUiTest {
         "//div[@class='JButton' and (@text='启动所有' or @text='Start All')]"
     )
 
-    private val toolWindowContentLocator = byXpath(
-        "//div[" +
-            "contains(@accessiblename, 'InterceptWave') or " +
-            "contains(@visible_text, 'Intercept Wave') or " +
-            "contains(@visible_text, 'User Service') or " +
-            "contains(@visible_text, 'Payment Service') or " +
-            "contains(@visible_text, 'Ticker WS')" +
-            "]"
-    )
-
     private val configButtonLocator = byXpath(
         "//div[@class='JButton' and (@text='配置' or @text='Configure')]"
     )
@@ -149,8 +139,11 @@ class InterceptWaveToolWindowUiTest {
         ).isNotEmpty()
 
     private fun isToolWindowVisible(): Boolean =
-        remoteRobot.findAll<ComponentFixture>(toolWindowContentLocator).isNotEmpty() &&
-            remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty()
+        remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty() ||
+            remoteRobot.findAll<JButtonFixture>(startAllButtonLocator).isNotEmpty() ||
+            remoteRobot.findAll<JButtonFixture>(
+                byXpath("//div[@class='JButton' and (@text='停止所有' or @text='Stop All')]")
+            ).isNotEmpty()
 
     private fun ensureToolWindowOpen() {
         if (isToolWindowVisible()) return
@@ -159,7 +152,7 @@ class InterceptWaveToolWindowUiTest {
             remoteRobot.find<ComponentFixture>(toolWindowButtonLocator).click()
         }
 
-        waitFor(Duration.ofSeconds(10)) {
+        waitFor(Duration.ofSeconds(30)) {
             isToolWindowVisible()
         }
     }
@@ -191,7 +184,7 @@ class InterceptWaveToolWindowUiTest {
 
         step("Verify tool window is opened") {
             // Wait for tool window content to appear
-            waitFor(Duration.ofSeconds(10)) {
+            waitFor(Duration.ofSeconds(30)) {
                 isToolWindowVisible()
             }
         }

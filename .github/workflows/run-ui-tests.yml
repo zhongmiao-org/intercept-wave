@@ -9,7 +9,10 @@
 
 name: Run UI Tests
 on:
-  workflow_dispatch
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 jobs:
 
@@ -20,14 +23,22 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            runIdeShell: bash
             runIde: |
               export DISPLAY=:99.0
-              Xvfb -ac :99 -screen 0 1920x1080x16 &
-              gradle runIdeForUiTests &
+              Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
+              nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
           - os: windows-latest
-            runIde: start gradlew.bat runIdeForUiTests
+            runIdeShell: pwsh
+            runIde: |
+              Start-Process -FilePath .\gradlew.bat `
+                -ArgumentList 'runIdeForUiTests','--stacktrace','--console=plain' `
+                -RedirectStandardOutput 'ui-ide.log' `
+                -RedirectStandardError 'ui-ide.err.log'
           - os: macos-latest
-            runIde: ./gradlew runIdeForUiTests &
+            runIdeShell: bash
+            runIde: |
+              nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
 
     steps:
 
@@ -50,6 +61,7 @@ jobs:
 
       # Run IDEA prepared for UI testing
       - name: Run IDE
+        shell: ${{ matrix.runIdeShell }}
         run: ${{ matrix.runIde }}
 
       # Wait for IDEA to be started
@@ -63,3 +75,30 @@ jobs:
       # Run tests
       - name: Tests
         run: ./gradlew testUi
+
+      - name: Show IDE Logs On Failure
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f ui-ide.log ]; then
+            echo "===== ui-ide.log ====="
+            tail -n 200 ui-ide.log
+          fi
+          if [ -f ui-ide.err.log ]; then
+            echo "===== ui-ide.err.log ====="
+            tail -n 200 ui-ide.err.log
+          fi
+          if [ -f xfvb.log ]; then
+            echo "===== xfvb.log ====="
+            tail -n 100 xfvb.log
+          fi
+
+      - name: Upload UI Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-logs-${{ matrix.os }}
+          path: |
+            ui-ide.log
+            ui-ide.err.log
+            xfvb.log
