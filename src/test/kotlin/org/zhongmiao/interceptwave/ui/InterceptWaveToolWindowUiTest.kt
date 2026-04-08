@@ -112,7 +112,10 @@ class InterceptWaveToolWindowUiTest {
             "@class='MyDialog' and (" +
             "@title='Manage Licenses' or " +
             "@accessiblename='Manage Licenses' or " +
-            "@title.key='dialog.title.manage.licenses'" +
+            "@title.key='dialog.title.manage.licenses' or " +
+            ".//div[contains(@visible_text, 'Non-commercial use')] or " +
+            ".//div[contains(@visible_text, 'Paid license')] or " +
+            ".//div[contains(@visible_text, 'Start trial')]" +
             ")" +
             "]"
     )
@@ -226,24 +229,60 @@ class InterceptWaveToolWindowUiTest {
             runCatching {
                 dialog.callJs<Boolean>(
                     """
-                    var window = component
-                    if (window != null) {
-                      window.setVisible(false)
-                      window.dispose()
-                      window.dispatchEvent(new java.awt.event.WindowEvent(window, java.awt.event.WindowEvent.WINDOW_CLOSING))
-                      true
-                    } else {
-                      false
+                    function textOf(c) {
+                      try {
+                        var text = c.getText ? c.getText() : null
+                        if (text != null) return String(text)
+                      } catch (e) {}
+                      try {
+                        var ac = c.getAccessibleContext ? c.getAccessibleContext() : null
+                        var name = ac != null ? ac.getAccessibleName() : null
+                        if (name != null) return String(name)
+                      } catch (e) {}
+                      return ""
                     }
+
+                    function clickMatching(root, patterns) {
+                      if (root == null) return false
+                      var stack = [root]
+                      while (stack.length > 0) {
+                        var current = stack.pop()
+                        var text = textOf(current)
+                        if (current instanceof javax.swing.AbstractButton) {
+                          for (var i = 0; i < patterns.length; i++) {
+                            if (text.indexOf(patterns[i]) >= 0) {
+                              current.doClick()
+                              return true
+                            }
+                          }
+                        }
+                        if (current.getComponents) {
+                          var children = current.getComponents()
+                          for (var j = 0; j < children.length; j++) {
+                            stack.push(children[j])
+                          }
+                        }
+                      }
+                      return false
+                    }
+
+                    clickMatching(component, ['Non-commercial use', 'Non commercial use', 'Free']) ||
+                      clickMatching(component, ['Use for Free', 'Continue', 'OK', 'Activate'])
                     """.trimIndent(),
                     true
                 )
             }
         }
 
-        waitFor(Duration.ofSeconds(15)) {
+        waitFor(Duration.ofSeconds(30)) {
             !hasComponent(manageLicensesDialogLocator)
         }
+    }
+
+    private fun clearBlockingDialogs() {
+        acceptTrustDialogIfPresent()
+        dismissOnboardingDialogIfPresent()
+        dismissManageLicensesDialogIfPresent()
     }
 
     private fun openProjectFromWelcomeIfNeeded() {
@@ -317,9 +356,11 @@ class InterceptWaveToolWindowUiTest {
             ).isNotEmpty()
 
     private fun ensureToolWindowOpen() {
+        clearBlockingDialogs()
         if (isToolWindowVisible()) return
 
         waitForToolWindowButton()
+        clearBlockingDialogs()
 
         step("Ensure Intercept Wave tool window is open") {
             val openedViaIde = showToolWindowFromIde()
@@ -329,6 +370,7 @@ class InterceptWaveToolWindowUiTest {
         }
 
         waitFor(Duration.ofMinutes(2)) {
+            clearBlockingDialogs()
             isToolWindowVisible()
         }
     }
@@ -336,13 +378,11 @@ class InterceptWaveToolWindowUiTest {
     @BeforeEach
     fun setUp() {
         applyUiFixtureConfig()
-        acceptTrustDialogIfPresent()
+        clearBlockingDialogs()
         openProjectFromWelcomeIfNeeded()
-        acceptTrustDialogIfPresent()
+        clearBlockingDialogs()
         waitForProjectUiReady()
-        acceptTrustDialogIfPresent()
-        dismissOnboardingDialogIfPresent()
-        dismissManageLicensesDialogIfPresent()
+        clearBlockingDialogs()
         waitForToolWindowButton()
     }
 

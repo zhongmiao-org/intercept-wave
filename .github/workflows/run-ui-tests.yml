@@ -18,6 +18,9 @@ jobs:
 
   testUI:
     runs-on: ${{ matrix.os }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      UI_PLATFORM_VERSION: 2025.1.5
     strategy:
       fail-fast: false
       matrix:
@@ -54,36 +57,45 @@ jobs:
         run: |
           export DISPLAY=:99.0
           Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
-          nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
 
       - name: Run IDE on macOS
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          nohup ./gradlew runIdeForUiTests --stacktrace --console=plain > ui-ide.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
 
       - name: Run IDE on Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          Start-Process -FilePath .\gradlew.bat `
-            -ArgumentList 'runIdeForUiTests','--stacktrace','--console=plain' `
+          $process = Start-Process -FilePath .\gradlew.bat `
+            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain',"-PplatformVersion=$env:UI_PLATFORM_VERSION" `
             -RedirectStandardOutput 'ui-ide.log' `
-            -RedirectStandardError 'ui-ide.err.log'
+            -RedirectStandardError 'ui-ide.err.log' `
+            -PassThru
+          "Started runIdeForUiTests PID=$($process.Id)" | Out-File -FilePath ui-ide.log -Append
+          Start-Sleep -Seconds 10
+          if ($process.HasExited) {
+            "runIdeForUiTests exited early with code $($process.ExitCode)" | Out-File -FilePath ui-ide.log -Append
+            Get-Content ui-ide.log
+            if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log }
+            exit 1
+          }
 
       # Wait for IDEA to be started
       - name: Health Check
         uses: jtalk/url-health-check-action@v5
         with:
           url: http://127.0.0.1:8082
-          max-attempts: 15
+          max-attempts: 20
           retry-delay: 30s
 
       # Run tests
       - name: Tests
         env:
           RUN_UI_TESTS: "true"
-        run: ./gradlew testUi
+        run: ./gradlew testUi --no-configuration-cache --console=plain -PplatformVersion=${{ env.UI_PLATFORM_VERSION }}
 
       - name: Dump Remote Robot DOM On Failure
         if: failure()

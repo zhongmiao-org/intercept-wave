@@ -284,6 +284,25 @@ val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
             </application>
             """.trimIndent()
         )
+        dir.resolve("trace_license_storage.xml").writeText(
+            """
+            <application>
+              <component name="TraceLicenseStorage">
+                <option name="lastUsedLicenseData" value="" />
+              </component>
+            </application>
+            """.trimIndent()
+        )
+        dir.resolve("AIOnboardingPromoWindowAdvisor.xml").writeText(
+            """
+            <application>
+              <component name="AIOnboardingPromoWindowAdvisor">
+                <option name="attempts" value="0" />
+                <option name="shouldShowNextTime" value="NO" />
+              </component>
+            </application>
+            """.trimIndent()
+        )
         dir.resolve("recentProjects.xml").writeText(
             """
             <application>
