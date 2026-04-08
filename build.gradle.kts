@@ -354,7 +354,7 @@ tasks {
     // Separate UI test task
     register<Test>("testUi") {
         description = "Runs UI tests with a running IDE instance"
-        group = "verification"
+        group = "ui verification"
         val testSourceSet = sourceSets.named("test").get()
 
         // Use JUnit Platform for JUnit 5 tests
@@ -380,6 +380,10 @@ tasks {
 
         dependsOn(prepareUiTestProject)
         shouldRunAfter(named<Test>("test"))
+        onlyIf {
+            providers.gradleProperty("runUiTests").orNull == "true" ||
+                providers.environmentVariable("RUN_UI_TESTS").orNull == "true"
+        }
     }
 
     named("runIdeForUiTests") {

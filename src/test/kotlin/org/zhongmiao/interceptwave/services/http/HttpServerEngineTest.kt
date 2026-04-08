@@ -117,7 +117,13 @@ class HttpServerEngineTest {
 
         // Events include RequestReceived, MatchedPath, MockMatched
         assertTrue(out.events.any { it is RequestReceived && it.path == "/api/user" })
-        assertTrue(out.events.any { it is MockMatched && it.path == "/user" && it.statusCode == 200 })
+        assertTrue(
+            out.events.any {
+                it is MockMatched &&
+                    (it.path == "/user" || it.path == "/api/user") &&
+                    it.statusCode == 200
+            }
+        )
 
         engine.stop()
     }

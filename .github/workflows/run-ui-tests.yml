@@ -81,6 +81,8 @@ jobs:
 
       # Run tests
       - name: Tests
+        env:
+          RUN_UI_TESTS: "true"
         run: ./gradlew testUi
 
       - name: Dump Remote Robot DOM On Failure
