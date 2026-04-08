@@ -7,15 +7,18 @@
   [![Version](https://img.shields.io/jetbrains/plugin/v/28728.svg?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
   [![Downloads](https://img.shields.io/jetbrains/plugin/d/28728.svg?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
   [![Rating](https://img.shields.io/jetbrains/plugin/r/rating/28728?style=flat-square)](https://plugins.jetbrains.com/plugin/28728-intercept-wave)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+  [![JetBrains IDEs](https://img.shields.io/badge/JetBrains%20IDEs-supported-000000?style=flat-square&logo=jetbrains&logoColor=white)](https://www.jetbrains.com/)
+  [![UI Tests](https://github.com/zhongmiao-org/intercept-wave/actions/workflows/run-ui-tests.yml/badge.svg)](https://github.com/zhongmiao-org/intercept-wave/actions/workflows/run-ui-tests.yml)
   [![License](https://img.shields.io/github/license/zhongmiao-org/intercept-wave?style=flat-square)](https://github.com/zhongmiao-org/intercept-wave/blob/main/LICENSE)
 
   English | [简体中文](./README_zh.md)
 </div>
 
 <!-- Plugin description -->
-## Plugin Introduction
+## Plugin Overview
 
-Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and interception capabilities similar to **Nginx** and **Charles**, designed specifically for local development environments. It can intelligently intercept HTTP requests and WebSocket (`ws://`/`wss://`) messages, either returning custom mock data or acting as a proxy server/bridge to forward real traffic to the original server.
+Intercept Wave is an IntelliJ IDEA plugin for local development that combines request interception, mocking, and proxying in a workflow similar to **Nginx** and **Charles**. It can intercept HTTP requests and WebSocket (`ws://` / `wss://`) messages, return custom mock data, or bridge traffic to an upstream service when you need real responses.
 
 ### ✨ Multi-Service Proxy
 
@@ -28,12 +31,12 @@ Intercept Wave is a powerful IntelliJ IDEA plugin that integrates proxy and inte
 ### Core Capabilities
 
 **Smart Interception & Proxy**:
-- 🎯 Configure intercept prefix (e.g., `/api`) to precisely target specific request paths
+- 🎯 Configure path prefixes (for example, `/api`) to precisely target specific request paths
 - 🧭 Configure multiple HTTP routes inside one HTTP group, each with its own prefix, upstream target, strip-prefix rule, and Mock switch
 - 🔄 **With Mock Config**: Returns preset mock data for offline development
 - 🌐 **Without Mock Config**: Acts as a proxy server, forwarding requests with complete HTTP headers to get real data
 - 🔀 Smart path matching with prefix stripping support
- - 📡 **WebSocket Mock & Bridge**: Create WS groups that listen on local `ws://` ports (optionally `wss://` with a PKCS#12 keystore), bridge to upstream `ws://`/`wss://` servers, and support both automatic and manual message pushing.
+- 📡 **WebSocket Mock & Bridge**: Create WS groups that listen on local `ws://` ports, optionally expose local `wss://` with a PKCS#12 keystore, bridge to upstream `ws://` / `wss://` servers, and support both automatic and manual message pushing
 
 **Developer-Friendly Features**:
 - 👥 **Target Users**: Frontend Engineers, QA Engineers, Full-Stack Developers
@@ -72,7 +75,7 @@ Intercept Wave provides the following core functionalities:
 ### What's New in v4.0
 
 - Config version now aligns with the plugin major.minor (e.g., 4.0). Existing legacy configs load seamlessly and are saved with `"version": "4.0"` automatically.
-- Mock JSON normalization and minification: mockData accepts single quotes, comments, unquoted keys, and trailing commas, and is saved as compact JSON. Use "Format JSON" to pretty print when editing.
+- Mock JSON normalization and minification: `mockData` accepts single quotes, comments, unquoted keys, and trailing commas, then saves the result as compact JSON. Use "Format JSON" to pretty-print it while editing.
 
 ## Installation
 
@@ -109,7 +112,7 @@ The tool window provides global operations at the top:
 
 The tool window title bar also provides quick file-oriented actions:
 - **Open Config File**: Open `.intercept-wave/config.json` directly in the IDE editor
-- **Reload Config**: Save unsaved IDE documents, reload the config from disk, and refresh the tool window while restarting only the groups that were already running
+- **Reload Config**: Save any unsaved IDE documents, reload the config from disk, refresh the tool window, and restart only the groups that were already running
 
 #### Tab Explanation
 - Each tab represents a configuration group (e.g., "User Service", "Order Service")
@@ -158,7 +161,7 @@ Each configuration group contains the following settings:
    - **Enabled**: Whether to enable this mock configuration
    - **Use Global Cookie**: When enabled, the response includes the configured global cookie
 
-3. Click the "Format JSON" button to format mock data
+3. Click "Format JSON" to format the mock data for easier editing
 4. Click "OK" to save configuration
 
 #### HTTP Settings (Protocol = HTTP)
@@ -197,7 +200,7 @@ In the tool window, WS groups now clearly distinguish:
 - **Upstream Bridge mode**: local WS service plus upstream bridging/forwarding.
 
 #### Path Matching Rules (Wildcards)
-Support wildcards in `path` for flexible matching (behavior of `stripPrefix` and `interceptPrefix` remains unchanged):
+Support wildcards in `path` for flexible matching. `stripPrefix` behavior remains unchanged:
 - Single-segment `*`: matches exactly one path segment (no slash)
   - Example: `/a/b/*` matches `/a/b/123`, not `/a/b/123/456`
 - Multi-segment `**`: matches multiple segments (can include slashes)
@@ -296,13 +299,13 @@ fetch('http://localhost:8888/api/posts')
   .then(data => console.log(data));
 ```
 
-If the original API address is configured as `http://api.example.com`, the actual request will be: `http://api.example.com/api/posts`
+If the upstream route target is configured as `http://api.example.com`, the actual request will be `http://api.example.com/api/posts`.
 
 ### Case 4: Simulate Authenticated APIs
 
 1. Set cookie in global configuration: `sessionId=abc123; userId=456`
-2. Check "Use Global Cookie" in mock API configuration
-3. Mock API response will automatically include `Set-Cookie` response header
+2. Check "Use Global Cookie" in the mock API configuration
+3. The mock response will automatically include a `Set-Cookie` header
 
 ### Case 5: Simulate Network Delay
 
@@ -386,7 +389,7 @@ Set cookie value in global configuration, multiple cookies separated by semicolo
 sessionId=abc123; userId=456; token=xyz789
 ```
 
-Then check "Use Global Cookie" for mock APIs that need cookies, and the response will automatically include `Set-Cookie` header.
+Then enable "Use Global Cookie" for any mock API that needs cookies. The response will automatically include a `Set-Cookie` header.
 
 ### CORS Support
 
@@ -407,51 +410,54 @@ Unconfigured mock APIs will be automatically forwarded to the original server, p
 
 ## Welcome Page
 
-Accessing the mock server root path (`http://localhost:8888/`) returns server status and configuration information:
+Accessing the mock server root path (`http://localhost:8888/`) returns server status and route summary information:
 
 ```json
 {
   "status": "running",
   "message": "Intercept Wave Mock Server is running",
+  "configGroup": "Gateway",
   "server": {
     "port": 8888,
-    "baseUrl": "http://localhost:8080",
-    "interceptPrefix": "/api"
+    "routes": 3
   },
   "mockApis": {
     "total": 3,
     "enabled": 2
   },
-  "apis": [
-    {"path": "/api/user/info", "method": "GET", "enabled": true},
-    {"path": "/api/posts", "method": "ALL", "enabled": true}
+  "routes": [
+    {"name": "User API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "enableMock": true, "mockApis": 1},
+    {"name": "Order API", "pathPrefix": "/order-api", "targetBaseUrl": "http://localhost:9001", "stripPrefix": true, "enableMock": false, "mockApis": 1}
+  ],
+  "examples": [
+    {"route": "User API", "method": "GET", "url": "http://localhost:8888/api/user/info"}
   ]
 }
 ```
 
 ## Important Notes
 
-1. **Port Occupation**: Ensure the configured port is not occupied by other programs
-2. **Configuration Changes**: If the server is running when configuration is modified, it will automatically stop
-3. **Project Closure**: Mock server will automatically stop when the project is closed
-4. **Security**: This tool is only for local development environment, do not use in production
+1. **Port Availability**: Make sure the configured port is not already in use
+2. **Configuration Changes**: If you modify the configuration while a service is running, the service may restart or stop so the new settings can take effect
+3. **Project Closure**: Running services stop automatically when the project closes
+4. **Security**: This tool is intended for local development only and should not be used in production
 
 ## FAQ
 
-### Q: What to do if the server fails to start?
-A: Check if the port is occupied, you can change the port number in the configuration.
+### Q: What should I do if the server fails to start?
+A: Check whether the configured port is already in use, then change the port number if needed.
 
 ### Q: Why is my API not being mocked?
-A: Make sure the API path matches exactly and the mock configuration is enabled.
+A: Make sure the request matches the selected route, the mock path is correct, and the mock entry is enabled.
 
-### Q: How to view request logs?
-A: When you start the mock server, the "Intercept Wave Mock Server" tab will automatically appear in the Run tool window at the bottom of IDEA, displaying real-time color-coded logs for all requests, including timestamps, request methods, paths, and whether the response was mocked or proxied.
+### Q: How can I view request logs?
+A: After you start a service, the "Intercept Wave Mock Server" tab appears in the Run tool window at the bottom of IntelliJ IDEA and shows real-time logs for requests, including timestamps, methods, paths, and whether each response was mocked or proxied.
 
 ### Q: Does it support HTTPS?
-A: The current version only supports HTTP, HTTPS support is planned.
+A: HTTP groups currently expose local HTTP endpoints. WebSocket groups support local `ws://` and optional local `wss://` with a PKCS#12 keystore.
 
-### Q: How does global cookie work?
-A: Set cookie value in global configuration, then check "Use Global Cookie" in mock API configuration. The response will include the cookie via `Set-Cookie` response header.
+### Q: How does the global cookie feature work?
+A: Set the cookie value in the group configuration, then enable "Use Global Cookie" for the relevant mock API. The response will return that cookie through the `Set-Cookie` header.
 
 ## Testing & Coverage
 

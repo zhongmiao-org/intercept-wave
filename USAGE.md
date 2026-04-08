@@ -1,184 +1,200 @@
-# Intercept Wave - Mock 服务使用指南
+# Intercept Wave Usage Guide
 
-## 功能概述
+[简体中文](./USAGE_zh.md)
 
-Intercept Wave 是一个 IntelliJ IDEA 插件，提供本地 HTTP Mock 服务功能，用于：
-- 拦截特定接口并返回配置的 Mock 数据
-- 转发未配置的接口到原始服务器（代理功能）
-- 自动添加 CORS 头，解决跨域问题
-- 保留原始请求头和 User-Agent
+## Overview
 
-## 快速开始
+Intercept Wave is an IntelliJ IDEA plugin that helps you handle HTTP mocking, proxy forwarding, and WebSocket debugging in one local workflow. You can use it to:
+- Intercept specific APIs and return custom mock data
+- Forward unmatched requests to upstream services automatically
+- Maintain multiple proxy groups for different services or environments
+- Add CORS headers automatically to simplify frontend integration
 
-### 1. 启动插件
+## Quick Start
 
-1. 在 IntelliJ IDEA 中打开项目
-2. 点击右侧工具栏的 "Intercept Wave" 图标
-3. 在工具窗口中点击 "启动服务" 按钮
-4. 服务启动成功后，会显示访问地址（默认：http://localhost:8888）
+### 1. Open the Plugin
 
-### 2. 配置 Mock 服务
+1. Open your project in IntelliJ IDEA
+2. Click the "Intercept Wave" icon in the side toolbar
+3. Select a proxy group and click "Start Service", or use "Start All" at the top
+4. After the service starts, a local access URL such as `http://localhost:8888` will be shown
 
-点击 "配置" 按钮，打开配置对话框：
+### 2. Configure Mock Services
 
-#### 全局配置
-- **Mock端口**: 本地 Mock 服务监听的端口（默认：8888）
-- **拦截前缀**: 需要拦截的接口路径前缀（默认：/api）
-- **原始接口地址**: 原始服务器的基础 URL（例如：http://localhost:8080）
+Click the "Configuration" button to open the configuration dialog.
 
-#### Mock接口配置
-1. 点击 "添加接口" 按钮
-2. 填写以下信息：
-   - **接口路径**: 例如 `/api/user/info`
-   - **HTTP方法**: ALL、GET、POST、PUT、DELETE、PATCH
-   - **状态码**: HTTP 响应状态码（默认：200）
-   - **延迟(毫秒)**: 模拟网络延迟（默认：0）
-   - **Mock数据**: JSON 格式的响应数据
-   - **启用**: 是否启用此 Mock 配置
+#### Group Basics
+- **Protocol**: `HTTP` or `WS`
+- **Group Name**: For example, "User Service" or "Order Service"
+- **Port**: The local listening port for the current group
+- **Enable This Group**: Whether this group should be included in "Start All"
 
-3. 点击 "格式化JSON" 按钮可以格式化 Mock 数据
-4. 点击 "OK" 保存配置
+#### HTTP Settings
+- **Global Cookie**: Optionally append a shared cookie to mock responses
+- **Routes**: Each HTTP group can contain multiple routes, and each route includes:
+  - **Path Prefix**: Such as `/api` or `/order-api`
+  - **Target Base URL**: Such as `http://localhost:8080`
+  - **Strip Prefix**: Whether to remove the route prefix before matching and forwarding
+  - **Enable Mock**: Whether this route should check its own mock list first
 
-## 使用场景
+#### Mock API Settings
+1. Click "Add API"
+2. Fill in the following fields:
+   - **API Path**: For example, `/user/info` or `/api/user/info`, depending on whether the current route strips its prefix
+   - **HTTP Method**: ALL, GET, POST, PUT, DELETE, PATCH
+   - **Status Code**: The HTTP response status code, default `200`
+   - **Delay (ms)**: Simulated network delay, default `0`
+   - **Mock Data**: The response payload in JSON format
+   - **Enabled**: Whether this mock rule is active
+   - **Use Global Cookie**: Whether the response should include the group-level cookie
 
-### 场景 1: Mock 特定接口
+3. Click "Format JSON" to make the payload easier to read
+4. Click "OK" to save the configuration
+
+## Common Scenarios
+
+### Scenario 1: Mock a Specific API
 
 ```javascript
-// 前端代码
+// Frontend code
 fetch('http://localhost:8888/api/user/info')
   .then(res => res.json())
   .then(data => console.log(data));
 ```
 
-配置：
-- 路径: `/api/user/info`
-- 方法: `GET`
-- Mock数据:
+Configuration:
+- Path: `/api/user/info`
+- Method: `GET`
+- Mock Data:
 ```json
 {
   "code": 0,
   "data": {
     "id": 1,
-    "name": "张三",
-    "email": "zhangsan@example.com"
+    "name": "John Doe",
+    "email": "john@example.com"
   },
   "message": "success"
 }
 ```
 
-### 场景 2: 转发未配置的接口
+### Scenario 2: Forward an Unconfigured API
 
 ```javascript
-// 这个接口没有配置 Mock，会自动转发到原始服务器
+// This API is not mocked, so it will be forwarded automatically
 fetch('http://localhost:8888/api/posts')
   .then(res => res.json())
   .then(data => console.log(data));
 ```
 
-如果配置了原始接口地址为 `http://api.example.com`，则实际请求：
+If the current route target is configured as `http://api.example.com`, the actual request will be forwarded to:
 `http://api.example.com/api/posts`
 
-### 场景 3: 模拟网络延迟
+### Scenario 3: Simulate Network Delay
 
-在 Mock 配置中设置延迟时间（例如：1000ms），模拟慢速网络环境。
+Set a delay value in the mock rule, for example `1000ms`, to simulate a slow network.
 
-### 场景 4: 测试不同的响应状态码
+### Scenario 4: Test Different Response Status Codes
 
-配置不同的状态码（404、500等）来测试前端的错误处理逻辑。
+Configure different status codes such as `404` or `500` to verify frontend error handling.
 
-## 配置文件
+### Scenario 5: Debug WebSocket Traffic
 
-所有配置保存在项目根目录的 `.intercept-wave` 文件夹中：
+When a group uses the `WS` protocol, you can:
+- Start a local `ws://` service, and enable local `wss://` when needed
+- Bridge messages to an upstream `ws://` or `wss://` service
+- Configure automatic push rules or send messages manually from the tool window
+
+## Configuration File
+
+All configuration is stored in the `.intercept-wave` directory under the project root:
 
 ```
 .intercept-wave/
-├── config.json           # 全局配置和接口映射
-├── api_user_info.json    # 可选：独立的 Mock 数据文件
-└── api_posts.json
+└── config.json           # Root config, proxy groups, HTTP routes, mock rules, and WS rules
 ```
 
-### config.json 示例
+### Example `config.json`
 
 ```json
 {
-  "port": 8888,
-  "interceptPrefix": "/api",
-  "baseUrl": "http://localhost:8080",
-  "mockApis": [
+  "version": "4.0",
+  "proxyGroups": [
     {
-      "path": "/api/user/info",
+      "name": "Gateway",
+      "port": 8888,
       "enabled": true,
-      "mockData": "{\"code\":0,\"data\":{\"name\":\"张三\"}}",
-      "method": "GET",
-      "statusCode": 200,
-      "headers": {},
-      "delay": 0
+      "protocol": "HTTP",
+      "globalCookie": "sessionId=abc123",
+      "routes": [
+        {
+          "name": "API",
+          "pathPrefix": "/api",
+          "targetBaseUrl": "http://localhost:8080",
+          "stripPrefix": true,
+          "enableMock": true,
+          "mockApis": [
+            {
+              "path": "/user/info",
+              "enabled": true,
+              "mockData": "{\"code\":0,\"data\":{\"name\":\"John Doe\"}}",
+              "method": "GET",
+              "statusCode": 200,
+              "useCookie": true,
+              "delay": 0
+            }
+          ]
+        }
+      ]
     }
   ]
 }
 ```
 
-## 高级功能
+## Advanced Features
 
-### 自定义响应头
+### Global Cookie
 
-在 Mock 接口配置中可以添加自定义响应头：
+After you set a cookie value at the group level, you can enable "Use Global Cookie" on selected mock rules and the response will include a `Set-Cookie` header automatically.
 
-```json
-{
-  "path": "/api/custom",
-  "headers": {
-    "X-Custom-Header": "value",
-    "Cache-Control": "no-cache"
-  }
-}
-```
+### CORS Support
 
-### CORS 支持
-
-Mock 服务器自动添加以下 CORS 头：
+The mock server automatically adds the following CORS headers:
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
-### 代理模式
+### Proxy Mode
 
-未配置 Mock 的接口会自动转发到原始服务器，并保留：
-- 原始请求头
+When no mock rule matches, the request is forwarded to the upstream server while preserving as much original request data as possible:
+- Original request headers
 - User-Agent
-- 请求体（POST/PUT 等）
+- Request body for POST/PUT and similar methods
+- Cookies when present
 
-## 注意事项
+## Notes
 
-1. **端口占用**: 确保配置的端口未被其他程序占用
-2. **配置修改**: 修改配置后需要重启 Mock 服务
-3. **项目关闭**: 关闭项目时 Mock 服务会自动停止
-4. **安全性**: 此工具仅用于本地开发环境，不要在生产环境使用
+1. **Port Availability**: Make sure the configured port is not already in use
+2. **Configuration Changes**: If a service is already running, changing the config may require a reload or restart for that group
+3. **Project Closure**: Related services stop automatically when the project closes
+4. **Security**: This tool is intended for local development and debugging only, not production use
 
-## 常见问题
+## FAQ
 
-### Q: 服务启动失败怎么办？
-A: 检查端口是否被占用，可以修改配置中的端口号。
+### Q: What should I do if the service fails to start?
+A: First check whether the configured port is already occupied. If needed, change the port for that proxy group.
 
-### Q: 接口没有被 Mock？
-A: 确认接口路径完全匹配，且 Mock 配置已启用。
+### Q: Why is my API not being mocked?
+A: Make sure the request matches the correct route, the mock path is correct, and the corresponding rule is enabled.
 
-### Q: 如何查看请求日志？
-A: 打开 IDEA 的 Event Log 或 Console，可以看到请求日志。
+### Q: How can I view request logs?
+A: After you start a service, you can view real-time request logs in the Run tool window at the bottom of IntelliJ IDEA.
 
-### Q: 支持 HTTPS 吗？
-A: 当前版本仅支持 HTTP，HTTPS 支持在计划中。
+### Q: Does it support HTTPS?
+A: HTTP groups currently expose local HTTP endpoints. WS groups support local `ws://` and can expose local `wss://` with a PKCS#12 certificate.
 
-## 开发计划
+## Feedback and Contributions
 
-- [ ] 支持 HTTPS
-- [ ] 支持 WebSocket Mock
-- [ ] 请求日志查看器
-- [ ] 导入/导出配置
-- [ ] Mock 数据模板库
-
-## 反馈与贡献
-
-如有问题或建议，欢迎提交 Issue 或 Pull Request！
+Issues and pull requests are welcome.
