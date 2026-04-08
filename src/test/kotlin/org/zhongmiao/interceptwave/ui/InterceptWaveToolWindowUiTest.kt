@@ -112,6 +112,30 @@ class InterceptWaveToolWindowUiTest {
         }
     }
 
+    private fun showToolWindowFromIde(): Boolean =
+        runCatching {
+            remoteRobot.callJs<Boolean>(
+                """
+                importPackage(Packages.com.intellij.openapi.project)
+                importPackage(Packages.com.intellij.openapi.wm)
+
+                var projects = ProjectManager.getInstance().getOpenProjects()
+                if (projects == null || projects.length === 0) {
+                    false
+                } else {
+                    var toolWindow = ToolWindowManager.getInstance(projects[0]).getToolWindow("InterceptWave")
+                    if (toolWindow == null) {
+                        false
+                    } else {
+                        toolWindow.show(null)
+                        toolWindow.activate(null)
+                        true
+                    }
+                }
+                """.trimIndent()
+            )
+        }.getOrDefault(false)
+
     private fun acceptTrustDialogIfPresent() {
         if (!hasComponent(trustDialogLocator)) return
 
@@ -210,7 +234,10 @@ class InterceptWaveToolWindowUiTest {
         waitForToolWindowButton()
 
         step("Ensure Intercept Wave tool window is open") {
-            remoteRobot.find<ComponentFixture>(toolWindowButtonLocator).click()
+            val openedViaIde = showToolWindowFromIde()
+            if (!openedViaIde) {
+                remoteRobot.find<ComponentFixture>(toolWindowButtonLocator).click()
+            }
         }
 
         waitFor(Duration.ofMinutes(2)) {
