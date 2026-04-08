@@ -52,6 +52,10 @@ jobs:
         with:
           cache-read-only: true
 
+      - name: Warm Up Gradle
+        shell: bash
+        run: ./gradlew help --no-configuration-cache --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION}
+
       - name: Run IDE on Linux
         if: matrix.platform == 'linux'
         shell: bash
@@ -89,7 +93,7 @@ jobs:
         uses: jtalk/url-health-check-action@v5
         with:
           url: http://127.0.0.1:8082
-          max-attempts: 20
+          max-attempts: 30
           retry-delay: 30s
 
       # Run tests
