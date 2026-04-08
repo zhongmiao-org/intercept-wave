@@ -203,7 +203,10 @@ tasks.withType<Test>().configureEach {
 // Configure UI testing with robot-server plugin
 // See: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-faq.html#how-to-configure-ui-tests
 val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
+    val uiProjectDir = layout.buildDirectory.dir("ui-test-project/intercept-wave-ui-project")
+
     task {
+        dependsOn(prepareUiTestProject)
         jvmArgumentProviders += CommandLineArgumentProvider {
             listOf(
                 "-Drobot-server.port=8082",
@@ -213,6 +216,7 @@ val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
                 "-Xshare:off", // 关闭 CDS
             )
         }
+        args(uiProjectDir.get().asFile.absolutePath)
     }
 
     plugins { robotServerPlugin() }
@@ -220,18 +224,31 @@ val runIdeForUiTests by intellijPlatformTesting.runIde.registering {
 
 val prepareUiTestProject = tasks.register("prepareUiTestProject") {
     val uiProjectDir = layout.buildDirectory.dir("ui-test-project/intercept-wave-ui-project")
+    val uiProjectTemplateDir = layout.projectDirectory.dir("src/test/resources/ui-test-project-template")
     outputs.dir(uiProjectDir)
 
     doLast {
         val dir = uiProjectDir.get().asFile
+        if (dir.exists()) {
+            dir.deleteRecursively()
+        }
         dir.mkdirs()
-        dir.resolve(".gitignore").writeText(
-            """
-            .idea/
-            .intercept-wave/
-            """.trimIndent()
-        )
-        dir.resolve("README.md").writeText("# UI Test Project\n")
+
+        val templateDir = uiProjectTemplateDir.asFile
+        if (!templateDir.exists()) {
+            throw GradleException("Missing UI test project template: ${templateDir.absolutePath}")
+        }
+
+        templateDir.walkTopDown().forEach { source ->
+            val relativePath = source.relativeTo(templateDir).path
+            val target = dir.resolve(relativePath)
+            if (source.isDirectory) {
+                target.mkdirs()
+            } else {
+                target.parentFile.mkdirs()
+                source.copyTo(target, overwrite = true)
+            }
+        }
     }
 }
 

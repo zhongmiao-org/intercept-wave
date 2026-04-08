@@ -57,6 +57,34 @@ class InterceptWaveToolWindowUiTest {
         "//div[@class='MyDialog' and contains(@title, 'Mock')]"
     )
 
+    private val trustDialogLocator = byXpath(
+        "//div[" +
+            "@class='MyDialog' and (" +
+            ".//div[@class='JButton' and (@text='Trust Project' or @text='信任项目')] or " +
+            ".//div[contains(@visible_text, 'Trust and Open Project')] or " +
+            ".//div[contains(@visible_text, 'Trust Project')]" +
+            ")" +
+            "]"
+    )
+
+    private val trustProjectButtonLocator = byXpath(
+        "//div[@class='JButton' and (" +
+            "@text='Trust Project' or " +
+            "@text='信任项目' or " +
+            "contains(@text, 'Trust ') or " +
+            "contains(@visible_text, 'Trust ')" +
+            ")]"
+    )
+
+    private val trustAllCheckboxLocator = byXpath(
+        "//div[" +
+            "@class='JBCheckBox' and (" +
+            "contains(@text, \"Trust all projects\") or " +
+            "contains(@text, \"信任\")" +
+            ")" +
+            "]"
+    )
+
     private val projectFrameLocator = byXpath("//div[@class='IdeFrameImpl']")
 
     private val welcomeFrameLocator = byXpath(
@@ -71,9 +99,38 @@ class InterceptWaveToolWindowUiTest {
         remoteRobot.findAll<ComponentFixture>(locator).isNotEmpty()
 
     private fun waitForProjectUiReady() {
-        waitFor(Duration.ofMinutes(2)) {
+        waitFor(Duration.ofMinutes(6)) {
             runCatching { remoteRobot.callJs<Boolean>("true") }.getOrDefault(false) &&
-                hasComponent(projectFrameLocator)
+                hasComponent(projectFrameLocator) &&
+                !hasComponent(trustDialogLocator)
+        }
+    }
+
+    private fun waitForToolWindowButton() {
+        waitFor(Duration.ofMinutes(3)) {
+            hasComponent(toolWindowButtonLocator)
+        }
+    }
+
+    private fun acceptTrustDialogIfPresent() {
+        if (!hasComponent(trustDialogLocator)) return
+
+        step("Trust the UI test project if the trust dialog is shown") {
+            val trustDialog = remoteRobot.find<CommonContainerFixture>(trustDialogLocator)
+
+            runCatching {
+                val trustAllCheckbox = trustDialog.find<ComponentFixture>(trustAllCheckboxLocator)
+                val isSelected = trustAllCheckbox.callJs<Boolean>("component.isSelected()", true)
+                if (!isSelected) {
+                    trustAllCheckbox.click()
+                }
+            }
+
+            trustDialog.find<JButtonFixture>(trustProjectButtonLocator).click()
+        }
+
+        waitFor(Duration.ofSeconds(15)) {
+            !hasComponent(trustDialogLocator)
         }
     }
 
@@ -81,8 +138,10 @@ class InterceptWaveToolWindowUiTest {
         if (hasComponent(projectFrameLocator)) return
 
         waitFor(Duration.ofMinutes(1)) {
-            hasComponent(welcomeFrameLocator)
+            hasComponent(welcomeFrameLocator) || hasComponent(projectFrameLocator) || hasComponent(trustDialogLocator)
         }
+
+        if (hasComponent(projectFrameLocator) || hasComponent(trustDialogLocator)) return
 
         step("Open a visible recent project from the Welcome screen") {
             val recentProjects = remoteRobot.find<JTreeFixture>(recentProjectsLocator)
@@ -148,11 +207,13 @@ class InterceptWaveToolWindowUiTest {
     private fun ensureToolWindowOpen() {
         if (isToolWindowVisible()) return
 
+        waitForToolWindowButton()
+
         step("Ensure Intercept Wave tool window is open") {
             remoteRobot.find<ComponentFixture>(toolWindowButtonLocator).click()
         }
 
-        waitFor(Duration.ofSeconds(30)) {
+        waitFor(Duration.ofMinutes(2)) {
             isToolWindowVisible()
         }
     }
@@ -160,8 +221,12 @@ class InterceptWaveToolWindowUiTest {
     @BeforeEach
     fun setUp() {
         applyUiFixtureConfig()
+        acceptTrustDialogIfPresent()
         openProjectFromWelcomeIfNeeded()
+        acceptTrustDialogIfPresent()
         waitForProjectUiReady()
+        acceptTrustDialogIfPresent()
+        waitForToolWindowButton()
     }
 
     @AfterEach
