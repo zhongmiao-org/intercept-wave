@@ -79,22 +79,50 @@ jobs:
             -RedirectStandardOutput 'ui-ide.log' `
             -RedirectStandardError 'ui-ide.err.log' `
             -PassThru
-          "Started runIdeForUiTests PID=$($process.Id)" | Out-File -FilePath ui-ide.log -Append
           Start-Sleep -Seconds 10
           if ($process.HasExited) {
-            "runIdeForUiTests exited early with code $($process.ExitCode)" | Out-File -FilePath ui-ide.log -Append
-            Get-Content ui-ide.log
+            Write-Host "runIdeForUiTests exited early with code $($process.ExitCode)"
+            if (Test-Path ui-ide.log) { Get-Content ui-ide.log }
             if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log }
             exit 1
           }
+          Write-Host "Started runIdeForUiTests PID=$($process.Id)"
 
-      # Wait for IDEA to be started
-      - name: Health Check
-        uses: jtalk/url-health-check-action@v5
-        with:
-          url: http://127.0.0.1:8082
-          max-attempts: 30
-          retry-delay: 30s
+      - name: Wait for Robot Server on Linux/macOS
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --connect-timeout 3 --max-time 5 -fsS http://127.0.0.1:8082 >/dev/null; then
+              echo "Robot server is ready on attempt $attempt"
+              exit 0
+            fi
+            echo "Robot server not ready yet (attempt $attempt/60)"
+            if [ -f ui-ide.log ]; then
+              tail -n 20 ui-ide.log || true
+            fi
+            sleep 15
+          done
+          echo "Robot server did not become ready in time"
+          exit 1
+
+      - name: Wait for Robot Server on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          for ($attempt = 1; $attempt -le 60; $attempt++) {
+            try {
+              Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 5 | Out-Null
+              Write-Host "Robot server is ready on attempt $attempt"
+              exit 0
+            } catch {
+              Write-Host "Robot server not ready yet (attempt $attempt/60)"
+            }
+            if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 }
+            if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 }
+            Start-Sleep -Seconds 15
+          }
+          Write-Error "Robot server did not become ready in time"
 
       # Run tests
       - name: Tests
@@ -128,6 +156,13 @@ jobs:
             echo "===== xfvb.log ====="
             tail -n 100 xfvb.log
           fi
+
+      - name: Show Windows Process State On Failure
+        if: failure() && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Write-Host "===== gradle/java processes ====="
+          Get-Process | Where-Object { $_.ProcessName -match 'gradle|java' } | Format-Table -AutoSize
 
       - name: Upload UI Logs
         if: always()
