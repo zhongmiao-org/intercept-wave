@@ -20,6 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      UI_PLATFORM_TYPE: IC
       UI_PLATFORM_VERSION: 2025.1.5
     strategy:
       fail-fast: false
@@ -57,20 +58,20 @@ jobs:
         run: |
           export DISPLAY=:99.0
           Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
-          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
 
       - name: Run IDE on macOS
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
 
       - name: Run IDE on Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           $process = Start-Process -FilePath .\gradlew.bat `
-            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain',"-PplatformVersion=$env:UI_PLATFORM_VERSION" `
+            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain',"-PplatformType=$env:UI_PLATFORM_TYPE","-PplatformVersion=$env:UI_PLATFORM_VERSION" `
             -RedirectStandardOutput 'ui-ide.log' `
             -RedirectStandardError 'ui-ide.err.log' `
             -PassThru
@@ -95,7 +96,7 @@ jobs:
       - name: Tests
         env:
           RUN_UI_TESTS: "true"
-        run: ./gradlew testUi --no-configuration-cache --console=plain -PplatformVersion=${{ env.UI_PLATFORM_VERSION }}
+        run: ./gradlew testUi --no-configuration-cache --console=plain -PplatformType=${{ env.UI_PLATFORM_TYPE }} -PplatformVersion=${{ env.UI_PLATFORM_VERSION }}
 
       - name: Dump Remote Robot DOM On Failure
         if: failure()
