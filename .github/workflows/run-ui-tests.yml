@@ -62,23 +62,26 @@ jobs:
         run: |
           export DISPLAY=:99.0
           Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
-          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain --info -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          echo $! > ui-ide.pid
 
       - name: Run IDE on macOS
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain --info -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          echo $! > ui-ide.pid
 
       - name: Run IDE on Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           $process = Start-Process -FilePath .\gradlew.bat `
-            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain',"-PplatformType=$env:UI_PLATFORM_TYPE","-PplatformVersion=$env:UI_PLATFORM_VERSION" `
+            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain','--info',"-PplatformType=$env:UI_PLATFORM_TYPE","-PplatformVersion=$env:UI_PLATFORM_VERSION" `
             -RedirectStandardOutput 'ui-ide.log' `
             -RedirectStandardError 'ui-ide.err.log' `
             -PassThru
+          Set-Content -Path ui-ide.pid -Value $process.Id
           Start-Sleep -Seconds 10
           if ($process.HasExited) {
             Write-Host "runIdeForUiTests exited early with code $($process.ExitCode)"
@@ -92,34 +95,43 @@ jobs:
         if: matrix.platform != 'windows'
         shell: bash
         run: |
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 90); do
             if curl --connect-timeout 3 --max-time 5 -fsS http://127.0.0.1:8082 >/dev/null; then
-              echo "Robot server is ready on attempt $attempt"
+              echo "Robot server is ready on attempt $attempt" | tee -a robot-wait.log
               exit 0
             fi
-            echo "Robot server not ready yet (attempt $attempt/60)"
+            echo "Robot server not ready yet (attempt $attempt/90)" | tee -a robot-wait.log
+            if [ -f ui-ide.pid ]; then
+              echo "PID=$(cat ui-ide.pid)" | tee -a robot-wait.log
+              ps -p "$(cat ui-ide.pid)" -o pid=,ppid=,etime=,stat=,command= | tee -a robot-wait.log || true
+            fi
             if [ -f ui-ide.log ]; then
-              tail -n 20 ui-ide.log || true
+              tail -n 20 ui-ide.log | tee -a robot-wait.log || true
             fi
             sleep 15
           done
-          echo "Robot server did not become ready in time"
+          echo "Robot server did not become ready in time" | tee -a robot-wait.log
           exit 1
 
       - name: Wait for Robot Server on Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          for ($attempt = 1; $attempt -le 60; $attempt++) {
+          for ($attempt = 1; $attempt -le 90; $attempt++) {
             try {
               Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 5 | Out-Null
-              Write-Host "Robot server is ready on attempt $attempt"
+              "Robot server is ready on attempt $attempt" | Tee-Object -FilePath robot-wait.log -Append
               exit 0
             } catch {
-              Write-Host "Robot server not ready yet (attempt $attempt/60)"
+              "Robot server not ready yet (attempt $attempt/90)" | Tee-Object -FilePath robot-wait.log -Append
             }
-            if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 }
-            if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 }
+            if (Test-Path ui-ide.pid) {
+              $pid = Get-Content ui-ide.pid
+              "PID=$pid" | Tee-Object -FilePath robot-wait.log -Append
+              Get-Process -Id $pid -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Tee-Object -FilePath robot-wait.log -Append
+            }
+            if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
+            if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
             Start-Sleep -Seconds 15
           }
           Write-Error "Robot server did not become ready in time"
@@ -172,5 +184,7 @@ jobs:
           path: |
             ui-ide.log
             ui-ide.err.log
+            ui-ide.pid
+            robot-wait.log
             xfvb.log
             remote-robot-dom.html
