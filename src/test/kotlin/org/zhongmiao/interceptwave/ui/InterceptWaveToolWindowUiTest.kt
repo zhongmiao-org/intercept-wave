@@ -107,6 +107,24 @@ class InterceptWaveToolWindowUiTest {
             "]"
     )
 
+    private val manageLicensesDialogLocator = byXpath(
+        "//div[" +
+            "@class='MyDialog' and (" +
+            "@title='Manage Licenses' or " +
+            "@accessiblename='Manage Licenses' or " +
+            "@title.key='dialog.title.manage.licenses'" +
+            ")" +
+            "]"
+    )
+
+    private val nonCommercialUseLocator = byXpath(
+        "//div[" +
+            "(contains(@visible_text, 'Non-commercial use') or " +
+            "@accessiblename='Non-commercial use' or " +
+            "@action.key='radio.button.non.commercial.usage')" +
+            "]"
+    )
+
     private val projectFrameLocator = byXpath("//div[@class='IdeFrameImpl']")
 
     private val welcomeFrameLocator = byXpath(
@@ -192,6 +210,39 @@ class InterceptWaveToolWindowUiTest {
 
         waitFor(Duration.ofSeconds(15)) {
             !hasComponent(onboardingDialogLocator)
+        }
+    }
+
+    private fun dismissManageLicensesDialogIfPresent() {
+        if (!hasComponent(manageLicensesDialogLocator)) return
+
+        step("Dismiss the manage licenses dialog if it is shown") {
+            val dialog = remoteRobot.find<CommonContainerFixture>(manageLicensesDialogLocator)
+
+            runCatching {
+                dialog.find<ComponentFixture>(nonCommercialUseLocator).click()
+            }
+
+            runCatching {
+                dialog.callJs<Boolean>(
+                    """
+                    var window = component
+                    if (window != null) {
+                      window.dispatchEvent(new java.awt.event.WindowEvent(window, java.awt.event.WindowEvent.WINDOW_CLOSING))
+                      true
+                    } else {
+                      false
+                    }
+                    """.trimIndent(),
+                    true
+                )
+            }
+
+            remoteRobot.keyboard { escape() }
+        }
+
+        waitFor(Duration.ofSeconds(15)) {
+            !hasComponent(manageLicensesDialogLocator)
         }
     }
 
@@ -291,6 +342,7 @@ class InterceptWaveToolWindowUiTest {
         waitForProjectUiReady()
         acceptTrustDialogIfPresent()
         dismissOnboardingDialogIfPresent()
+        dismissManageLicensesDialogIfPresent()
         waitForToolWindowButton()
     }
 
