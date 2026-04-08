@@ -1,6 +1,6 @@
 # 为 Intercept Wave 贡献代码
 
-感谢你有兴趣为 Intercept Wave 做出贡献！本文档提供了参与项目贡献的指南和说明。
+感谢你关注 Intercept Wave 的贡献工作。本文档会说明如何搭建开发环境、理解项目结构，以及更顺畅地提交改动。
 
 [English Version](./CONTRIBUTING.md)
 
@@ -51,13 +51,13 @@
 
 1. 打开 IntelliJ IDEA
 2. 选择 **File > Open**
-3. 导航到克隆的仓库，选择 `build.gradle.kts` 文件
-4. 点击 **Open as Project**
+3. 打开克隆后的仓库目录，选择项目根目录或 `build.gradle.kts`
+4. 以 IntelliJ 项目方式打开，并等待 Gradle 导入完成
 5. 等待 Gradle 同步并下载依赖
 
 ### 2. 配置插件 SDK
 
-项目使用 IntelliJ Platform Gradle Plugin，会自动配置插件 SDK。无需手动设置 SDK。
+项目使用 IntelliJ Platform Gradle Plugin，会自动完成插件 SDK 配置，无需手动设置。
 
 ### 3. 运行插件
 
@@ -130,7 +130,7 @@ intercept-wave/
 git checkout -b feature/your-feature-name
 ```
 
-分支命名约定：
+推荐使用以下分支前缀：
 - `feature/` 新功能
 - `fix/` Bug 修复
 - `docs/` 文档变更
@@ -194,7 +194,7 @@ UI 测试使用 IntelliJ 的 Remote Robot 框架，位于 `src/test/kotlin/org/z
 ./gradlew testUi
 ```
 
-注意：UI 测试需要更多内存和时间，因此与单元测试分开运行。
+注意：UI 测试通常更耗时、也更占内存，因此与单元测试分开运行。
 
 ### 测试覆盖率
 
@@ -207,7 +207,7 @@ UI 测试使用 IntelliJ 的 Remote Robot 框架，位于 `src/test/kotlin/org/z
 
 ### 手动测试检查清单
 
-手动测试时，请验证：
+手动测试时，建议重点确认以下内容：
 
 - [ ] 插件加载无错误
 - [ ] 配置对话框能正确打开和保存
@@ -396,7 +396,7 @@ git push origin feature/your-feature-name
 
 ## 许可证
 
-通过为 Intercept Wave 做出贡献，你同意你的贡献将在与项目相同的许可证下获得许可。
+当你向 Intercept Wave 提交贡献时，即表示你同意这些贡献将按本项目所使用的同一许可证发布。
 
 ---
 
