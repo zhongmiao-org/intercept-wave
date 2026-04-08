@@ -132,7 +132,8 @@ class InterceptWaveToolWindowUiTest {
                         true
                     }
                 }
-                """.trimIndent()
+                """.trimIndent(),
+                true
             )
         }.getOrDefault(false)
 
