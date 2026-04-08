@@ -228,6 +228,8 @@ class InterceptWaveToolWindowUiTest {
                     """
                     var window = component
                     if (window != null) {
+                      window.setVisible(false)
+                      window.dispose()
                       window.dispatchEvent(new java.awt.event.WindowEvent(window, java.awt.event.WindowEvent.WINDOW_CLOSING))
                       true
                     } else {
@@ -237,8 +239,6 @@ class InterceptWaveToolWindowUiTest {
                     true
                 )
             }
-
-            remoteRobot.keyboard { escape() }
         }
 
         waitFor(Duration.ofSeconds(15)) {

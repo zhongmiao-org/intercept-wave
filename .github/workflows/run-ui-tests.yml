@@ -89,10 +89,10 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          curl -sS http://127.0.0.1:8082 > remote-robot-dom.html || true
+          curl --connect-timeout 5 --max-time 15 -sS http://127.0.0.1:8082 > remote-robot-dom.html || true
           if [ -f remote-robot-dom.html ]; then
             echo "===== remote-robot-dom excerpt ====="
-            rg -n "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow" remote-robot-dom.html | sed -n '1,250p' || true
+            rg -n "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow|Manage Licenses|Meet the Islands Theme|Skip|Trust" remote-robot-dom.html | sed -n '1,250p' || true
           fi
 
       - name: Show IDE Logs On Failure

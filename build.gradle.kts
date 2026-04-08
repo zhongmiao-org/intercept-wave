@@ -377,12 +377,13 @@ tasks {
 
         maxHeapSize = "2048m" // UI tests may need more memory
         timeout.set(Duration.ofMinutes(20)) // UI tests take longer
+        notCompatibleWithConfigurationCache("Remote Robot UI tests require a live IDE and runtime-only gating")
 
         dependsOn(prepareUiTestProject)
         shouldRunAfter(named<Test>("test"))
         onlyIf {
-            providers.gradleProperty("runUiTests").orNull == "true" ||
-                providers.environmentVariable("RUN_UI_TESTS").orNull == "true"
+            System.getProperty("runUiTests") == "true" ||
+                System.getenv("RUN_UI_TESTS") == "true"
         }
     }
 
