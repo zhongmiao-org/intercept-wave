@@ -16,11 +16,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import com.intellij.ide.plugins.PluginManagerCore
-import com.intellij.openapi.extensions.PluginId
-import kotlinx.serialization.encodeToString
 import org.zhongmiao.interceptwave.util.PluginConstants
 import org.zhongmiao.interceptwave.util.Env
 import java.io.File
+import java.lang.reflect.Modifier
 import java.util.UUID
 
 /**
@@ -215,13 +214,41 @@ class ConfigService(private val project: Project) {
         if (sysParts != null && sysParts.size >= 2) return sysParts[0] + "." + sysParts[1]
 
         return try {
-            val ver = PluginManagerCore.getPlugin(PluginId.getId(PluginConstants.PLUGIN_ID))?.version
+            val ver = resolvePluginVersionReflectively()
             val parts = ver?.split('.')
             if (parts != null && parts.size >= 2) parts[0] + "." + parts[1] else fallback
         } catch (_: Throwable) {
             // Fallback to sys or provided existing
             if (sysParts != null && sysParts.size >= 2) sysParts[0] + "." + sysParts[1] else fallback
         }
+    }
+
+    /**
+     * Uses reflection to avoid generating bytecode that references PluginId.Companion,
+     * which is not available on older IDE builds verified by the plugin verifier.
+     */
+    private fun resolvePluginVersionReflectively(): String? {
+        val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
+        val pluginIdFactory = pluginIdClass.methods.firstOrNull { method ->
+            Modifier.isStatic(method.modifiers) &&
+                (method.name == "getId" || method.name == "findId") &&
+                method.parameterCount == 1 &&
+                method.parameterTypes[0] == String::class.java
+        } ?: return null
+
+        val pluginId = pluginIdFactory.invoke(null, PluginConstants.PLUGIN_ID) ?: return null
+        val getPluginMethod = PluginManagerCore::class.java.methods.firstOrNull { method ->
+            method.name == "getPlugin" &&
+                method.parameterCount == 1 &&
+                method.parameterTypes[0].name == "com.intellij.openapi.extensions.PluginId"
+        } ?: return null
+
+        val pluginDescriptor = getPluginMethod.invoke(null, pluginId) ?: return null
+        val getVersionMethod = pluginDescriptor.javaClass.methods.firstOrNull { method ->
+            method.name == "getVersion" && method.parameterCount == 0
+        } ?: return null
+
+        return getVersionMethod.invoke(pluginDescriptor) as? String
     }
 
     /** 确保配置 version 为当前插件的 x.y */
