@@ -85,6 +85,28 @@ class InterceptWaveToolWindowUiTest {
             "]"
     )
 
+    private val onboardingDialogLocator = byXpath(
+        "//div[" +
+            "@class='MyDialog' and " +
+            ".//div[(" +
+            "@text='Meet the Islands Theme' or " +
+            "@accessiblename='Meet the Islands Theme' or " +
+            "@text.key='newUiOnboarding.dialog.title'" +
+            ")]" +
+            "]"
+    )
+
+    private val onboardingSkipLocator = byXpath(
+        "//div[" +
+            "(@class='ActionLink' or @class='JButton') and (" +
+            "@text='Skip' or " +
+            "@visible_text='Skip' or " +
+            "@accessiblename='Skip' or " +
+            "@text.key='dialog.skip'" +
+            ")" +
+            "]"
+    )
+
     private val projectFrameLocator = byXpath("//div[@class='IdeFrameImpl']")
 
     private val welcomeFrameLocator = byXpath(
@@ -156,6 +178,20 @@ class InterceptWaveToolWindowUiTest {
 
         waitFor(Duration.ofSeconds(15)) {
             !hasComponent(trustDialogLocator)
+        }
+    }
+
+    private fun dismissOnboardingDialogIfPresent() {
+        if (!hasComponent(onboardingDialogLocator)) return
+
+        step("Dismiss the new UI onboarding dialog if it is shown") {
+            remoteRobot.find<CommonContainerFixture>(onboardingDialogLocator)
+                .find<ComponentFixture>(onboardingSkipLocator)
+                .click()
+        }
+
+        waitFor(Duration.ofSeconds(15)) {
+            !hasComponent(onboardingDialogLocator)
         }
     }
 
@@ -254,6 +290,7 @@ class InterceptWaveToolWindowUiTest {
         acceptTrustDialogIfPresent()
         waitForProjectUiReady()
         acceptTrustDialogIfPresent()
+        dismissOnboardingDialogIfPresent()
         waitForToolWindowButton()
     }
 
