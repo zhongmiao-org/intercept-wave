@@ -56,6 +56,10 @@ jobs:
         shell: bash
         run: ./gradlew help --no-configuration-cache --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION}
 
+      - name: Prepare UI Test Sandbox
+        shell: bash
+        run: ./gradlew prepareSandbox_runIdeForUiTests --no-configuration-cache --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION}
+
       - name: Run IDE on Linux
         if: matrix.platform == 'linux'
         shell: bash
@@ -126,9 +130,9 @@ jobs:
               "Robot server not ready yet (attempt $attempt/90)" | Tee-Object -FilePath robot-wait.log -Append
             }
             if (Test-Path ui-ide.pid) {
-              $pid = Get-Content ui-ide.pid
-              "PID=$pid" | Tee-Object -FilePath robot-wait.log -Append
-              Get-Process -Id $pid -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Tee-Object -FilePath robot-wait.log -Append
+              $uiIdePid = (Get-Content ui-ide.pid | Select-Object -First 1).Trim()
+              "PID=$uiIdePid" | Tee-Object -FilePath robot-wait.log -Append
+              Get-Process -Id $uiIdePid -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Tee-Object -FilePath robot-wait.log -Append
             }
             if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
             if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
