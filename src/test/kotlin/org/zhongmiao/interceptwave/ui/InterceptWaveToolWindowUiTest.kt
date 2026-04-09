@@ -46,11 +46,11 @@ class InterceptWaveToolWindowUiTest {
     )
 
     private val configButtonLocator = byXpath(
-        "//div[@class='JButton' and (@text='配置' or @text='Configure')]"
+        "//div[@class='JButton' and (@text='配置' or @text='Configure') and @visible='true']"
     )
 
     private val addGroupButtonLocator = byXpath(
-        "//div[@class='JButton' and (@text='新增配置组' or @text='Add Group')]"
+        "//div[@class='JButton' and (@text='新增配置组' or @text='Add Group') and @visible='true']"
     )
 
     private val configDialogLocator = byXpath(
@@ -421,6 +421,17 @@ class InterceptWaveToolWindowUiTest {
         }
     }
 
+    private fun openConfigDialog() {
+        clearBlockingDialogs()
+        if (remoteRobot.findAll<CommonContainerFixture>(configDialogLocator).isNotEmpty()) return
+
+        val configButtons = remoteRobot.findAll<JButtonFixture>(configButtonLocator)
+        check(configButtons.isNotEmpty()) { "Configure button was not found" }
+        check(configButtons.any { swingClick(it) }) { "Failed to click Configure button via Swing dispatch" }
+
+        waitForConfigDialog()
+    }
+
     private fun isToolWindowVisible(): Boolean =
         remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty() ||
             remoteRobot.findAll<JButtonFixture>(startAllButtonLocator).isNotEmpty() ||
@@ -508,8 +519,7 @@ class InterceptWaveToolWindowUiTest {
             ensureToolWindowOpen()
 
             step("Click configuration button") {
-                val configButton = find<JButtonFixture>(configButtonLocator)
-                clickOrThrow(configButton, "Configure button")
+                openConfigDialog()
             }
 
             step("Verify configuration dialog is opened") {
@@ -535,8 +545,7 @@ class InterceptWaveToolWindowUiTest {
             ensureToolWindowOpen()
 
             step("Open configuration dialog") {
-                val configButton = find<JButtonFixture>(configButtonLocator)
-                clickOrThrow(configButton, "Configure button")
+                openConfigDialog()
             }
 
             step("Click add group button") {
