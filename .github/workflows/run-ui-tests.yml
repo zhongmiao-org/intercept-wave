@@ -142,7 +142,9 @@ jobs:
       - name: Tests
         env:
           RUN_UI_TESTS: "true"
-        run: ./gradlew testUi --no-configuration-cache --console=plain -PplatformType=${{ env.UI_PLATFORM_TYPE }} -PplatformVersion=${{ env.UI_PLATFORM_VERSION }}
+        shell: bash
+        run: |
+          ./gradlew testUi --no-configuration-cache --console=plain -PplatformType=${{ env.UI_PLATFORM_TYPE }} -PplatformVersion=${{ env.UI_PLATFORM_VERSION }} | tee ui-test.log
 
       - name: Dump Remote Robot DOM On Failure
         if: failure()
@@ -188,5 +190,8 @@ jobs:
             ui-ide.err.log
             ui-ide.pid
             robot-wait.log
+            ui-test.log
             xfvb.log
             remote-robot-dom.html
+            build/reports/tests/testUi/**
+            .intellijPlatform/sandbox/intercept-wave/**/log_runIdeForUiTests/**
