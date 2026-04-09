@@ -145,8 +145,20 @@ class InterceptWaveToolWindowUiTest {
         "//div[@accessiblename='Recent Projects']"
     )
 
+    private inline fun <reified T : ComponentFixture> findAllSafe(
+        locator: com.intellij.remoterobot.search.locators.Locator,
+        attempts: Int = 3
+    ): List<T> {
+        repeat(attempts) { attempt ->
+            val result = runCatching { remoteRobot.findAll<T>(locator) }
+            if (result.isSuccess) return result.getOrThrow()
+            runCatching { Thread.sleep(((attempt + 1) * 200L)) }
+        }
+        return emptyList()
+    }
+
     private fun hasComponent(locator: com.intellij.remoterobot.search.locators.Locator): Boolean =
-        runCatching { remoteRobot.findAll<ComponentFixture>(locator).isNotEmpty() }.getOrDefault(false)
+        findAllSafe<ComponentFixture>(locator).isNotEmpty()
 
     private fun clickVisibleButtonByText(vararg texts: String): Boolean = runCatching {
         val labels = texts.joinToString(",") { "\"${it.replace("\"", "\\\"")}\"" }
@@ -472,23 +484,23 @@ class InterceptWaveToolWindowUiTest {
 
     private fun waitForConfigDialog() {
         waitFor(Duration.ofSeconds(20)) {
-            remoteRobot.findAll<CommonContainerFixture>(configDialogLocator).isNotEmpty()
+            findAllSafe<CommonContainerFixture>(configDialogLocator).isNotEmpty()
         }
     }
 
     private fun openConfigDialog() {
         clearBlockingDialogs()
-        if (remoteRobot.findAll<CommonContainerFixture>(configDialogLocator).isNotEmpty()) return
+        if (findAllSafe<CommonContainerFixture>(configDialogLocator).isNotEmpty()) return
 
         waitFor(Duration.ofSeconds(45)) {
             clearBlockingDialogs()
             if (!isToolWindowVisible()) {
                 showToolWindowFromIde()
             }
-            remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty() || isToolWindowVisible()
+            findAllSafe<JButtonFixture>(configButtonLocator).isNotEmpty() || isToolWindowVisible()
         }
 
-        val configButtons = remoteRobot.findAll<JButtonFixture>(configButtonLocator)
+        val configButtons = findAllSafe<JButtonFixture>(configButtonLocator)
         val openedByFixture = configButtons.any { swingClick(it) }
         val openedByGlobalSearch = if (!openedByFixture) clickVisibleButtonByText("配置", "Configure") else false
         check(openedByFixture || openedByGlobalSearch) { "Failed to click Configure button via Swing dispatch" }
@@ -497,11 +509,9 @@ class InterceptWaveToolWindowUiTest {
     }
 
     private fun isToolWindowVisible(): Boolean =
-        remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty() ||
-            remoteRobot.findAll<JButtonFixture>(startAllButtonLocator).isNotEmpty() ||
-            remoteRobot.findAll<JButtonFixture>(
-                byXpath("//div[@class='JButton' and (@text='停止所有' or @text='Stop All')]")
-            ).isNotEmpty()
+        hasComponent(configButtonLocator) ||
+            hasComponent(startAllButtonLocator) ||
+            hasComponent(byXpath("//div[@class='JButton' and (@text='停止所有' or @text='Stop All')]"))
 
     private fun ensureToolWindowOpen() {
         clearBlockingDialogs()

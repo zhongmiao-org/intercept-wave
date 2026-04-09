@@ -150,11 +150,35 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          curl --connect-timeout 5 --max-time 15 -sS http://127.0.0.1:8082 > remote-robot-dom.html || true
+          curl --connect-timeout 5 --max-time 30 -sS -v http://127.0.0.1:8082 > remote-robot-dom.html 2> remote-robot-dom.curl.log || true
           if [ -f remote-robot-dom.html ]; then
             echo "===== remote-robot-dom excerpt ====="
             rg -n "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow|Manage Licenses|Meet the Islands Theme|Skip|Trust" remote-robot-dom.html | sed -n '1,250p' || true
           fi
+          if [ -f remote-robot-dom.curl.log ]; then
+            echo "===== remote-robot-dom curl verbose ====="
+            tail -n 200 remote-robot-dom.curl.log || true
+          fi
+
+      - name: Collect Robot Connectivity Diagnostics On Failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "===== PID/Process diagnostics ====="
+          if [ -f ui-ide.pid ]; then
+            echo "ui-ide.pid=$(cat ui-ide.pid)"
+            ps -p "$(cat ui-ide.pid)" -o pid=,ppid=,etime=,stat=,command= || true
+          fi
+          echo "===== java/gradle process list ====="
+          ps -ef | rg "java|gradle|idea" || true
+          echo "===== port 8082 listeners ====="
+          (command -v lsof >/dev/null && lsof -nP -iTCP:8082 -sTCP:LISTEN) || true
+          echo "===== quick robot probe ====="
+          curl --connect-timeout 3 --max-time 10 -sS -v http://127.0.0.1:8082 >/tmp/robot-probe.out 2>/tmp/robot-probe.err || true
+          echo "--- robot probe stderr ---"
+          tail -n 200 /tmp/robot-probe.err || true
+          echo "--- robot probe stdout (first 80 lines) ---"
+          sed -n '1,80p' /tmp/robot-probe.out || true
 
       - name: Show IDE Logs On Failure
         if: failure()
@@ -193,5 +217,6 @@ jobs:
             ui-test.log
             xfvb.log
             remote-robot-dom.html
+            remote-robot-dom.curl.log
             build/reports/tests/testUi/**
             .intellijPlatform/sandbox/intercept-wave/**/log_runIdeForUiTests/**
