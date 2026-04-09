@@ -7,7 +7,7 @@ import javax.swing.JList
 
 class HttpConfigSectionTest : BasePlatformTestCase() {
 
-    fun `test first route is selected by default`() {
+    fun testFirstRouteIsSelectedByDefault() {
         val section = HttpConfigSection(
             project,
             ProxyConfig(
@@ -31,7 +31,7 @@ class HttpConfigSectionTest : BasePlatformTestCase() {
         assertEquals(0, routeList.selectedIndex)
     }
 
-    fun `test mock area switches to disabled state when route mock is turned off`() {
+    fun testMockAreaSwitchesToDisabledStateWhenRouteMockIsTurnedOff() {
         val section = HttpConfigSection(
             project,
             ProxyConfig(

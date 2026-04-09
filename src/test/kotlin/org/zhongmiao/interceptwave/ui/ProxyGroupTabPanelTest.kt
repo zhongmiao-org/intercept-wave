@@ -35,7 +35,7 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         }
     }
 
-    fun `test updateStatus toggles buttons`() {
+    fun testUpdateStatusTogglesButtons() {
         val id = UUID.randomUUID().toString()
         val p = java.net.ServerSocket(0).use { it.localPort }
         val cfg = ProxyConfig(id = id, name = "PG", port = p, enabled = true,
@@ -64,7 +64,7 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         assertFalse(stopBtn.isEnabled)
     }
 
-    fun `test missing config shows placeholder url`() {
+    fun testMissingConfigShowsPlaceholderUrl() {
         val missingId = "missing"
         val panel = ProxyGroupTabPanel(project, missingId, "Missing", 19099, true) {}
         panel.getPanel()

@@ -10,25 +10,25 @@ import kotlinx.serialization.json.jsonObject
 
 class MockApiDialogTest : BasePlatformTestCase() {
 
-    private fun setPrivateTextField(instance: Any, fieldName: String, value: String) {
-        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField(fieldName)
+    private fun setPathField(instance: Any, value: String) {
+        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField("pathField")
         field.isAccessible = true
         val textField: JBTextField = field.get(instance) as JBTextField
         textField.text = value
     }
 
-    private fun setPrivateTextArea(instance: Any, fieldName: String, value: String) {
-        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField(fieldName)
+    private fun setMockDataArea(instance: Any, value: String) {
+        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField("mockDataArea")
         field.isAccessible = true
         val area: JTextArea = field.get(instance) as JTextArea
         area.text = value
     }
 
-    fun `test js-like input normalized and minified on save`() {
+    fun testJsLikeInputNormalizedAndMinifiedOnSave() {
         val dialog = MockApiDialog(project, null)
 
         // Set minimal required path
-        setPrivateTextField(dialog, "pathField", "/rebate/tree")
+        setPathField(dialog, "/rebate/tree")
 
         // JS/JSON5-like input: single quotes, unquoted keys, trailing commas
         val jsLike = """
@@ -42,7 +42,7 @@ class MockApiDialogTest : BasePlatformTestCase() {
             ]
         """.trimIndent()
 
-        setPrivateTextArea(dialog, "mockDataArea", jsLike)
+        setMockDataArea(dialog, jsLike)
 
         // Save and verify minified strict JSON (no exception indicates normalization+validation success)
         val api: MockApiConfig = dialog.getMockApiConfig()
@@ -58,13 +58,13 @@ class MockApiDialogTest : BasePlatformTestCase() {
         assertEquals("定时返利", first["label"]!!.toString().trim('"'))
     }
 
-    fun `test invalid json is rejected in validation`() {
+    fun testInvalidJsonIsRejectedInValidation() {
         val dialog = MockApiDialog(project, null)
-        setPrivateTextField(dialog, "pathField", "/x")
+        setPathField(dialog, "/x")
 
         // Broken input (unclosed quotes)
         val broken = "[{ key: '1, label: 'x' }]"
-        setPrivateTextArea(dialog, "mockDataArea", broken)
+        setMockDataArea(dialog, broken)
 
         try {
             dialog.getMockApiConfig()

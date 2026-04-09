@@ -34,7 +34,7 @@ class ProxyGroupTabPanelStartStopTest : BasePlatformTestCase() {
         }
     }
 
-    fun `test start and stop buttons invoke service`() {
+    fun testStartAndStopButtonsInvokeService() {
         val id = UUID.randomUUID().toString()
         val p = java.net.ServerSocket(0).use { it.localPort }
         val cfg = ProxyConfig(

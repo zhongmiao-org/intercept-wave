@@ -7,27 +7,31 @@
 #
 # Workflow is triggered manually.
 
-name: Run UI Tests
+name: UITests
 on:
-  workflow_dispatch
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 jobs:
 
   testUI:
     runs-on: ${{ matrix.os }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      UI_PLATFORM_TYPE: IC
+      UI_PLATFORM_VERSION: 2025.1.5
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            runIde: |
-              export DISPLAY=:99.0
-              Xvfb -ac :99 -screen 0 1920x1080x16 &
-              gradle runIdeForUiTests &
-          - os: windows-latest
-            runIde: start gradlew.bat runIdeForUiTests
+            platform: linux
           - os: macos-latest
-            runIde: ./gradlew runIdeForUiTests &
+            platform: macos
+          - os: windows-latest
+            platform: windows
 
     steps:
 
@@ -48,18 +52,212 @@ jobs:
         with:
           cache-read-only: true
 
-      # Run IDEA prepared for UI testing
-      - name: Run IDE
-        run: ${{ matrix.runIde }}
+      - name: Warm Up Gradle
+        shell: bash
+        run: ./gradlew help --no-configuration-cache --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION}
 
-      # Wait for IDEA to be started
-      - name: Health Check
-        uses: jtalk/url-health-check-action@v5
-        with:
-          url: http://127.0.0.1:8082
-          max-attempts: 15
-          retry-delay: 30s
+      - name: Prepare UI Test Sandbox
+        shell: bash
+        run: ./gradlew prepareSandbox_runIdeForUiTests --no-configuration-cache --console=plain -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION}
+
+      - name: Run IDE on Linux
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          export DISPLAY=:99.0
+          Xvfb -ac :99 -screen 0 1920x1080x16 > xfvb.log 2>&1 &
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain --info -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          echo $! > ui-ide.pid
+
+      - name: Run IDE on macOS
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          nohup ./gradlew runIdeForUiTests --no-configuration-cache --stacktrace --console=plain --info -PplatformType=${UI_PLATFORM_TYPE} -PplatformVersion=${UI_PLATFORM_VERSION} > ui-ide.log 2>&1 &
+          echo $! > ui-ide.pid
+
+      - name: Run IDE on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Write-Host "Windows UI test execution is handled in a single combined step."
+
+      - name: Wait for Robot Server on Linux/macOS
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          for attempt in $(seq 1 90); do
+            if curl --connect-timeout 3 --max-time 5 -fsS http://127.0.0.1:8082 >/dev/null; then
+              echo "Robot server is ready on attempt $attempt" | tee -a robot-wait.log
+              exit 0
+            fi
+            echo "Robot server not ready yet (attempt $attempt/90)" | tee -a robot-wait.log
+            if [ -f ui-ide.pid ]; then
+              echo "PID=$(cat ui-ide.pid)" | tee -a robot-wait.log
+              ps -p "$(cat ui-ide.pid)" -o pid=,ppid=,etime=,stat=,command= | tee -a robot-wait.log || true
+            fi
+            if [ -f ui-ide.log ]; then
+              tail -n 20 ui-ide.log | tee -a robot-wait.log || true
+            fi
+            sleep 15
+          done
+          echo "Robot server did not become ready in time" | tee -a robot-wait.log
+          exit 1
 
       # Run tests
       - name: Tests
-        run: ./gradlew test
+        if: matrix.platform != 'windows'
+        env:
+          RUN_UI_TESTS: "true"
+        shell: bash
+        run: |
+          ./gradlew testUi --no-configuration-cache --console=plain -PplatformType=${{ env.UI_PLATFORM_TYPE }} -PplatformVersion=${{ env.UI_PLATFORM_VERSION }} | tee ui-test.log
+
+      - name: Run and Test on Windows
+        if: matrix.platform == 'windows'
+        env:
+          RUN_UI_TESTS: "true"
+        shell: pwsh
+        run: |
+          $runIde = Start-Process -FilePath .\gradlew.bat `
+            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain','--info',"-PplatformType=$env:UI_PLATFORM_TYPE","-PplatformVersion=$env:UI_PLATFORM_VERSION" `
+            -RedirectStandardOutput 'ui-ide.log' `
+            -RedirectStandardError 'ui-ide.err.log' `
+            -PassThru
+          Set-Content -Path ui-ide.pid -Value $runIde.Id
+          "Started runIdeForUiTests PID=$($runIde.Id)" | Tee-Object -FilePath robot-wait.log -Append
+
+          $ready = $false
+          for ($attempt = 1; $attempt -le 90; $attempt++) {
+            if ($runIde.HasExited) {
+              "runIdeForUiTests exited early with code $($runIde.ExitCode)" | Tee-Object -FilePath robot-wait.log -Append
+              if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 120 | Tee-Object -FilePath robot-wait.log -Append }
+              if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 120 | Tee-Object -FilePath robot-wait.log -Append }
+              throw "runIdeForUiTests exited before robot server became ready"
+            }
+
+            try {
+              Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 5 | Out-Null
+              "Robot server is ready on attempt $attempt" | Tee-Object -FilePath robot-wait.log -Append
+              $ready = $true
+              break
+            } catch {
+              "Robot server not ready yet (attempt $attempt/90)" | Tee-Object -FilePath robot-wait.log -Append
+              Get-Process -Id $runIde.Id -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Tee-Object -FilePath robot-wait.log -Append
+              if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
+              if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
+              Start-Sleep -Seconds 15
+            }
+          }
+
+          if (-not $ready) {
+            throw "Robot server did not become ready in time"
+          }
+
+          try {
+            .\gradlew.bat testUi --no-configuration-cache --console=plain "-PplatformType=$env:UI_PLATFORM_TYPE" "-PplatformVersion=$env:UI_PLATFORM_VERSION" | Tee-Object -FilePath ui-test.log
+          } finally {
+            if (-not $runIde.HasExited) {
+              Stop-Process -Id $runIde.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+      - name: Dump Remote Robot DOM On Failure
+        if: failure() && matrix.platform != 'windows'
+        shell: bash
+        run: |
+          curl --connect-timeout 5 --max-time 30 -sS -v http://127.0.0.1:8082 > remote-robot-dom.html 2> remote-robot-dom.curl.log || true
+          if [ -f remote-robot-dom.html ]; then
+            echo "===== remote-robot-dom excerpt ====="
+            rg -n "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow|Manage Licenses|Meet the Islands Theme|Skip|Trust" remote-robot-dom.html | sed -n '1,250p' || true
+          fi
+          if [ -f remote-robot-dom.curl.log ]; then
+            echo "===== remote-robot-dom curl verbose ====="
+            tail -n 200 remote-robot-dom.curl.log || true
+          fi
+
+      - name: Dump Remote Robot DOM On Failure (Windows)
+        if: failure() && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          try {
+            Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 30 -OutFile remote-robot-dom.html
+          } catch {
+            $_ | Out-String | Set-Content -Path remote-robot-dom.curl.log
+          }
+          if (Test-Path remote-robot-dom.html) {
+            Write-Host "===== remote-robot-dom excerpt ====="
+            Select-String -Path remote-robot-dom.html -Pattern "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow|Manage Licenses|Meet the Islands Theme|Skip|Trust" | Select-Object -First 250
+          }
+          if (Test-Path remote-robot-dom.curl.log) {
+            Write-Host "===== remote-robot-dom request log ====="
+            Get-Content remote-robot-dom.curl.log -Tail 200
+          }
+
+      - name: Collect Robot Connectivity Diagnostics On Failure
+        if: failure() && matrix.platform != 'windows'
+        shell: bash
+        run: |
+          echo "===== PID/Process diagnostics ====="
+          if [ -f ui-ide.pid ]; then
+            echo "ui-ide.pid=$(cat ui-ide.pid)"
+            ps -p "$(cat ui-ide.pid)" -o pid=,ppid=,etime=,stat=,command= || true
+          fi
+          echo "===== java/gradle process list ====="
+          ps -ef | rg "java|gradle|idea" || true
+          echo "===== port 8082 listeners ====="
+          (command -v lsof >/dev/null && lsof -nP -iTCP:8082 -sTCP:LISTEN) || true
+          echo "===== quick robot probe ====="
+          curl --connect-timeout 3 --max-time 10 -sS -v http://127.0.0.1:8082 >/tmp/robot-probe.out 2>/tmp/robot-probe.err || true
+          echo "--- robot probe stderr ---"
+          tail -n 200 /tmp/robot-probe.err || true
+          echo "--- robot probe stdout (first 80 lines) ---"
+          sed -n '1,80p' /tmp/robot-probe.out || true
+
+      - name: Show IDE Logs On Failure
+        if: failure() && matrix.platform != 'windows'
+        shell: bash
+        run: |
+          if [ -f ui-ide.log ]; then
+            echo "===== ui-ide.log ====="
+            tail -n 200 ui-ide.log
+          fi
+          if [ -f ui-ide.err.log ]; then
+            echo "===== ui-ide.err.log ====="
+            tail -n 200 ui-ide.err.log
+          fi
+          if [ -f xfvb.log ]; then
+            echo "===== xfvb.log ====="
+            tail -n 100 xfvb.log
+          fi
+
+      - name: Show Windows Process State On Failure
+        if: failure() && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Write-Host "===== gradle/java processes ====="
+          Get-Process | Where-Object { $_.ProcessName -match 'gradle|java' } | Format-Table -AutoSize
+          if (Test-Path ui-ide.log) {
+            Write-Host "===== ui-ide.log ====="
+            Get-Content ui-ide.log -Tail 200
+          }
+          if (Test-Path ui-ide.err.log) {
+            Write-Host "===== ui-ide.err.log ====="
+            Get-Content ui-ide.err.log -Tail 200
+          }
+
+      - name: Upload UI Logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-test-logs-${{ matrix.os }}
+          path: |
+            ui-ide.log
+            ui-ide.err.log
+            ui-ide.pid
+            robot-wait.log
+            ui-test.log
+            xfvb.log
+            remote-robot-dom.html
+            remote-robot-dom.curl.log
+            build/reports/tests/testUi/**

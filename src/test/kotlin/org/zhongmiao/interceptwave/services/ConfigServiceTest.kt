@@ -40,6 +40,11 @@ class ConfigServiceTest {
         return method.invoke(service, *args)
     }
 
+    private fun readDiverseFixture(): String =
+        checkNotNull(javaClass.getResource("/fixtures/diverse-config.json")) {
+            "Missing fixture: diverse-config.json"
+        }.readText()
+
     @Test
     fun defaultConfigCreatedAndLoaded() {
         val dir = Files.createTempDirectory("iw-conf").toFile()
@@ -698,6 +703,40 @@ class ConfigServiceTest {
         val dir = Files.createTempDirectory("iw-conf23").toFile()
         val svc = ConfigService(fakeProject(dir))
         assertNull(svc.getProxyGroup("missing"))
+    }
+
+    @Test
+    fun loadRootConfig_from_diverse_fixture_preserves_mixed_http_ws_scenarios() {
+        val dir = Files.createTempDirectory("iw-conf24").toFile()
+        val configDir = File(dir, ".intercept-wave").apply { mkdirs() }
+        File(configDir, "config.json").writeText(readDiverseFixture())
+
+        val root = ConfigService(fakeProject(dir)).getRootConfig()
+
+        assertEquals("4.0", root.version)
+        assertEquals(5, root.proxyGroups.size)
+        assertEquals(3, root.proxyGroups.count { it.protocol == "HTTP" })
+        assertEquals(2, root.proxyGroups.count { it.protocol == "WS" })
+        assertEquals(1, root.proxyGroups.count { !it.enabled })
+
+        val payment = root.proxyGroups.first { it.name == "Payment Service" }
+        assertEquals(5, payment.routes.size)
+        assertEquals(6, payment.routes.first().mockApis.size)
+        assertEquals(30, payment.routes[3].mockApis.single().delay)
+        assertEquals("sessionId=pay-123; userId=42", payment.globalCookie)
+
+        val userWs = root.proxyGroups.first { it.name == "User WS" }
+        assertEquals("ws://localhost:9003", userWs.wsBaseUrl)
+        assertEquals("/ws", userWs.wsInterceptPrefix)
+        assertEquals(3, userWs.wsPushRules.size)
+        assertEquals("timeline", userWs.wsPushRules[1].mode)
+        assertTrue(userWs.wsPushRules[1].loop)
+        assertEquals(10000, userWs.wsPushRules[1].timeline.single().atMs)
+
+        val tickerWs = root.proxyGroups.first { it.name == "Ticker WS" }
+        assertNull(tickerWs.wsBaseUrl)
+        assertEquals("periodic", tickerWs.wsPushRules.single().mode)
+        assertTrue(tickerWs.wsPushRules.single().onOpenFire)
     }
 
 }

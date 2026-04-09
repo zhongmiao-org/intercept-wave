@@ -464,11 +464,12 @@ A: Set the cookie value in the group configuration, then enable "Use Global Cook
 ### Run Unit Tests
 
 - Run all tests: `./gradlew test`
-- UI tests (Robot): `./gradlew testUi` (requires a running IDE instance configured by the plugin)
+- Start the IDE for Robot tests: `./gradlew runIdeForUiTests`
+- UI tests (Robot): `./gradlew testUi` (run this after `runIdeForUiTests` is healthy on `http://127.0.0.1:8082`)
 
 Notes:
 - Platform tests run in a single forked JVM and are headless-configured.
-- UI tests are split into a separate task and use the robot-server plugin.
+- Remote Robot UI tests are split into `testUi`; other platform/UI tests still run under `test`.
 
 ### Integration Tests (Docker upstream)
 

@@ -463,11 +463,12 @@ A: 在配置组中设置全局 Cookie 后，再为需要的 Mock 接口勾选“
 ### 运行单元测试
 
 - 运行全部测试：`./gradlew test`
-- 运行 UI 测试（Robot）：`./gradlew testUi`（需要插件配置的 IDE 实例）
+- 启动 Robot 测试用 IDE：`./gradlew runIdeForUiTests`
+- 运行 UI 测试（Robot）：`./gradlew testUi`（在 `http://127.0.0.1:8082` 就绪后执行）
 
 说明：
 - 平台测试在单个 JVM 中运行并启用 headless 配置。
-- UI 测试单独拆分到 `testUi` 任务，使用 robot-server 插件。
+- Remote Robot UI 测试单独拆分到 `testUi`；其余平台/UI 测试仍归 `test`。
 
 ### 集成测试（依赖 Docker upstream）
 

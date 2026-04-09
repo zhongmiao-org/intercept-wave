@@ -21,11 +21,15 @@ These tests verify key UI behavior, including:
   - Run on every build
   - Can run in headless CI environment
 
-- **UI Tests** (`src/test/kotlin/.../ui/`)
-  - Test user interface interactions
+- **Remote Robot UI Tests** (`*UiTest`)
+  - Test user interface interactions against a running IDE
   - Slower execution (seconds to minutes)
   - Run separately via `./gradlew testUi`
   - Require a running IDE instance with robot-server plugin
+
+- **Platform/UI Component Tests** (`src/test/kotlin/.../ui/*Test.kt`)
+  - Cover Swing/IntelliJ UI logic without Remote Robot
+  - Run as part of `./gradlew test`
 
 ## Running UI Tests
 
@@ -35,7 +39,7 @@ Before running UI tests for the first time, you need to install the Robot Server
 
 1. Download the robot-server plugin from [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/17153-robot-server-plugin)
 2. Or install it manually in your IDE: Settings → Plugins → Search for "Robot Server Plugin"
-3. The plugin is loaded automatically when you run `runIdeForUiTests`
+3. The plugin is provisioned automatically when running `./gradlew runIdeForUiTests`
 
 ### Locally
 
@@ -51,6 +55,8 @@ Before running UI tests for the first time, you need to install the Robot Server
    ```bash
    ./gradlew testUi
    ```
+
+   `testUi` only runs the Remote Robot suite (`*UiTest`). Other UI-facing platform tests still run under `./gradlew test`.
 
 3. **Run both at once:**
    ```bash
@@ -69,7 +75,7 @@ UI tests run automatically when you trigger the "Run UI Tests" workflow manually
 The workflow will:
 1. Start IDE with robot-server in the background
 2. Wait for IDE to be ready (health check on port 8082)
-3. Run UI tests
+3. Run `./gradlew testUi`
 4. Collect and upload test results
 
 ## Writing UI Tests
@@ -166,13 +172,13 @@ To find the correct XPath for UI elements:
 4. **Use step() for better test output:**
    ```kotlin
    step("Open configuration") {
-       // ...
+       // interact with the dialog
    }
    step("Fill form") {
-       // ...
+       // populate required fields
    }
    step("Verify result") {
-       // ...
+       // assert the expected UI state
    }
    ```
 

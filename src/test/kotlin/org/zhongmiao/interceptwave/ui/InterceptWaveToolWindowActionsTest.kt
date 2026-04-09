@@ -2,6 +2,7 @@ package org.zhongmiao.interceptwave.ui
 
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.application.runWriteAction
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
@@ -30,7 +31,7 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         }
     }
 
-    fun `test openConfigFile opens project config json in editor`() {
+    fun testOpenConfigFileOpensProjectConfigJsonInEditor() {
         val toolWindow = InterceptWaveToolWindow(project)
         toolWindow.getContent()
 
@@ -41,7 +42,7 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         assertTrue(File(project.basePath, ".intercept-wave/config.json").exists())
     }
 
-    fun `test reloadConfigFromDisk refreshes config and restarts previously running group`() {
+    fun testReloadConfigFromDiskRefreshesConfigAndRestartsPreviouslyRunningGroup() {
         val port = java.net.ServerSocket(0).use { it.localPort }
         val cfg = ProxyConfig(
             id = "reload-running",
@@ -100,7 +101,7 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         assertTrue(mockServerService.getServerStatus(cfg.id))
     }
 
-    fun `test reloadConfigFromDisk saves unsaved editor changes before reloading`() {
+    fun testReloadConfigFromDiskSavesUnsavedEditorChangesBeforeReloading() {
         val toolWindow = InterceptWaveToolWindow(project)
         toolWindow.getContent()
         val configFile = configService.ensureConfigFile()
@@ -108,32 +109,34 @@ class InterceptWaveToolWindowActionsTest : BasePlatformTestCase() {
         FileEditorManager.getInstance(project).openFile(virtualFile, true)
         val document = FileDocumentManager.getInstance().getDocument(virtualFile)!!
 
-        document.setText(
-            """
-            {
-              "version": "4.0",
-              "proxyGroups": [
+        runWriteAction {
+            document.setText(
+                """
                 {
-                  "id": "edited-in-editor",
-                  "name": "Edited In Editor",
-                  "protocol": "HTTP",
-                  "port": 18888,
-                  "enabled": true,
-                  "routes": [
+                  "version": "4.0",
+                  "proxyGroups": [
                     {
-                      "name": "API1",
-                      "pathPrefix": "/api",
-                      "targetBaseUrl": "http://localhost:9000",
-                      "stripPrefix": true,
-                      "enableMock": true,
-                      "mockApis": []
+                      "id": "edited-in-editor",
+                      "name": "Edited In Editor",
+                      "protocol": "HTTP",
+                      "port": 18888,
+                      "enabled": true,
+                      "routes": [
+                        {
+                          "name": "API1",
+                          "pathPrefix": "/api",
+                          "targetBaseUrl": "http://localhost:9000",
+                          "stripPrefix": true,
+                          "enableMock": true,
+                          "mockApis": []
+                        }
+                      ]
                     }
                   ]
                 }
-              ]
-            }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
 
         toolWindow.reloadConfigFromDisk()
 
