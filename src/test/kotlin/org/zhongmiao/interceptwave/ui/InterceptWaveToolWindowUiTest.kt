@@ -161,101 +161,46 @@ class InterceptWaveToolWindowUiTest {
         findAllSafe<ComponentFixture>(locator).isNotEmpty()
 
     private fun clickVisibleButtonByText(vararg texts: String): Boolean = runCatching {
-        val labels = texts.joinToString(",") { "\"${it.replace("\"", "\\\"")}\"" }
-        remoteRobot.callJs<Boolean>(
-            """
-            importPackage(Packages.java.awt)
-            importPackage(Packages.javax.swing)
-            let labels = [$labels]
-            function matches(button) {
-              try {
-                let text = button.getText()
-                if (text === null) return false
-                for (let i = 0; i < labels.length; i++) {
-                  if (String(text) === labels[i]) return true
-                }
-              } catch (e) {}
-              return false
-            }
-            function clickIn(component) {
-              if (component === null) return false
-              if (component instanceof javax.swing.AbstractButton) {
-                try {
-                  if (component.isShowing() && component.isVisible() && matches(component)) {
-                    component.doClick()
-                    return true
-                  }
-                } catch (e) {}
-              }
-              try {
-                let children = component.getComponents()
-                if (children !== null) {
-                  for (let i = 0; i < children.length; i++) {
-                    if (clickIn(children[i])) return true
-                  }
-                }
-              } catch (e) {}
-              return false
-            }
-            let windows = java.awt.Window.getWindows()
-            for (let i = 0; i < windows.length; i++) {
-              try {
-                if (windows[i].isShowing() && clickIn(windows[i])) return true
-              } catch (e) {}
-            }
-            false
-            """.trimIndent(),
-            true
-        )
+        texts.any { text ->
+            val locator = byXpath(
+                "//div[" +
+                    "(@class='JButton' or @class='ActionButton' or @class='ActionButtonWithText') and (" +
+                    "@text='$text' or " +
+                    "@visible_text='$text' or " +
+                    "@accessiblename='$text' or " +
+                    "contains(@tooltiptext, '$text') or " +
+                    "contains(@myaction, '$text')" +
+                    ")" +
+                    "]"
+            )
+            val candidates = findAllSafe<ComponentFixture>(locator)
+            candidates.any { robotClick(it) }
+        }
     }.getOrDefault(false)
+
+    private fun visibleButtonsSnapshot(): String = "disabled"
 
     private fun waitForProjectUiReady(): Boolean =
         runCatching {
             waitFor(Duration.ofMinutes(8)) {
-                if (!runCatching { remoteRobot.callJs<Boolean>("true") }.getOrDefault(false)) {
-                    false
-                } else {
-                    clearBlockingDialogs()
-                    if (!hasComponent(projectFrameLocator) && hasComponent(welcomeFrameLocator)) {
-                        runCatching { openProjectFromWelcomeIfNeeded() }
-                    }
-                    (hasComponent(projectFrameLocator) || hasComponent(toolWindowButtonLocator)) &&
-                        !hasComponent(trustDialogLocator)
+                clearBlockingDialogs()
+                if (!hasComponent(projectFrameLocator) && hasComponent(welcomeFrameLocator)) {
+                    runCatching { openProjectFromWelcomeIfNeeded() }
                 }
+                (hasComponent(projectFrameLocator) || hasComponent(toolWindowButtonLocator)) &&
+                    !hasComponent(trustDialogLocator)
             }
             true
         }.getOrDefault(false)
 
-    private fun waitForToolWindowButton() {
-        waitFor(Duration.ofMinutes(3)) {
-            hasComponent(toolWindowButtonLocator)
-        }
-    }
-
-    private fun showToolWindowFromIde(): Boolean =
-        runCatching {
-            remoteRobot.callJs<Boolean>(
-                """
-                importPackage(Packages.com.intellij.openapi.project)
-                importPackage(Packages.com.intellij.openapi.wm)
-
-                let projects = ProjectManager.getInstance().getOpenProjects()
-                if (projects === null || projects.length === 0) {
-                    false
-                } else {
-                    let toolWindow = ToolWindowManager.getInstance(projects[0]).getToolWindow("InterceptWave")
-                    if (toolWindow === null) {
-                        false
-                    } else {
-                        toolWindow.show(null)
-                        toolWindow.activate(null)
-                        true
-                    }
-                }
-                """.trimIndent(),
-                true
-            )
+    private fun showToolWindowFromIde(): Boolean {
+        if (isToolWindowVisible()) return true
+        if (!hasComponent(toolWindowButtonLocator)) return false
+        return runCatching {
+            clickOrThrow(remoteRobot.find(toolWindowButtonLocator), "InterceptWave tool window stripe button")
+            true
         }.getOrDefault(false)
+    }
 
     private fun acceptTrustDialogIfPresent() {
         if (!hasComponent(trustDialogLocator)) return
@@ -263,13 +208,7 @@ class InterceptWaveToolWindowUiTest {
         step("Trust the UI test project if the trust dialog is shown") {
             val trustDialog = remoteRobot.find<CommonContainerFixture>(trustDialogLocator)
 
-            runCatching {
-                val trustAllCheckbox = trustDialog.find<ComponentFixture>(trustAllCheckboxLocator)
-                val isSelected = trustAllCheckbox.callJs<Boolean>("component.isSelected()", true)
-                if (!isSelected) {
-                    swingClick(trustAllCheckbox)
-                }
-            }
+            runCatching { trustDialog.find<ComponentFixture>(trustAllCheckboxLocator) }
 
             clickOrThrow(
                 trustDialog.find(trustProjectButtonLocator),
@@ -305,54 +244,25 @@ class InterceptWaveToolWindowUiTest {
             val dialog = remoteRobot.find<CommonContainerFixture>(manageLicensesDialogLocator)
 
             runCatching {
-                swingClick(dialog.find(nonCommercialUseLocator))
+                clickOrThrow(dialog.find(nonCommercialUseLocator), "Non-commercial use option")
             }
 
-            runCatching {
-                dialog.callJs<Boolean>(
-                    """
-                    function textOf(c) {
-                      try {
-                        let text = c.getText ? c.getText() : null
-                        if (text !== null) return String(text)
-                      } catch (e) {}
-                      try {
-                        let ac = c.getAccessibleContext ? c.getAccessibleContext() : null
-                        let name = ac !== null ? ac.getAccessibleName() : null
-                        if (name !== null) return String(name)
-                      } catch (e) {}
-                      return ""
-                    }
-
-                    function clickMatching(root, patterns) {
-                      if (root === null) return false
-                      let stack = [root]
-                      while (stack.length > 0) {
-                        let current = stack.pop()
-                        let text = textOf(current)
-                        if (current instanceof javax.swing.AbstractButton) {
-                          for (let i = 0; i < patterns.length; i++) {
-                            if (text.indexOf(patterns[i]) >= 0) {
-                              current.doClick()
-                              return true
-                            }
-                          }
-                        }
-                        if (current.getComponents) {
-                          let children = current.getComponents()
-                          for (let j = 0; j < children.length; j++) {
-                            stack.push(children[j])
-                          }
-                        }
-                      }
-                      return false
-                    }
-
-                    clickMatching(component, ['Non-commercial use', 'Non commercial use', 'Free']) ||
-                      clickMatching(component, ['Use for Free', 'Continue', 'OK', 'Activate'])
-                    """.trimIndent(),
-                    true
-                )
+            val actionCandidates = listOf("Use for Free", "Continue", "OK", "Activate", "继续", "确定")
+            actionCandidates.forEach { text ->
+                runCatching {
+                    clickOrThrow(
+                        dialog.find<ComponentFixture>(
+                            byXpath(
+                                "//div[" +
+                                    "(@class='JButton' or @class='ActionButton' or @class='ActionButtonWithText') and (" +
+                                    "@text='$text' or @visible_text='$text' or @accessiblename='$text'" +
+                                    ")" +
+                                    "]"
+                            )
+                        ),
+                        "license dialog action $text"
+                    )
+                }
             }
         }
 
@@ -412,58 +322,14 @@ class InterceptWaveToolWindowUiTest {
     private fun configDialog(): CommonContainerFixture =
         remoteRobot.find(configDialogLocator)
 
-    private fun swingClick(component: ComponentFixture): Boolean =
+    private fun robotClick(component: ComponentFixture): Boolean =
         runCatching {
-            component.callJs<Boolean>(
-                """
-                if (component === null) {
-                  false
-                } else if (component instanceof javax.swing.AbstractButton) {
-                  component.doClick()
-                  true
-                } else {
-                  component.dispatchEvent(new java.awt.event.MouseEvent(
-                    component,
-                    java.awt.event.MouseEvent.MOUSE_PRESSED,
-                    java.lang.System.currentTimeMillis(),
-                    0,
-                    Math.max(1, component.getWidth() / 2),
-                    Math.max(1, component.getHeight() / 2),
-                    1,
-                    false,
-                    java.awt.event.MouseEvent.BUTTON1
-                  ))
-                  component.dispatchEvent(new java.awt.event.MouseEvent(
-                    component,
-                    java.awt.event.MouseEvent.MOUSE_RELEASED,
-                    java.lang.System.currentTimeMillis(),
-                    0,
-                    Math.max(1, component.getWidth() / 2),
-                    Math.max(1, component.getHeight() / 2),
-                    1,
-                    false,
-                    java.awt.event.MouseEvent.BUTTON1
-                  ))
-                  component.dispatchEvent(new java.awt.event.MouseEvent(
-                    component,
-                    java.awt.event.MouseEvent.MOUSE_CLICKED,
-                    java.lang.System.currentTimeMillis(),
-                    0,
-                    Math.max(1, component.getWidth() / 2),
-                    Math.max(1, component.getHeight() / 2),
-                    1,
-                    false,
-                    java.awt.event.MouseEvent.BUTTON1
-                  ))
-                  true
-                }
-                """.trimIndent(),
-                true
-            )
+            component.click()
+            true
         }.getOrDefault(false)
 
     private fun clickOrThrow(component: ComponentFixture, description: String) {
-        check(swingClick(component)) {
+        check(robotClick(component)) {
             "Failed to click $description via Swing dispatch"
         }
     }
@@ -501,9 +367,11 @@ class InterceptWaveToolWindowUiTest {
         }
 
         val configButtons = findAllSafe<JButtonFixture>(configButtonLocator)
-        val openedByFixture = configButtons.any { swingClick(it) }
+        val openedByFixture = configButtons.any { robotClick(it) }
         val openedByGlobalSearch = if (!openedByFixture) clickVisibleButtonByText("配置", "Configure") else false
-        check(openedByFixture || openedByGlobalSearch) { "Failed to click Configure button via Swing dispatch" }
+        check(openedByFixture || openedByGlobalSearch) {
+            "Failed to click Configure button via Swing dispatch. Visible snapshot:\n${visibleButtonsSnapshot()}"
+        }
 
         waitForConfigDialog()
     }
@@ -517,16 +385,22 @@ class InterceptWaveToolWindowUiTest {
         clearBlockingDialogs()
         if (isToolWindowVisible()) return
 
-        waitForToolWindowButton()
-        clearBlockingDialogs()
-
         step("Ensure Intercept Wave tool window is open") {
-            val openedViaIde = showToolWindowFromIde()
-            if (!openedViaIde) {
-                clickOrThrow(
-                    remoteRobot.find(toolWindowButtonLocator),
-                    "InterceptWave tool window stripe button"
-                )
+            val stripeExists = runCatching {
+                waitFor(Duration.ofSeconds(30)) {
+                    clearBlockingDialogs()
+                    showToolWindowFromIde()
+                    hasComponent(toolWindowButtonLocator) || isToolWindowVisible()
+                }
+                true
+            }.getOrDefault(false)
+
+            if (!isToolWindowVisible() && stripeExists && hasComponent(toolWindowButtonLocator)) {
+                clickOrThrow(remoteRobot.find(toolWindowButtonLocator), "InterceptWave tool window stripe button")
+            }
+
+            if (!isToolWindowVisible()) {
+                showToolWindowFromIde()
             }
         }
 
@@ -564,7 +438,7 @@ class InterceptWaveToolWindowUiTest {
     }
 
     @Test
-    fun `test tool window is available`() = with(remoteRobot) {
+    fun `test tool window is available`() {
         ensureToolWindowOpen()
 
         step("Verify tool window is opened") {
@@ -576,34 +450,32 @@ class InterceptWaveToolWindowUiTest {
     }
 
     @Test
-    fun `test start all button is visible`() = with(remoteRobot) {
+    fun `test start all button is visible`() {
         ensureToolWindowOpen()
 
         step("Verify Start All button exists") {
             waitFor(Duration.ofSeconds(10)) {
-                findAll<JButtonFixture>(startAllButtonLocator).isNotEmpty()
+                findAllSafe<JButtonFixture>(startAllButtonLocator).isNotEmpty()
             }
         }
     }
 
     @Test
     fun `test configuration dialog can be opened`() {
-        with(remoteRobot) {
-            ensureToolWindowOpen()
+        ensureToolWindowOpen()
 
-            step("Click configuration button") {
-                openConfigDialog()
-            }
+        step("Click configuration button") {
+            openConfigDialog()
+        }
 
-            step("Verify configuration dialog is opened") {
-                waitForConfigDialog()
-            }
+        step("Verify configuration dialog is opened") {
+            waitForConfigDialog()
+        }
 
-            step("Close dialog") {
-                configDialog().apply {
-                    val cancelButton = find<JButtonFixture>(byXpath("//div[@class='JButton' and (@text='Cancel' or @text='取消')]"))
-                    clickOrThrow(cancelButton, "config dialog Cancel button")
-                }
+        step("Close dialog") {
+            configDialog().apply {
+                val cancelButton = find<JButtonFixture>(byXpath("//div[@class='JButton' and (@text='Cancel' or @text='取消')]"))
+                clickOrThrow(cancelButton, "config dialog Cancel button")
             }
         }
     }
@@ -614,31 +486,29 @@ class InterceptWaveToolWindowUiTest {
      */
     @Test
     fun `test add new proxy group workflow`() {
-        with(remoteRobot) {
-            ensureToolWindowOpen()
+        ensureToolWindowOpen()
 
-            step("Open configuration dialog") {
-                openConfigDialog()
+        step("Open configuration dialog") {
+            openConfigDialog()
+        }
+
+        step("Click add group button") {
+            waitForConfigDialog()
+            val addGroupButton = configDialog().find<JButtonFixture>(addGroupButtonLocator)
+            val clicked = robotClick(addGroupButton) || clickVisibleButtonByText("新增配置组", "Add Group")
+            check(clicked) { "Failed to click Add Group button via Swing dispatch" }
+        }
+
+        step("Verify new group is created") {
+            waitFor(Duration.ofSeconds(10)) {
+                hasConfigGroup("Group 6") || hasConfigGroup("配置组 6")
             }
+        }
 
-            step("Click add group button") {
-                waitForConfigDialog()
-                val addGroupButton = configDialog().find<JButtonFixture>(addGroupButtonLocator)
-                val clicked = swingClick(addGroupButton) || clickVisibleButtonByText("新增配置组", "Add Group")
-                check(clicked) { "Failed to click Add Group button via Swing dispatch" }
-            }
-
-            step("Verify new group is created") {
-                waitFor(Duration.ofSeconds(10)) {
-                    hasConfigGroup("Group 6") || hasConfigGroup("配置组 6")
-                }
-            }
-
-            step("Close dialog without saving") {
-                configDialog().apply {
-                    val cancelButton = find<JButtonFixture>(byXpath("//div[@class='JButton' and (@text='Cancel' or @text='取消')]"))
-                    clickOrThrow(cancelButton, "config dialog Cancel button")
-                }
+        step("Close dialog without saving") {
+            configDialog().apply {
+                val cancelButton = find<JButtonFixture>(byXpath("//div[@class='JButton' and (@text='Cancel' or @text='取消')]"))
+                clickOrThrow(cancelButton, "config dialog Cancel button")
             }
         }
     }
