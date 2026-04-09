@@ -30,6 +30,8 @@ jobs:
             platform: linux
           - os: macos-latest
             platform: macos
+          - os: windows-latest
+            platform: windows
 
     steps:
 
@@ -140,14 +142,23 @@ jobs:
 
       # Run tests
       - name: Tests
+        if: matrix.platform != 'windows'
         env:
           RUN_UI_TESTS: "true"
         shell: bash
         run: |
           ./gradlew testUi --no-configuration-cache --console=plain -PplatformType=${{ env.UI_PLATFORM_TYPE }} -PplatformVersion=${{ env.UI_PLATFORM_VERSION }} | tee ui-test.log
 
+      - name: Tests on Windows
+        if: matrix.platform == 'windows'
+        env:
+          RUN_UI_TESTS: "true"
+        shell: pwsh
+        run: |
+          .\gradlew.bat testUi --no-configuration-cache --console=plain "-PplatformType=$env:UI_PLATFORM_TYPE" "-PplatformVersion=$env:UI_PLATFORM_VERSION" | Tee-Object -FilePath ui-test.log
+
       - name: Dump Remote Robot DOM On Failure
-        if: failure()
+        if: failure() && matrix.platform != 'windows'
         shell: bash
         run: |
           curl --connect-timeout 5 --max-time 30 -sS -v http://127.0.0.1:8082 > remote-robot-dom.html 2> remote-robot-dom.curl.log || true
@@ -160,8 +171,26 @@ jobs:
             tail -n 200 remote-robot-dom.curl.log || true
           fi
 
+      - name: Dump Remote Robot DOM On Failure (Windows)
+        if: failure() && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          try {
+            Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 30 -OutFile remote-robot-dom.html
+          } catch {
+            $_ | Out-String | Set-Content -Path remote-robot-dom.curl.log
+          }
+          if (Test-Path remote-robot-dom.html) {
+            Write-Host "===== remote-robot-dom excerpt ====="
+            Select-String -Path remote-robot-dom.html -Pattern "Welcome|IdeFrameImpl|InterceptWave|Recent Projects|Configure|Start All|SquareStripeButton|ToolWindow|Manage Licenses|Meet the Islands Theme|Skip|Trust" | Select-Object -First 250
+          }
+          if (Test-Path remote-robot-dom.curl.log) {
+            Write-Host "===== remote-robot-dom request log ====="
+            Get-Content remote-robot-dom.curl.log -Tail 200
+          }
+
       - name: Collect Robot Connectivity Diagnostics On Failure
-        if: failure()
+        if: failure() && matrix.platform != 'windows'
         shell: bash
         run: |
           echo "===== PID/Process diagnostics ====="
@@ -181,7 +210,7 @@ jobs:
           sed -n '1,80p' /tmp/robot-probe.out || true
 
       - name: Show IDE Logs On Failure
-        if: failure()
+        if: failure() && matrix.platform != 'windows'
         shell: bash
         run: |
           if [ -f ui-ide.log ]; then
@@ -203,10 +232,18 @@ jobs:
         run: |
           Write-Host "===== gradle/java processes ====="
           Get-Process | Where-Object { $_.ProcessName -match 'gradle|java' } | Format-Table -AutoSize
+          if (Test-Path ui-ide.log) {
+            Write-Host "===== ui-ide.log ====="
+            Get-Content ui-ide.log -Tail 200
+          }
+          if (Test-Path ui-ide.err.log) {
+            Write-Host "===== ui-ide.err.log ====="
+            Get-Content ui-ide.err.log -Tail 200
+          }
 
       - name: Upload UI Logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ui-test-logs-${{ matrix.os }}
           path: |
