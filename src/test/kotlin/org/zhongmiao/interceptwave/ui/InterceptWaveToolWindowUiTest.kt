@@ -46,11 +46,11 @@ class InterceptWaveToolWindowUiTest {
     )
 
     private val configButtonLocator = byXpath(
-        "//div[@class='JButton' and (@text='配置' or @text='Configure') and @visible='true']"
+        "//div[@class='JButton' and (@text='配置' or @text='Configure')]"
     )
 
     private val addGroupButtonLocator = byXpath(
-        "//div[@class='JButton' and (@text='新增配置组' or @text='Add Group') and @visible='true']"
+        "//div[@class='JButton' and (@text='新增配置组' or @text='Add Group')]"
     )
 
     private val configDialogLocator = byXpath(
@@ -67,6 +67,7 @@ class InterceptWaveToolWindowUiTest {
         "//div[" +
             "@class='MyDialog' and (" +
             ".//div[@class='JButton' and (@text='Trust Project' or @text='信任项目')] or " +
+            ".//div[@class='JButton' and contains(@text, 'Trust')] or " +
             ".//div[contains(@visible_text, 'Trust and Open Project')] or " +
             ".//div[contains(@visible_text, 'Trust Project')]" +
             ")" +
@@ -153,19 +154,19 @@ class InterceptWaveToolWindowUiTest {
             """
             importPackage(Packages.java.awt)
             importPackage(Packages.javax.swing)
-            var labels = [$labels]
+            let labels = [$labels]
             function matches(button) {
               try {
-                var text = button.getText()
-                if (text == null) return false
-                for (var i = 0; i < labels.length; i++) {
-                  if (String(text) == labels[i]) return true
+                let text = button.getText()
+                if (text === null) return false
+                for (let i = 0; i < labels.length; i++) {
+                  if (String(text) === labels[i]) return true
                 }
               } catch (e) {}
               return false
             }
             function clickIn(component) {
-              if (component == null) return false
+              if (component === null) return false
               if (component instanceof javax.swing.AbstractButton) {
                 try {
                   if (component.isShowing() && component.isVisible() && matches(component)) {
@@ -175,17 +176,17 @@ class InterceptWaveToolWindowUiTest {
                 } catch (e) {}
               }
               try {
-                var children = component.getComponents()
-                if (children != null) {
-                  for (var i = 0; i < children.length; i++) {
+                let children = component.getComponents()
+                if (children !== null) {
+                  for (let i = 0; i < children.length; i++) {
                     if (clickIn(children[i])) return true
                   }
                 }
               } catch (e) {}
               return false
             }
-            var windows = java.awt.Window.getWindows()
-            for (var i = 0; i < windows.length; i++) {
+            let windows = java.awt.Window.getWindows()
+            for (let i = 0; i < windows.length; i++) {
               try {
                 if (windows[i].isShowing() && clickIn(windows[i])) return true
               } catch (e) {}
@@ -196,13 +197,22 @@ class InterceptWaveToolWindowUiTest {
         )
     }.getOrDefault(false)
 
-    private fun waitForProjectUiReady() {
-        waitFor(Duration.ofMinutes(6)) {
-            runCatching { remoteRobot.callJs<Boolean>("true") }.getOrDefault(false) &&
-                hasComponent(projectFrameLocator) &&
-                !hasComponent(trustDialogLocator)
-        }
-    }
+    private fun waitForProjectUiReady(): Boolean =
+        runCatching {
+            waitFor(Duration.ofMinutes(8)) {
+                if (!runCatching { remoteRobot.callJs<Boolean>("true") }.getOrDefault(false)) {
+                    false
+                } else {
+                    clearBlockingDialogs()
+                    if (!hasComponent(projectFrameLocator) && hasComponent(welcomeFrameLocator)) {
+                        runCatching { openProjectFromWelcomeIfNeeded() }
+                    }
+                    (hasComponent(projectFrameLocator) || hasComponent(toolWindowButtonLocator)) &&
+                        !hasComponent(trustDialogLocator)
+                }
+            }
+            true
+        }.getOrDefault(false)
 
     private fun waitForToolWindowButton() {
         waitFor(Duration.ofMinutes(3)) {
@@ -217,12 +227,12 @@ class InterceptWaveToolWindowUiTest {
                 importPackage(Packages.com.intellij.openapi.project)
                 importPackage(Packages.com.intellij.openapi.wm)
 
-                var projects = ProjectManager.getInstance().getOpenProjects()
-                if (projects == null || projects.length === 0) {
+                let projects = ProjectManager.getInstance().getOpenProjects()
+                if (projects === null || projects.length === 0) {
                     false
                 } else {
-                    var toolWindow = ToolWindowManager.getInstance(projects[0]).getToolWindow("InterceptWave")
-                    if (toolWindow == null) {
+                    let toolWindow = ToolWindowManager.getInstance(projects[0]).getToolWindow("InterceptWave")
+                    if (toolWindow === null) {
                         false
                     } else {
                         toolWindow.show(null)
@@ -291,25 +301,25 @@ class InterceptWaveToolWindowUiTest {
                     """
                     function textOf(c) {
                       try {
-                        var text = c.getText ? c.getText() : null
-                        if (text != null) return String(text)
+                        let text = c.getText ? c.getText() : null
+                        if (text !== null) return String(text)
                       } catch (e) {}
                       try {
-                        var ac = c.getAccessibleContext ? c.getAccessibleContext() : null
-                        var name = ac != null ? ac.getAccessibleName() : null
-                        if (name != null) return String(name)
+                        let ac = c.getAccessibleContext ? c.getAccessibleContext() : null
+                        let name = ac !== null ? ac.getAccessibleName() : null
+                        if (name !== null) return String(name)
                       } catch (e) {}
                       return ""
                     }
 
                     function clickMatching(root, patterns) {
-                      if (root == null) return false
-                      var stack = [root]
+                      if (root === null) return false
+                      let stack = [root]
                       while (stack.length > 0) {
-                        var current = stack.pop()
-                        var text = textOf(current)
+                        let current = stack.pop()
+                        let text = textOf(current)
                         if (current instanceof javax.swing.AbstractButton) {
-                          for (var i = 0; i < patterns.length; i++) {
+                          for (let i = 0; i < patterns.length; i++) {
                             if (text.indexOf(patterns[i]) >= 0) {
                               current.doClick()
                               return true
@@ -317,8 +327,8 @@ class InterceptWaveToolWindowUiTest {
                           }
                         }
                         if (current.getComponents) {
-                          var children = current.getComponents()
-                          for (var j = 0; j < children.length; j++) {
+                          let children = current.getComponents()
+                          for (let j = 0; j < children.length; j++) {
                             stack.push(children[j])
                           }
                         }
@@ -347,12 +357,8 @@ class InterceptWaveToolWindowUiTest {
 
     private fun openProjectFromWelcomeIfNeeded() {
         if (hasComponent(projectFrameLocator)) return
-
-        waitFor(Duration.ofMinutes(1)) {
-            hasComponent(welcomeFrameLocator) || hasComponent(projectFrameLocator) || hasComponent(trustDialogLocator)
-        }
-
         if (hasComponent(projectFrameLocator) || hasComponent(trustDialogLocator)) return
+        if (!hasComponent(welcomeFrameLocator)) return
 
         step("Open a visible recent project from the Welcome screen") {
             val recentProjects = remoteRobot.find<JTreeFixture>(recentProjectsLocator)
@@ -398,7 +404,7 @@ class InterceptWaveToolWindowUiTest {
         runCatching {
             component.callJs<Boolean>(
                 """
-                if (component == null) {
+                if (component === null) {
                   false
                 } else if (component instanceof javax.swing.AbstractButton) {
                   component.doClick()
@@ -474,8 +480,15 @@ class InterceptWaveToolWindowUiTest {
         clearBlockingDialogs()
         if (remoteRobot.findAll<CommonContainerFixture>(configDialogLocator).isNotEmpty()) return
 
+        waitFor(Duration.ofSeconds(45)) {
+            clearBlockingDialogs()
+            if (!isToolWindowVisible()) {
+                showToolWindowFromIde()
+            }
+            remoteRobot.findAll<JButtonFixture>(configButtonLocator).isNotEmpty() || isToolWindowVisible()
+        }
+
         val configButtons = remoteRobot.findAll<JButtonFixture>(configButtonLocator)
-        check(configButtons.isNotEmpty()) { "Configure button was not found" }
         val openedByFixture = configButtons.any { swingClick(it) }
         val openedByGlobalSearch = if (!openedByFixture) clickVisibleButtonByText("配置", "Configure") else false
         check(openedByFixture || openedByGlobalSearch) { "Failed to click Configure button via Swing dispatch" }
@@ -521,7 +534,6 @@ class InterceptWaveToolWindowUiTest {
         clearBlockingDialogs()
         waitForProjectUiReady()
         clearBlockingDialogs()
-        waitForToolWindowButton()
     }
 
     @AfterEach

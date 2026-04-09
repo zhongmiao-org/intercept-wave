@@ -270,8 +270,19 @@ val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
     doLast {
         val projectPath = uiProjectDir.get().asFile.absolutePath
         val projectPathForIde = projectPath.replace(userHome, "${'$'}USER_HOME${'$'}")
-        val dir = optionsDir.get().asFile.apply { mkdirs() }
-        dir.resolve("trusted-paths.xml").writeText(
+        val type = platformType.get()
+        val version = platformVersion.get()
+
+        val optionDirs = listOf(
+            optionsDir.get().asFile,
+            layout.projectDirectory
+                .dir(".intellijPlatform/sandbox/intercept-wave/$type-$version/config_runIdeForUiTests/options")
+                .asFile
+        ).distinctBy { it.absolutePath }
+
+        fun writeUiState(dir: File) {
+            dir.mkdirs()
+            dir.resolve("trusted-paths.xml").writeText(
             """
             <application>
               <component name="Trusted.Paths">
@@ -283,8 +294,8 @@ val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
               </component>
             </application>
             """.trimIndent()
-        )
-        dir.resolve("trace_license_storage.xml").writeText(
+            )
+            dir.resolve("trace_license_storage.xml").writeText(
             """
             <application>
               <component name="TraceLicenseStorage">
@@ -292,8 +303,8 @@ val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
               </component>
             </application>
             """.trimIndent()
-        )
-        dir.resolve("AIOnboardingPromoWindowAdvisor.xml").writeText(
+            )
+            dir.resolve("AIOnboardingPromoWindowAdvisor.xml").writeText(
             """
             <application>
               <component name="AIOnboardingPromoWindowAdvisor">
@@ -302,8 +313,8 @@ val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
               </component>
             </application>
             """.trimIndent()
-        )
-        dir.resolve("recentProjects.xml").writeText(
+            )
+            dir.resolve("recentProjects.xml").writeText(
             """
             <application>
               <component name="RecentProjectsManager">
@@ -326,7 +337,10 @@ val prepareUiTestWelcomeState = tasks.register("prepareUiTestWelcomeState") {
               </component>
             </application>
             """.trimIndent()
-        )
+            )
+        }
+
+        optionDirs.forEach(::writeUiState)
     }
 }
 
