@@ -80,20 +80,7 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath .\gradlew.bat `
-            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain','--info',"-PplatformType=$env:UI_PLATFORM_TYPE","-PplatformVersion=$env:UI_PLATFORM_VERSION" `
-            -RedirectStandardOutput 'ui-ide.log' `
-            -RedirectStandardError 'ui-ide.err.log' `
-            -PassThru
-          Set-Content -Path ui-ide.pid -Value $process.Id
-          Start-Sleep -Seconds 10
-          if ($process.HasExited) {
-            Write-Host "runIdeForUiTests exited early with code $($process.ExitCode)"
-            if (Test-Path ui-ide.log) { Get-Content ui-ide.log }
-            if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log }
-            exit 1
-          }
-          Write-Host "Started runIdeForUiTests PID=$($process.Id)"
+          Write-Host "Windows UI test execution is handled in a single combined step."
 
       - name: Wait for Robot Server on Linux/macOS
         if: matrix.platform != 'windows'
@@ -117,29 +104,6 @@ jobs:
           echo "Robot server did not become ready in time" | tee -a robot-wait.log
           exit 1
 
-      - name: Wait for Robot Server on Windows
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        run: |
-          for ($attempt = 1; $attempt -le 90; $attempt++) {
-            try {
-              Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 5 | Out-Null
-              "Robot server is ready on attempt $attempt" | Tee-Object -FilePath robot-wait.log -Append
-              exit 0
-            } catch {
-              "Robot server not ready yet (attempt $attempt/90)" | Tee-Object -FilePath robot-wait.log -Append
-            }
-            if (Test-Path ui-ide.pid) {
-              $uiIdePid = (Get-Content ui-ide.pid | Select-Object -First 1).Trim()
-              "PID=$uiIdePid" | Tee-Object -FilePath robot-wait.log -Append
-              Get-Process -Id $uiIdePid -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Tee-Object -FilePath robot-wait.log -Append
-            }
-            if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
-            if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
-            Start-Sleep -Seconds 15
-          }
-          Write-Error "Robot server did not become ready in time"
-
       # Run tests
       - name: Tests
         if: matrix.platform != 'windows'
@@ -149,13 +113,54 @@ jobs:
         run: |
           ./gradlew testUi --no-configuration-cache --console=plain -PplatformType=${{ env.UI_PLATFORM_TYPE }} -PplatformVersion=${{ env.UI_PLATFORM_VERSION }} | tee ui-test.log
 
-      - name: Tests on Windows
+      - name: Run and Test on Windows
         if: matrix.platform == 'windows'
         env:
           RUN_UI_TESTS: "true"
         shell: pwsh
         run: |
-          .\gradlew.bat testUi --no-configuration-cache --console=plain "-PplatformType=$env:UI_PLATFORM_TYPE" "-PplatformVersion=$env:UI_PLATFORM_VERSION" | Tee-Object -FilePath ui-test.log
+          $runIde = Start-Process -FilePath .\gradlew.bat `
+            -ArgumentList 'runIdeForUiTests','--no-configuration-cache','--stacktrace','--console=plain','--info',"-PplatformType=$env:UI_PLATFORM_TYPE","-PplatformVersion=$env:UI_PLATFORM_VERSION" `
+            -RedirectStandardOutput 'ui-ide.log' `
+            -RedirectStandardError 'ui-ide.err.log' `
+            -PassThru
+          Set-Content -Path ui-ide.pid -Value $runIde.Id
+          "Started runIdeForUiTests PID=$($runIde.Id)" | Tee-Object -FilePath robot-wait.log -Append
+
+          $ready = $false
+          for ($attempt = 1; $attempt -le 90; $attempt++) {
+            if ($runIde.HasExited) {
+              "runIdeForUiTests exited early with code $($runIde.ExitCode)" | Tee-Object -FilePath robot-wait.log -Append
+              if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 120 | Tee-Object -FilePath robot-wait.log -Append }
+              if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 120 | Tee-Object -FilePath robot-wait.log -Append }
+              throw "runIdeForUiTests exited before robot server became ready"
+            }
+
+            try {
+              Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8082' -TimeoutSec 5 | Out-Null
+              "Robot server is ready on attempt $attempt" | Tee-Object -FilePath robot-wait.log -Append
+              $ready = $true
+              break
+            } catch {
+              "Robot server not ready yet (attempt $attempt/90)" | Tee-Object -FilePath robot-wait.log -Append
+              Get-Process -Id $runIde.Id -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Tee-Object -FilePath robot-wait.log -Append
+              if (Test-Path ui-ide.log) { Get-Content ui-ide.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
+              if (Test-Path ui-ide.err.log) { Get-Content ui-ide.err.log -Tail 20 | Tee-Object -FilePath robot-wait.log -Append }
+              Start-Sleep -Seconds 15
+            }
+          }
+
+          if (-not $ready) {
+            throw "Robot server did not become ready in time"
+          }
+
+          try {
+            .\gradlew.bat testUi --no-configuration-cache --console=plain "-PplatformType=$env:UI_PLATFORM_TYPE" "-PplatformVersion=$env:UI_PLATFORM_VERSION" | Tee-Object -FilePath ui-test.log
+          } finally {
+            if (-not $runIde.HasExited) {
+              Stop-Process -Id $runIde.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
 
       - name: Dump Remote Robot DOM On Failure
         if: failure() && matrix.platform != 'windows'
