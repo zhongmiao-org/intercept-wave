@@ -75,11 +75,18 @@ jobs:
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
         run: ./gradlew publishPlugin
 
+      # Validate generated plugin archive before attaching to GitHub Release
+      - name: Validate Plugin Archive
+        shell: bash
+        run: |
+          ls -la ./build/distributions
+          unzip -t ./build/distributions/*.zip
+
       # Upload an artifact as a release asset
       - name: Upload Release Asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/*
+        run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/*.zip
 
       # After successful publish, update main branch changelog via PR with auto-merge
       - name: Check out main branch

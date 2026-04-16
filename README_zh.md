@@ -93,6 +93,21 @@ Intercept Wave 提供以下核心功能：
 从 [GitHub Releases](https://github.com/zhongmiao-org/intercept-wave/releases/latest) 下载最新版本，然后手动安装：
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
+## 打包与发布说明（维护者）
+
+- JetBrains Marketplace 和 IDE 手动安装都要求使用 `./gradlew buildPlugin` 生成的原始插件压缩包。
+- 始终上传 `build/distributions/*.zip`。
+- 不要上传 `build/libs/*.jar`。
+- 不要上传 ZIP 解压后的目录内容。
+- CI 流程应直接保存并发布 ZIP 产物，不要先解压再二次打包。
+
+发布前可在本地快速校验：
+
+```bash
+./gradlew buildPlugin
+unzip -t build/distributions/*.zip
+```
+
 ## 快速开始
 
 ### 1. 打开工具窗口
