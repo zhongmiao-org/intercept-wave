@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+### 🔧 CI/CD
+
+- CI 产物改为保留 `buildPlugin` 生成的原始插件压缩包，并直接上传 `build/distributions/*.zip`。
+- Release 工作流改为仅上传插件 ZIP 到 GitHub Releases（不再上传 `build/distributions` 下的全部文件）。
+- 在上传 Release 产物前新增压缩包完整性校验：`unzip -t build/distributions/*.zip`。
+
+### 📚 文档
+
+- 在 README（中/英）补充维护者打包说明，明确 Marketplace/手动安装必须使用 `build/distributions/*.zip`。
+- 增加发布前本地快速校验流程：
+  - `./gradlew buildPlugin`
+  - `unzip -t build/distributions/*.zip`
+
 ## [4.0.0]
 
 ### ✨ 新增
