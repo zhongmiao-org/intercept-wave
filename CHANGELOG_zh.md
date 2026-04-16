@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [4.0.1]
+
 ### 🔧 CI/CD
 
 - CI 产物改为保留 `buildPlugin` 生成的原始插件压缩包，并直接上传 `build/distributions/*.zip`。
