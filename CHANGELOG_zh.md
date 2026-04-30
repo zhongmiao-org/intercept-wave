@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+### 🐛 修复
+
+- 配置文件 schema 版本固定使用当前配置 schema 版本，不再从插件发布版本推导，避免发布小版本后写入不受支持的配置版本。
+
+### 🔧 CI/CD
+
+- 在创建 tag、发布到 JetBrains Marketplace、发布 GitHub Release 前增加 release 测试门禁。
+
 ## [4.1.0]
 
 ### 🔄 变更

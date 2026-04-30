@@ -95,7 +95,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         assertEquals("/api/user", group.routes[0].mockApis.single().path)
     }
 
-    fun `test ensureVersionMajorMinor normalizes to major_minor`() {
+    fun `test saved config is normalized to current schema version`() {
         // Prepare minimal v2 config with a different version
         val service = ConfigService(project)
         val root = service.getRootConfig()
