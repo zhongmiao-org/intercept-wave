@@ -1,0 +1,69 @@
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changelog:
+    name: Require bilingual changelog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Sources
+        uses: actions/checkout@v6
+
+      - name: Check bilingual changelog updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          has_label() {
+            local label="$1"
+            [[ ",${LABELS}," == *",${label},"* ]]
+          }
+
+          if [[ "$PR_AUTHOR" == "dependabot[bot]" ]]; then
+            echo "Dependabot PR detected; skipping changelog gate."
+            exit 0
+          fi
+
+          if [[ "$HEAD_REF" == changelog/update-* ]]; then
+            echo "Release changelog archive branch detected; skipping changelog gate."
+            exit 0
+          fi
+
+          if [[ "$HEAD_REF" == release/v* ]]; then
+            echo "Release PR branch detected; skipping changelog gate."
+            exit 0
+          fi
+
+          if has_label "skip changelog" || has_label "release changelog" || has_label "release"; then
+            echo "Changelog gate skipped by PR label."
+            exit 0
+          fi
+
+          changed_files="$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path')"
+          echo "Changed files:"
+          echo "$changed_files"
+
+          if ! grep -qx 'CHANGELOG.md' <<< "$changed_files"; then
+            echo "::error::Missing CHANGELOG.md update. Update the English changelog or add the 'skip changelog' label when appropriate."
+            exit 1
+          fi
+
+          if ! grep -qx 'CHANGELOG_zh.md' <<< "$changed_files"; then
+            echo "::error::Missing CHANGELOG_zh.md update. Update the Chinese changelog or add the 'skip changelog' label when appropriate."
+            exit 1
+          fi
+
+          echo "Bilingual changelog updates found."

@@ -140,7 +140,7 @@ class MockApiDialog(
                         )
                     }
                 }.applyToComponent {
-                    icon = AllIcons.Actions.ReformatCode
+                    icon = AllIcons.Actions.PrettyPrint
                     isFocusPainted = false
                 }
             }

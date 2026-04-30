@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.ui
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
@@ -69,6 +70,6 @@ class ProxyGroupTabPanelTest : BasePlatformTestCase() {
         val panel = ProxyGroupTabPanel(project, missingId, "Missing", 19099, true) {}
         panel.getPanel()
         val urlLabel = panel.javaClass.getDeclaredField("urlValueLabel").apply { isAccessible = true }.get(panel) as JLabel
-        assertEquals("Not running yet", urlLabel.text)
+        assertEquals(message("toolwindow.status.url.placeholder"), urlLabel.text)
     }
 }

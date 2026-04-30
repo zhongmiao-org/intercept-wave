@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+### 🔄 变更
+
+- 声明兼容 IntelliJ Platform `2023.1` 及后续版本的 JetBrains IDE，将插件构建基线下调到 IDEA Community `2023.1.7`，并保持插件字节码兼容 Java 17 运行时。
+- 将插件验证目标改为显式覆盖 2023.1 基线 IDE：CLion、DataGrip、DataSpell、GoLand、IntelliJ IDEA Community、IntelliJ IDEA Ultimate、PhpStorm、PyCharm Community、PyCharm Professional、Rider、RubyMine 和 WebStorm。
+
+### 🔧 CI/CD
+
+- 新增双语 changelog 门禁，普通 PR 必须同时更新 `CHANGELOG.md` 和 `CHANGELOG_zh.md`；Dependabot、release changelog 分支、release 分支和显式跳过标签除外。
+
+### 📚 文档
+
+- 在英文和中文 README 中补充 JetBrains 2023.1+ 兼容范围说明。
+
 ## [4.0.1]
 
 ### 🔧 CI/CD

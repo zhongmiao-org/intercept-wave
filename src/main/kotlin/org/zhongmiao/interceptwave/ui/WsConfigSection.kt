@@ -209,7 +209,7 @@ class WsConfigSection(
     }
 
     private fun createOffBehaviorPanel(): JComponent {
-        val formatButton = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode).apply {
+        val formatButton = JButton(message("mockapi.button.format"), AllIcons.Actions.PrettyPrint).apply {
             UiKit.applyToolbarButtonStyle(this)
             addActionListener { formatMessageArea(offMsgArea) }
         }
@@ -225,7 +225,7 @@ class WsConfigSection(
     }
 
     private fun createPeriodicBehaviorPanel(): JComponent {
-        val formatButton = JButton(message("mockapi.button.format"), AllIcons.Actions.ReformatCode).apply {
+        val formatButton = JButton(message("mockapi.button.format"), AllIcons.Actions.PrettyPrint).apply {
             UiKit.applyToolbarButtonStyle(this)
             addActionListener { formatMessageArea(periodicMsgArea) }
         }
