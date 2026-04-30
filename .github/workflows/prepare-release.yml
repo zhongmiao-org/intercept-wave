@@ -1,0 +1,155 @@
+# GitHub Actions Workflow for preparing a reviewed release PR.
+# It bumps gradle.properties, archives English/Chinese changelog entries,
+# and opens or updates a release PR without creating a tag or publishing.
+
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Target SemVer version, for example 4.1.0
+        required: true
+        type: string
+
+jobs:
+  prepare-release:
+    name: Prepare Release PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Fetch Sources
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Prepare Release Branch
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BRANCH="release/v$VERSION"
+          DATE="$(date -u +%Y-%m-%d)"
+          export DATE
+
+          ruby <<'RUBY'
+          version = ENV.fetch("VERSION")
+
+          unless version.match?(/\A\d+\.\d+\.\d+\z/)
+            abort("Invalid SemVer version: #{version}")
+          end
+
+          current = File.read("gradle.properties")[/^pluginVersion\s*=\s*(.+)$/, 1]&.strip
+          abort("Missing pluginVersion in gradle.properties") unless current
+          unless current.match?(/\A\d+\.\d+\.\d+\z/)
+            abort("Invalid current SemVer version: #{current}")
+          end
+
+          current_parts = current.split(".").map(&:to_i)
+          target_parts = version.split(".").map(&:to_i)
+          unless (target_parts <=> current_parts).positive?
+            abort("Target version #{version} must be greater than current version #{current}")
+          end
+          RUBY
+
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git fetch origin main "$BRANCH" || true
+          git switch -C "$BRANCH" origin/main
+          mkdir -p build
+
+          ruby <<'RUBY'
+          version = ENV.fetch("VERSION")
+          date = ENV.fetch("DATE")
+
+          EMOJI_HEADINGS = ["### ✨", "### 🔄", "### 🐛", "### 🔧", "### 📚", "### 🧪", "### 📦", "### 🧱"].freeze
+
+          def extract_unreleased(path)
+            content = File.read(path)
+            match = content.match(/^## \[Unreleased\]\s*$\n(?<body>.*?)(?=^## \[|\z)/m)
+            abort("Missing Unreleased section in #{path}") unless match
+
+            body = match[:body].strip
+            abort("Empty Unreleased section in #{path}") if body.empty?
+            unless EMOJI_HEADINGS.any? { |heading| body.include?(heading) }
+              abort("#{path} Unreleased must include at least one emoji changelog heading")
+            end
+
+            body
+          end
+
+          gradle = File.read("gradle.properties")
+          changed = gradle.sub(/^pluginVersion\s*=.*$/, "pluginVersion = #{version}")
+          abort("Missing pluginVersion in gradle.properties") if changed == gradle
+          File.write("gradle.properties", changed)
+
+          def archive_unreleased(path, heading, notes)
+            content = File.read(path)
+            abort("#{path} already contains #{heading}") if content.include?(heading)
+
+            replacement = "## [Unreleased]\n\n#{heading}\n\n#{notes}\n\n"
+            changed = content.sub(/^## \[Unreleased\]\s*$\n.*?(?=^## \[|\z)/m, replacement)
+            abort("Missing Unreleased section in #{path}") if changed == content
+            File.write(path, changed)
+          end
+
+          notes_en = extract_unreleased("CHANGELOG.md")
+          notes_zh = extract_unreleased("CHANGELOG_zh.md")
+
+          archive_unreleased("CHANGELOG.md", "## [#{version}] - #{date}", notes_en)
+          archive_unreleased("CHANGELOG_zh.md", "## [#{version}]", notes_zh)
+
+          body = <<~BODY
+          ## Summary
+          Prepare release `v#{version}`.
+
+          ## Release Notes
+          #{notes_en}
+          BODY
+
+          File.write("build/release-pr-body.md", body)
+          RUBY
+
+          git add gradle.properties CHANGELOG.md CHANGELOG_zh.md
+
+          if git diff --cached --quiet; then
+            echo "No release changes detected."
+          else
+            git commit -m "chore: release v$VERSION"
+          fi
+
+          git push --force-with-lease --set-upstream origin "$BRANCH"
+
+          gh label create release \
+            --description "Release preparation pull request" \
+            --color 0366d6 \
+            --force \
+            || true
+
+          PR_NUMBER="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // ""')"
+          if [[ -n "$PR_NUMBER" ]]; then
+            gh pr edit "$PR_NUMBER" \
+              --title "chore: release v$VERSION" \
+              --body-file build/release-pr-body.md \
+              --add-label release
+          else
+            gh pr create \
+              --title "chore: release v$VERSION" \
+              --body-file build/release-pr-body.md \
+              --label release \
+              --base main \
+              --head "$BRANCH"
+          fi
+
+          {
+            echo "branch=$BRANCH"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"

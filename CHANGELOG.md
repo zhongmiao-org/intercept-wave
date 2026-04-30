@@ -14,6 +14,8 @@
 ### 🔧 CI/CD
 
 - Added a bilingual changelog gate requiring regular pull requests to update both `CHANGELOG.md` and `CHANGELOG_zh.md`, with skips for Dependabot, release changelog branches, release branches, and explicit skip labels.
+- Added a manual Prepare Release workflow that validates a target SemVer version, bumps `pluginVersion`, archives bilingual changelog entries, and opens or updates a reviewed release PR.
+- Changed publishing to run after a reviewed release PR is merged, creating an idempotent release tag, publishing to JetBrains Marketplace, uploading the plugin ZIP, and publishing the GitHub Release.
 
 ### 📚 Documentation
 

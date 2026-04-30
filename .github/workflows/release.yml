@@ -1,72 +1,141 @@
-# GitHub Actions Workflow created for handling the release process based on the draft release prepared with the Build workflow.
-# Running the publishPlugin task requires all the following secrets to be provided: PUBLISH_TOKEN, PRIVATE_KEY, PRIVATE_KEY_PASSWORD, CERTIFICATE_CHAIN.
-# See https://plugins.jetbrains.com/docs/intellij/plugin-signing.html for more information.
+# GitHub Actions Workflow for publishing a reviewed release PR.
+# The release PR archives changelog entries and bumps gradle.properties.
+# After the PR is merged, this workflow tags the merge commit, publishes the plugin,
+# uploads the plugin ZIP to a draft GitHub Release, then publishes the release.
 
 name: Release
+
 on:
-  release:
-    types: [prereleased, released]
+  pull_request:
+    types: [closed]
+    branches: [main]
 
 jobs:
-
-  # Prepare and publish the plugin to JetBrains Marketplace repository
   release:
     name: Publish Plugin
+    if: >-
+      github.event.pull_request.merged == true &&
+      (startsWith(github.event.pull_request.head.ref, 'release/v') ||
+      contains(github.event.pull_request.labels.*.name, 'release'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
+      pull-requests: read
     steps:
-
-      # Free GitHub Actions Environment Disk Space
       - name: Maximize Build Space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: false
           large-packages: false
 
-      # Check out the current repository
       - name: Fetch Sources
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
 
-      # Set up the Java environment for the next steps
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: 21
 
-      # Setup Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
 
-      # Update the Unreleased section with the current release note
-      - name: Patch Changelog
-        if: ${{ github.event.release.body != '' }}
-        env:
-          CHANGELOG: ${{ github.event.release.body }}
+      - name: Prepare Release Metadata
+        id: metadata
+        shell: bash
         run: |
-          VERSION_RAW="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION_RAW#v}"
-          RELEASE_NOTE="./build/tmp/release_note.txt"
-          mkdir -p "$(dirname "$RELEASE_NOTE")"
-          echo "$CHANGELOG" > $RELEASE_NOTE
+          set -euo pipefail
 
-          ./gradlew patchChangelog --release-note-file=$RELEASE_NOTE
+          VERSION="$(./gradlew properties --property version --quiet --console=plain | tail -n 1 | cut -f2- -d ' ')"
+          TAG="v$VERSION"
+          RELEASE_NOTE="./build/tmp/release_note.md"
 
-          # Patch Chinese changelog: rename Unreleased -> [VERSION] and add new Unreleased on top
-          if [ -f CHANGELOG_zh.md ]; then
-            awk -v ver="$VERSION" '
-              !done && $0 ~ /^## \[Unreleased\]\s*$/ { print "## [Unreleased]\n\n## [" ver "]"; done=1; next }
-              { print }
-            ' CHANGELOG_zh.md > CHANGELOG_zh.md.tmp && mv CHANGELOG_zh.md.tmp CHANGELOG_zh.md
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid SemVer version in gradle.properties: $VERSION"
+            exit 1
           fi
 
-      # Publish the plugin to JetBrains Marketplace
+          ruby - "$VERSION" "$RELEASE_NOTE" <<'RUBY'
+          require "fileutils"
+
+          version = ARGV.fetch(0)
+          output = ARGV.fetch(1)
+          changelog = File.read("CHANGELOG.md")
+          pattern = /^## \[#{Regexp.escape(version)}\](?: - \d{4}-\d{2}-\d{2})?\s*$\n(?<body>.*?)(?=^## \[|\z)/m
+          match = changelog.match(pattern)
+          abort("Missing CHANGELOG.md section for #{version}") unless match
+
+          body = match[:body].strip
+          abort("Empty CHANGELOG.md section for #{version}") if body.empty?
+
+          FileUtils.mkdir_p(File.dirname(output))
+          File.write(output, body + "\n")
+          RUBY
+
+          {
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+            echo "release_note=$RELEASE_NOTE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release Tag
+        env:
+          TAG: ${{ steps.metadata.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --tags origin
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            EXISTING="$(git rev-parse "$TAG^{commit}")"
+            CURRENT="$(git rev-parse HEAD)"
+            if [[ "$EXISTING" != "$CURRENT" ]]; then
+              echo "::error::Tag $TAG already exists at $EXISTING, expected $CURRENT"
+              exit 1
+            fi
+            echo "Tag $TAG already points to current commit."
+          else
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create or Update Draft Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+          RELEASE_NOTE: ${{ steps.metadata.outputs.release_note }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+            if [[ "$IS_DRAFT" != "true" ]]; then
+              echo "::error::Release $TAG already exists and is not a draft."
+              exit 1
+            fi
+            gh release edit "$TAG" \
+              --title "$TAG" \
+              --notes-file "$RELEASE_NOTE" \
+              --draft=true \
+              --latest=false
+          else
+            gh release create "$TAG" \
+              --draft \
+              --title "$TAG" \
+              --notes-file "$RELEASE_NOTE" \
+              --verify-tag \
+              --latest=false
+          fi
+
       - name: Publish Plugin
         env:
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
@@ -75,87 +144,20 @@ jobs:
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
         run: ./gradlew publishPlugin
 
-      # Validate generated plugin archive before attaching to GitHub Release
       - name: Validate Plugin Archive
         shell: bash
         run: |
           ls -la ./build/distributions
           unzip -t ./build/distributions/*.zip
 
-      # Upload an artifact as a release asset
       - name: Upload Release Asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/*.zip
+          TAG: ${{ steps.metadata.outputs.tag }}
+        run: gh release upload "$TAG" ./build/distributions/*.zip --clobber
 
-      # After successful publish, update main branch changelog via PR with auto-merge
-      - name: Check out main branch
-        uses: actions/checkout@v6
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Patch Changelog on main
-        if: ${{ github.event.release.body != '' }}
-        env:
-          CHANGELOG: ${{ github.event.release.body }}
-        run: |
-          VERSION_RAW="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION_RAW#v}"
-          RELEASE_NOTE="./build/tmp/release_note.txt"
-          mkdir -p "$(dirname "$RELEASE_NOTE")"
-          echo "$CHANGELOG" > $RELEASE_NOTE
-
-          ./gradlew patchChangelog --release-note-file=$RELEASE_NOTE
-
-          # Patch Chinese changelog: rename Unreleased -> [VERSION] and add new Unreleased on top
-          if [ -f CHANGELOG_zh.md ]; then
-            awk -v ver="$VERSION" '
-              !done && $0 ~ /^## \[Unreleased\]\s*$/ { print "## [Unreleased]\n\n## [" ver "]"; done=1; next }
-              { print }
-            ' CHANGELOG_zh.md > CHANGELOG_zh.md.tmp && mv CHANGELOG_zh.md.tmp CHANGELOG_zh.md
-          fi
-
-      - name: Create PR for changelog update (auto-merge)
+      - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION_RAW="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION_RAW#v}"
-          BRANCH="changelog/update-$VERSION"
-          LABEL="release changelog"
-
-          git switch -c "$BRANCH"
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
-
-          # Stage potential changelog files
-          git add CHANGELOG.md || true
-          if [ -f CHANGELOG_zh.md ]; then
-            git add CHANGELOG_zh.md || true
-          fi
-
-          # Commit only if there are staged changes
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(changelog): update for $VERSION"
-            git push --set-upstream origin "$BRANCH"
-
-            # Ensure label exists
-            gh label create "$LABEL" \
-              --description "Pull requests with release changelog update" \
-              --force \
-              || true
-
-            # Create PR targeting main
-            gh pr create \
-              --title "Changelog update - $VERSION" \
-              --body "This PR updates \`CHANGELOG.md\` replacing Unreleased with \`$VERSION\` and adds a new Unreleased section." \
-              --label "$LABEL" \
-              --base main \
-              --head "$BRANCH"
-
-            # Enable auto-merge (squash); will merge when checks pass
-            gh pr merge --auto --squash "$BRANCH" || true
-          else
-            echo "No changelog changes detected; skipping PR creation."
-          fi
+          TAG: ${{ steps.metadata.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest
