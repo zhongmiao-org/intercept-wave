@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-04-30
+
 ### 🔄 Changed
 
 - Declared JetBrains IDE compatibility from IntelliJ Platform `2023.1` onward, lowered the plugin build baseline to IDEA Community `2023.1.7`, and kept plugin bytecode compatible with Java 17 runtimes.

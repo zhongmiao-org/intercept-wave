@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [4.1.0]
+
 ### 🔄 变更
 
 - 声明兼容 IntelliJ Platform `2023.1` 及后续版本的 JetBrains IDE，将插件构建基线下调到 IDEA Community `2023.1.7`，并保持插件字节码兼容 Java 17 运行时。
