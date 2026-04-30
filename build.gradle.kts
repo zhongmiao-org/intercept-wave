@@ -1,6 +1,8 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.gradle.process.CommandLineArgumentProvider
 import java.time.Duration
 
@@ -198,6 +200,16 @@ tasks.withType<Test>().configureEach {
     // Remote Robot + Gson on JDK 21 needs these packages opened for reflective
     // access when deserializing server-side errors and fixture payloads.
     jvmArgs(commonTestJvmArgs + commonTestModuleOpens)
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(17)
+}
+
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 // Configure UI testing with robot-server plugin
