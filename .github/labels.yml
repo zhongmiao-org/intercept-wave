@@ -61,7 +61,7 @@
   description: Pull requests with release changelog update
 
 - name: release
-  color: 5319e7
+  color: 0366d6
   description: Release preparation and publishing changes
 
 - name: skip changelog

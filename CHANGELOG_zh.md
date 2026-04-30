@@ -14,6 +14,8 @@
 ### 🔧 CI/CD
 
 - 新增双语 changelog 门禁，普通 PR 必须同时更新 `CHANGELOG.md` 和 `CHANGELOG_zh.md`；Dependabot、release changelog 分支、release 分支和显式跳过标签除外。
+- 新增手动 Prepare Release workflow，用于校验目标 SemVer 版本、更新 `pluginVersion`、归档中英文 changelog，并创建或更新需要 review 的 release PR。
+- 将发布流程改为在 release PR 合并后执行，自动创建幂等 release tag、发布到 JetBrains Marketplace、上传插件 ZIP，并发布 GitHub Release。
 
 ### 📚 文档
 
