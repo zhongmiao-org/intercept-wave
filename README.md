@@ -70,6 +70,12 @@ Intercept Wave provides the following core functionalities:
 - **Status Code Testing**: Configure different status codes to test error handling logic
 - **Prefix Filtering**: Support prefix filtering to simplify API access paths
 - **Global Cookie**: Configure global cookies for APIs requiring authentication
+
+## Compatibility
+
+Intercept Wave supports JetBrains IDEs based on the IntelliJ Platform 2023.1 and newer. The plugin is built against the 2023.1 platform baseline and emits Java 17 bytecode for compatibility with 2023.x IDE runtimes.
+
+The plugin verification matrix covers 2023.1 baseline releases for CLion, DataGrip, DataSpell, GoLand, IntelliJ IDEA Community, IntelliJ IDEA Ultimate, PhpStorm, PyCharm Community, PyCharm Professional, Rider, RubyMine, and WebStorm.
 <!-- Plugin description end -->
 
 ### What's New in v4.0

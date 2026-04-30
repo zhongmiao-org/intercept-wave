@@ -70,6 +70,12 @@ Intercept Wave 提供以下核心功能：
 - **前缀过滤**: 支持配置前缀过滤，简化接口访问路径
 - **全局 Cookie**: 配置全局 Cookie，支持需要认证的 Mock 接口
 
+## 兼容性
+
+Intercept Wave 支持基于 IntelliJ Platform 2023.1 及更新版本的 JetBrains IDE。插件以 2023.1 平台作为兼容基线构建，并输出 Java 17 字节码，以兼容 2023.x IDE 运行时。
+
+插件验证矩阵覆盖以下产品的 2023.1 基线版本：CLion、DataGrip、DataSpell、GoLand、IntelliJ IDEA Community、IntelliJ IDEA Ultimate、PhpStorm、PyCharm Community、PyCharm Professional、Rider、RubyMine 和 WebStorm。
+
 ### v4.0 更新
 
 - 配置中的 `version` 与插件主次版本保持一致（例如 4.0）。现有旧配置可直接使用，保存时会自动写入 `"version": "4.0"`。
