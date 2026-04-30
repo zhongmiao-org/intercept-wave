@@ -18,6 +18,8 @@ jobs:
       (startsWith(github.event.pull_request.head.ref, 'release/v') ||
       contains(github.event.pull_request.labels.*.name, 'release'))
     runs-on: ubuntu-latest
+    env:
+      UPSTREAM_COMPOSE_FILE: docker/docker-compose.upstream.yml
     permissions:
       contents: write
       pull-requests: read
@@ -44,6 +46,35 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
+
+      - name: Start Upstream Services
+        run: |
+          docker compose -f "$UPSTREAM_COMPOSE_FILE" up -d
+          echo "Waiting for upstream health..."
+          for i in {1..60}; do
+            if curl -fsS http://localhost:9000/health >/dev/null 2>&1; then
+              echo "Upstream is healthy"
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://localhost:9000/health || (echo "Upstream failed to become healthy" && docker compose -f "$UPSTREAM_COMPOSE_FILE" logs --no-log-prefix && exit 1)
+
+      - name: Clean Test Environment
+        run: |
+          rm -rf build/idea-sandbox
+          rm -rf build/tmp
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
+
+      - name: Run Release Tests
+        run: ./gradlew clean check --no-configuration-cache --rerun-tasks
+        env:
+          CI: "true"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
+
+      - name: Stop Upstream Services
+        if: ${{ always() }}
+        run: docker compose -f "$UPSTREAM_COMPOSE_FILE" down -v --remove-orphans || true
 
       - name: Prepare Release Metadata
         id: metadata

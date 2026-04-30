@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- Kept persisted configuration schema versions pinned to the current config schema instead of deriving them from the plugin release version.
+
+### 🔧 CI/CD
+
+- Added a release-time test gate before creating tags, publishing to JetBrains Marketplace, or publishing GitHub Releases.
+
 ## [4.1.0] - 2026-04-30
 
 ### 🔄 Changed

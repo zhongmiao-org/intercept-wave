@@ -15,11 +15,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import com.intellij.ide.plugins.PluginManagerCore
-import org.zhongmiao.interceptwave.util.PluginConstants
 import org.zhongmiao.interceptwave.util.Env
 import java.io.File
-import java.lang.reflect.Modifier
 import java.util.UUID
 
 /**
@@ -91,7 +88,7 @@ class ConfigService(private val project: Project) {
                 val loaded = json.decodeFromString(RootConfig.serializer(), content)
                 val migrated = migrateToLatest(loaded, jsonObject)
                 val fixed = normalizeAndMinifyMockData(migrated.second)
-                val withVersion = ensureVersionMajorMinor(fixed.second)
+                val withVersion = ensureCurrentConfigVersion(fixed.second)
                 val changed = migrated.first || fixed.first || withVersion.version != loaded.version
                 persistAndReloadIfNeeded(changed, withVersion)
             } else {
@@ -99,13 +96,13 @@ class ConfigService(private val project: Project) {
                 val migratedV2 = migrateFromV1ToV2(content)
                 val migrated = migrateToLatest(migratedV2, null)
                 val fixed = normalizeAndMinifyMockData(migrated.second)
-                val withVersion = ensureVersionMajorMinor(fixed.second)
+                val withVersion = ensureCurrentConfigVersion(fixed.second)
                 persistAndReloadIfNeeded(true, withVersion, notifyMigration = true)
             }
         }
 
         val created = createDefaultConfig()
-        val withVersion = ensureVersionMajorMinor(created)
+        val withVersion = ensureCurrentConfigVersion(created)
         return persistAndReloadIfNeeded(withVersion.version != created.version, withVersion)
     }
 
@@ -199,62 +196,13 @@ class ConfigService(private val project: Project) {
         return changed to root.copy(proxyGroups = normalizedGroups)
     }
 
-    /**
-     * 计算当前插件的主次版本号（x.y）。
-     * 优先从插件管理器读取，失败时回退为现有 version 的主次或当前配置版本。
-     */
-    private fun currentMajorMinor(existing: String? = null): String {
-        val fallbackExisting = existing ?: CURRENT_CONFIG_VERSION
-        val fallback = fallbackExisting.split('.').let {
-            if (it.size >= 2) it[0] + "." + it[1] else CURRENT_CONFIG_VERSION
+    /** 确保配置 version 使用当前 schema 版本，而不是插件发布版本。 */
+    private fun ensureCurrentConfigVersion(root: RootConfig): RootConfig {
+        return if (root.version != CURRENT_CONFIG_VERSION) {
+            root.copy(version = CURRENT_CONFIG_VERSION)
+        } else {
+            root
         }
-        // Prefer explicit system property override for tests/headless
-        val sys = runCatching { System.getProperty("intercept.wave.version") }.getOrNull()
-        val sysParts = sys?.split('.')
-        if (sysParts != null && sysParts.size >= 2) return sysParts[0] + "." + sysParts[1]
-
-        return try {
-            val ver = resolvePluginVersionReflectively()
-            val parts = ver?.split('.')
-            if (parts != null && parts.size >= 2) parts[0] + "." + parts[1] else fallback
-        } catch (_: Throwable) {
-            // Fallback to sys or provided existing
-            if (sysParts != null && sysParts.size >= 2) sysParts[0] + "." + sysParts[1] else fallback
-        }
-    }
-
-    /**
-     * Uses reflection to avoid generating bytecode that references PluginId.Companion,
-     * which is not available on older IDE builds verified by the plugin verifier.
-     */
-    private fun resolvePluginVersionReflectively(): String? {
-        val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
-        val pluginIdFactory = pluginIdClass.methods.firstOrNull { method ->
-            Modifier.isStatic(method.modifiers) &&
-                (method.name == "getId" || method.name == "findId") &&
-                method.parameterCount == 1 &&
-                method.parameterTypes[0] == String::class.java
-        } ?: return null
-
-        val pluginId = pluginIdFactory.invoke(null, PluginConstants.PLUGIN_ID) ?: return null
-        val getPluginMethod = PluginManagerCore::class.java.methods.firstOrNull { method ->
-            method.name == "getPlugin" &&
-                method.parameterCount == 1 &&
-                method.parameterTypes[0].name == "com.intellij.openapi.extensions.PluginId"
-        } ?: return null
-
-        val pluginDescriptor = getPluginMethod.invoke(null, pluginId) ?: return null
-        val getVersionMethod = pluginDescriptor.javaClass.methods.firstOrNull { method ->
-            method.name == "getVersion" && method.parameterCount == 0
-        } ?: return null
-
-        return getVersionMethod.invoke(pluginDescriptor) as? String
-    }
-
-    /** 确保配置 version 为当前插件的 x.y */
-    private fun ensureVersionMajorMinor(root: RootConfig): RootConfig {
-        val desired = currentMajorMinor(root.version)
-        return if (root.version != desired) root.copy(version = desired) else root
     }
 
     /**
@@ -323,7 +271,7 @@ class ConfigService(private val project: Project) {
     fun saveRootConfig(config: RootConfig) {
         try {
             val routed = ensureHttpRoutes(config).second
-            val versioned = ensureVersionMajorMinor(routed)
+            val versioned = ensureCurrentConfigVersion(routed)
             configFile.writeText(json.encodeToString(versioned))
             rootConfig = versioned
             thisLogger().info("Root config saved successfully")
@@ -449,7 +397,7 @@ class ConfigService(private val project: Project) {
                     migrateV3ToV4(current, rootJson)
                 }
                 else -> {
-                    val normalized = ensureVersionMajorMinor(current)
+                    val normalized = ensureCurrentConfigVersion(current)
                     if (normalized.version == current.version) {
                         error("Unsupported config version: ${current.version}")
                     }
