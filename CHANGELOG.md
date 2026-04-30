@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+### 🔄 Changed
+
+- Declared JetBrains IDE compatibility from IntelliJ Platform `2023.1` onward, lowered the plugin build baseline to IDEA Community `2023.1.7`, and kept plugin bytecode compatible with Java 17 runtimes.
+- Replaced the plugin verifier target selection with explicit 2023.1 baseline IDEs for CLion, DataGrip, DataSpell, GoLand, IntelliJ IDEA Community, IntelliJ IDEA Ultimate, PhpStorm, PyCharm Community, PyCharm Professional, Rider, RubyMine, and WebStorm.
+
+### 🔧 CI/CD
+
+- Added a bilingual changelog gate requiring regular pull requests to update both `CHANGELOG.md` and `CHANGELOG_zh.md`, with skips for Dependabot, release changelog branches, release branches, and explicit skip labels.
+
+### 📚 Documentation
+
+- Documented the JetBrains 2023.1+ compatibility range in the English and Chinese README files.
+
 ## [4.0.1] - 2026-04-16
 
 ### 🔧 CI/CD

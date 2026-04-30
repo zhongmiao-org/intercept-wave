@@ -60,3 +60,10 @@
   color: c5def5
   description: Pull requests with release changelog update
 
+- name: release
+  color: 5319e7
+  description: Release preparation and publishing changes
+
+- name: skip changelog
+  color: e4e669
+  description: Pull requests that do not require changelog updates
