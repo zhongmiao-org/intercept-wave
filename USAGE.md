@@ -36,9 +36,12 @@ Click the "Configuration" button to open the configuration dialog.
   - **Target Base URL**: Such as `http://localhost:8080`
   - **Strip Prefix**: Whether to remove the route prefix before matching and forwarding
   - **Rewrite Target Path**: Optional path base applied after strip-prefix, such as `/v1`
+  - **SPA Fallback Path**: Optional fallback path for HTML navigation 404s, such as `/index.html`
   - **Enable Mock**: Whether this route should check its own mock list first
 
 Route rewrite is useful when replacing a local nginx rule. For example, with `pathPrefix="/backend"`, `stripPrefix=true`, and `rewriteTargetPath="/v1"`, a request to `/backend/users?active=true` is matched and forwarded as `/v1/users?active=true`. This is local development gateway behavior, not production nginx replacement behavior.
+
+Frontend dev server proxy example: configure an API route with `pathPrefix="/api"`, `stripPrefix=true`, `targetBaseUrl="http://localhost:9000"`, and a frontend route with `pathPrefix="/"`, `stripPrefix=false`, `targetBaseUrl="http://localhost:5173"`, `spaFallbackPath="/index.html"`, `enableMock=false`. Then `/api/users` goes to the backend, while `/`, `/assets/app.js`, and `/dashboard/settings` go to the frontend dev server.
 
 #### Mock API Settings
 1. Click "Add API"
@@ -135,6 +138,8 @@ All configuration is stored in the `.intercept-wave` directory under the project
           "pathPrefix": "/api",
           "targetBaseUrl": "http://localhost:8080",
           "stripPrefix": true,
+          "rewriteTargetPath": "",
+          "spaFallbackPath": "",
           "enableMock": true,
           "mockApis": [
             {

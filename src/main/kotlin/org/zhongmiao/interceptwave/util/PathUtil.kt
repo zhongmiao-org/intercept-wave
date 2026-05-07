@@ -37,7 +37,7 @@ object PathUtil {
 
     private fun routeMatches(route: HttpRoute, requestPath: String): Boolean {
         val prefix = normalizedPathPrefix(route.pathPrefix)
-        return prefix == "/" || requestPath.startsWith(prefix)
+        return prefix == "/" || requestPath == prefix || requestPath.startsWith("$prefix/")
     }
 
     private fun normalizedPathPrefix(prefix: String): String {

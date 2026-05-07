@@ -15,6 +15,7 @@ import org.zhongmiao.interceptwave.util.PathUtil
 import org.zhongmiao.interceptwave.util.HttpForwardUtil
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.net.http.HttpResponse
 
 /**
  * Lightweight HTTP server engine per group.
@@ -74,8 +75,7 @@ class HttpServerEngine(
             log.info("[${config.name}] Received: $method $requestPath")
             output.publish(RequestReceived(config.id, config.name, method, requestPath))
 
-            // Welcome page
-            if (requestPath == "/" || requestPath.isEmpty()) {
+            if ((requestPath == "/" || requestPath.isEmpty()) && !hasRootHttpRoute()) {
                 handleProxyWelcomePage(exchange)
                 return
             }
@@ -145,10 +145,9 @@ class HttpServerEngine(
             }
 
             val responseBytes = mockApi.mockData.toByteArray(Charsets.UTF_8)
+            output.publish(MockMatched(config.id, config.name, mockApi.path, exchange.requestMethod, mockApi.statusCode))
             exchange.sendResponseHeaders(mockApi.statusCode, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
-
-            output.publish(MockMatched(config.id, config.name, mockApi.path, exchange.requestMethod, mockApi.statusCode))
         } catch (e: Exception) {
             log.error("Error sending mock response", e)
             sendErrorResponse(exchange, 500, "Error sending mock response")
@@ -160,7 +159,7 @@ class HttpServerEngine(
             val requestPath = exchange.requestURI.path
             val forwardPath = PathUtil.computeHttpForwardPath(route, requestPath)
             val query = exchange.requestURI.rawQuery?.takeIf { it.isNotBlank() }?.let { "?$it" } ?: ""
-            val targetUrl = route.targetBaseUrl.trimEnd('/') + forwardPath + query
+            val targetUrl = buildForwardTargetUrl(route, forwardPath, query)
 
             output.publish(ForwardingTo(config.id, config.name, targetUrl))
 
@@ -172,17 +171,27 @@ class HttpServerEngine(
             val client = HttpForwardUtil.createClient()
             val request = HttpForwardUtil.buildRequest(targetUrl, exchange)
             val response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray())
+            var responseTargetUrl = targetUrl
+            val finalResponse = if (shouldRetrySpaFallback(exchange, route, requestPath, response)) {
+                val fallbackPath = normalizedSpaFallbackPath(route.spaFallbackPath)
+                val fallbackUrl = buildForwardTargetUrl(route, fallbackPath, "")
+                output.publish(ForwardingTo(config.id, config.name, fallbackUrl))
+                responseTargetUrl = fallbackUrl
+                client.send(HttpForwardUtil.buildRequest(fallbackUrl, exchange), HttpResponse.BodyHandlers.ofByteArray())
+            } else {
+                response
+            }
 
             org.zhongmiao.interceptwave.util.HttpServerUtil.copySafeResponseHeaders(
-                response.headers().map(), exchange.responseHeaders
+                finalResponse.headers().map(), exchange.responseHeaders
             )
             org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
 
-            val respBytes = response.body()
-            exchange.sendResponseHeaders(response.statusCode(), respBytes.size.toLong())
+            val respBytes = finalResponse.body()
+            exchange.sendResponseHeaders(finalResponse.statusCode(), respBytes.size.toLong())
             exchange.responseBody.use { it.write(respBytes) }
 
-            output.publish(Forwarded(config.id, config.name, targetUrl, response.statusCode()))
+            output.publish(Forwarded(config.id, config.name, responseTargetUrl, finalResponse.statusCode()))
         } catch (e: Exception) {
             logForwardError(e)
             output.publish(ErrorOccurred(config.id, config.name, message("error.proxy.error"), e.message))
@@ -204,5 +213,39 @@ class HttpServerEngine(
         if (prefix == "/") return false
         return requestPath == prefix || requestPath == "$prefix/"
     }
+
+    private fun hasRootHttpRoute(): Boolean =
+        config.routes.any { it.pathPrefix.trim().trimEnd('/').ifEmpty { "/" } == "/" }
+
+    private fun shouldRetrySpaFallback(
+        exchange: HttpExchange,
+        route: HttpRoute,
+        requestPath: String,
+        response: HttpResponse<ByteArray>
+    ): Boolean {
+        if (route.spaFallbackPath.isBlank()) return false
+        if (response.statusCode() != 404) return false
+        if (!isHtmlNavigation(exchange)) return false
+        if (isStaticAssetPath(requestPath)) return false
+        return exchange.requestMethod.equals("GET", true) || exchange.requestMethod.equals("HEAD", true)
+    }
+
+    private fun isHtmlNavigation(exchange: HttpExchange): Boolean {
+        val accept = exchange.requestHeaders["Accept"].orEmpty().joinToString(",").lowercase()
+        return accept.contains("text/html") || accept.contains("application/xhtml+xml")
+    }
+
+    private fun isStaticAssetPath(path: String): Boolean {
+        val lastSegment = path.substringAfterLast('/')
+        return lastSegment.contains('.') && !lastSegment.startsWith('.')
+    }
+
+    private fun normalizedSpaFallbackPath(path: String): String {
+        val trimmed = path.trim().ifEmpty { "/" }
+        return if (trimmed.startsWith("/")) trimmed else "/$trimmed"
+    }
+
+    private fun buildForwardTargetUrl(route: HttpRoute, path: String, query: String): String =
+        route.targetBaseUrl.trimEnd('/') + path + query
 
 }

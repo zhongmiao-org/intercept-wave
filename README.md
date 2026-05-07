@@ -197,12 +197,18 @@ HTTP configuration groups provide additional HTTP-specific settings:
   - **Target Base URL**: Upstream target for forwarding, such as `http://localhost:8080`
   - **Strip Prefix**: Whether the route prefix is removed before Mock matching and forwarding
   - **Rewrite Target Path**: Optional path base applied after strip-prefix, such as `/v1`
+  - **SPA Fallback Path**: Optional HTML navigation fallback path, such as `/index.html`, retried when a frontend route returns 404 for a deep link
   - **Enable Mock**: Whether this route first checks its own Mock API list before forwarding
 - **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix`, `Strip Prefix`, and optional `Rewrite Target Path` rules. The current route's Mock list is edited directly on the right side of the config dialog.
 
 Example multi-route setup:
 - Route 1: `pathPrefix="/"`, `enableMock=false`, `targetBaseUrl=http://localhost:4001`
 - Route 2: `pathPrefix="/api"`, `enableMock=true`, `targetBaseUrl=http://localhost:4002`
+
+Frontend dev server gateway example:
+- Route 1: `pathPrefix="/api"`, `stripPrefix=true`, `targetBaseUrl=http://localhost:9000`, `enableMock=true`
+- Route 2: `pathPrefix="/"`, `stripPrefix=false`, `targetBaseUrl=http://localhost:5173`, `spaFallbackPath="/index.html"`, `enableMock=false`
+- `/api/users` goes to the backend route, while `/`, `/assets/app.js`, and `/dashboard/settings` go to the frontend dev server route.
 
 Path rewrite examples for local development gateways:
 - `pathPrefix="/api"`, `stripPrefix=true`: `/api/users` is matched and forwarded as `/users`
@@ -439,7 +445,7 @@ Unconfigured mock APIs will be automatically forwarded to the original server, p
 
 ## Welcome Page
 
-Accessing the mock server root path (`http://localhost:8888/`) returns server status and route summary information:
+Accessing the mock server root path (`http://localhost:8888/`) returns server status and route summary information when no `/` frontend route is configured:
 
 ```json
 {
@@ -455,8 +461,8 @@ Accessing the mock server root path (`http://localhost:8888/`) returns server st
     "enabled": 2
   },
   "routes": [
-    {"name": "User API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "enableMock": true, "mockApis": 1},
-    {"name": "Order API", "pathPrefix": "/order-api", "targetBaseUrl": "http://localhost:9001", "stripPrefix": true, "enableMock": false, "mockApis": 1}
+    {"name": "User API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true, "mockApis": 1},
+    {"name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false, "mockApis": 0}
   ],
   "examples": [
     {"route": "User API", "method": "GET", "url": "http://localhost:8888/api/user/info"}

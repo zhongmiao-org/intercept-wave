@@ -71,6 +71,7 @@ data class HttpRoute(
     var targetBaseUrl: String = "http://localhost:8080",
     var stripPrefix: Boolean = true,
     var rewriteTargetPath: String = "",
+    var spaFallbackPath: String = "",
     var enableMock: Boolean = true,
     var mockApis: MutableList<MockApiConfig> = mutableListOf()
 )

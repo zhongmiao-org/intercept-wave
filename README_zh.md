@@ -195,12 +195,18 @@ HTTP 配置组提供额外的 HTTP 专属字段：
   - **目标地址**: 转发上游地址，如 `http://localhost:8080`
   - **剥离前缀**: 是否在 Mock 匹配和转发前先移除当前路由前缀
   - **重写目标路径**: 可选，剥离前缀后追加的目标路径基底，如 `/v1`
+  - **SPA 兜底路径**: 可选，前端路由深链刷新返回 404 时重试的 HTML 入口路径，如 `/index.html`
   - **启用 Mock**: 是否优先命中该路由自己的 Mock 接口列表
 - **Mock 接口列表**: 每条路由都维护自己的 Mock 列表，路径解释遵循该路由的 `路径前缀 + 剥离前缀 + 可选重写目标路径` 规则；当前路由的 Mock 列表会直接在右侧编辑区展示。
 
 多路由示例：
 - 路由 1：`pathPrefix="/"`，`enableMock=false`，`targetBaseUrl=http://localhost:4001`
 - 路由 2：`pathPrefix="/api"`，`enableMock=true`，`targetBaseUrl=http://localhost:4002`
+
+前端开发服务器网关示例：
+- 路由 1：`pathPrefix="/api"`，`stripPrefix=true`，`targetBaseUrl=http://localhost:9000`，`enableMock=true`
+- 路由 2：`pathPrefix="/"`，`stripPrefix=false`，`targetBaseUrl=http://localhost:5173`，`spaFallbackPath="/index.html"`，`enableMock=false`
+- `/api/users` 会进入后端路由，`/`、`/assets/app.js`、`/dashboard/settings` 会进入前端开发服务器路由。
 
 本地开发网关的路径重写示例：
 - `pathPrefix="/api"`，`stripPrefix=true`：`/api/users` 会按 `/users` 进行 Mock 匹配与转发
@@ -438,7 +444,7 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 
 ## 欢迎页面
 
-访问 Mock 服务根路径（`http://localhost:8888/`）会返回服务状态以及当前路由摘要：
+未配置 `/` 前端路由时，访问 Mock 服务根路径（`http://localhost:8888/`）会返回服务状态以及当前路由摘要：
 
 ```json
 {
@@ -454,8 +460,8 @@ Access-Control-Allow-Headers: Content-Type, Authorization
     "enabled": 2
   },
   "routes": [
-    {"name": "用户 API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "enableMock": true, "mockApis": 1},
-    {"name": "订单 API", "pathPrefix": "/order-api", "targetBaseUrl": "http://localhost:9001", "stripPrefix": true, "enableMock": false, "mockApis": 1}
+    {"name": "用户 API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true, "mockApis": 1},
+    {"name": "前端", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false, "mockApis": 0}
   ],
   "examples": [
     {"route": "用户 API", "method": "GET", "url": "http://localhost:8888/api/user/info"}
