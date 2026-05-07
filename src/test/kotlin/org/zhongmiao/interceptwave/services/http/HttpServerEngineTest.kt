@@ -6,7 +6,9 @@ import org.zhongmiao.interceptwave.events.*
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
+import com.sun.net.httpserver.HttpServer
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.URI
 
@@ -18,6 +20,53 @@ class HttpServerEngineTest {
     }
 
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
+
+    private data class UpstreamRequest(
+        val method: String,
+        val path: String,
+        val query: String?,
+        val body: String,
+        val headers: Map<String, List<String>>
+    )
+
+    private class TestUpstream(
+        val port: Int,
+        val requests: MutableList<UpstreamRequest>,
+        private val server: HttpServer
+    ) {
+        val baseUrl: String = "http://localhost:$port"
+        fun stop() = server.stop(0)
+    }
+
+    private fun startGatewayUpstream(name: String): TestUpstream {
+        val port = freePort()
+        val requests = mutableListOf<UpstreamRequest>()
+        val server = HttpServer.create(InetSocketAddress(port), 0)
+        server.createContext("/") { exchange ->
+            val request = UpstreamRequest(
+                method = exchange.requestMethod,
+                path = exchange.requestURI.path,
+                query = exchange.requestURI.rawQuery,
+                body = String(exchange.requestBody.readAllBytes(), Charsets.UTF_8),
+                headers = exchange.requestHeaders.mapValues { it.value.toList() }
+            )
+            requests.add(request)
+
+            val (status, body, contentType) = when {
+                name == "frontend" && request.path == "/" -> Triple(200, "frontend-root", "text/html")
+                name == "frontend" && request.path == "/assets/app.js" -> Triple(200, "console.log('ok')", "application/javascript")
+                name == "frontend" && request.path == "/index.html" -> Triple(200, "<html>spa</html>", "text/html")
+                name == "frontend" -> Triple(404, "missing:${request.path}", "text/plain")
+                else -> Triple(200, "$name:${request.method}:${request.path}:${request.query ?: ""}:${request.body}", "application/json")
+            }
+            exchange.responseHeaders.set("Content-Type", contentType)
+            val bytes = body.toByteArray(Charsets.UTF_8)
+            exchange.sendResponseHeaders(status, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        server.start()
+        return TestUpstream(port, requests, server)
+    }
 
     private fun invokeShouldServeWelcomePage(engine: HttpServerEngine, route: HttpRoute, requestPath: String): Boolean {
         val method = HttpServerEngine::class.java.declaredMethods.first {
@@ -300,6 +349,110 @@ class HttpServerEngineTest {
         assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://localhost:4003/users" })
         assertTrue(out.events.any { it is ForwardingTo && it.targetUrl == "http://localhost:4001/home" })
         engine.stop()
+    }
+
+    @Test
+    fun frontend_root_route_forwards_root_assets_deep_links_and_respects_api_boundary() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+        val api = startGatewayUpstream("api")
+        val frontend = startGatewayUpstream("frontend")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "FrontendProxy",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(name = "API", pathPrefix = "/api", targetBaseUrl = api.baseUrl, stripPrefix = true, enableMock = false),
+                HttpRoute(name = "Frontend", pathPrefix = "/", targetBaseUrl = frontend.baseUrl, stripPrefix = false, enableMock = false)
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput())
+        assertTrue(engine.start())
+
+        try {
+            val apiConn = URI("http://localhost:$port/api/users?active=true").toURL().openConnection() as HttpURLConnection
+            apiConn.requestMethod = "POST"
+            apiConn.doOutput = true
+            apiConn.setRequestProperty("X-Trace-Id", "abc-123")
+            apiConn.outputStream.use { it.write("payload".toByteArray(Charsets.UTF_8)) }
+            assertEquals(200, apiConn.responseCode)
+            assertTrue(apiConn.inputStream.bufferedReader().readText().contains("api:POST:/users:active=true:payload"))
+            val traceHeader = api.requests.last().headers.entries.firstOrNull { it.key.equals("X-Trace-Id", true) }?.value?.single()
+            assertEquals("abc-123", traceHeader)
+
+            val rootConn = URI("http://localhost:$port/").toURL().openConnection() as HttpURLConnection
+            rootConn.requestMethod = "GET"
+            assertEquals(200, rootConn.responseCode)
+            assertEquals("frontend-root", rootConn.inputStream.bufferedReader().readText())
+
+            val assetConn = URI("http://localhost:$port/assets/app.js").toURL().openConnection() as HttpURLConnection
+            assetConn.requestMethod = "GET"
+            assertEquals(200, assetConn.responseCode)
+            assertEquals("console.log('ok')", assetConn.inputStream.bufferedReader().readText())
+
+            val apiaryConn = URI("http://localhost:$port/apiary").toURL().openConnection() as HttpURLConnection
+            apiaryConn.requestMethod = "GET"
+            assertEquals(404, apiaryConn.responseCode)
+            assertTrue(frontend.requests.any { it.path == "/apiary" })
+            assertFalse(api.requests.any { it.path == "ary" || it.path == "/ary" })
+        } finally {
+            engine.stop()
+            api.stop()
+            frontend.stop()
+            System.clearProperty("interceptwave.allowForwardInTests")
+        }
+    }
+
+    @Test
+    fun spa_fallback_retries_html_navigation_404_only() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+        val frontend = startGatewayUpstream("frontend")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "SpaFallback",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "Frontend",
+                    pathPrefix = "/",
+                    targetBaseUrl = frontend.baseUrl,
+                    stripPrefix = false,
+                    spaFallbackPath = "/index.html",
+                    enableMock = false
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        try {
+            val deepLinkConn = URI("http://localhost:$port/dashboard/settings").toURL().openConnection() as HttpURLConnection
+            deepLinkConn.requestMethod = "GET"
+            deepLinkConn.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+            assertEquals(200, deepLinkConn.responseCode)
+            assertEquals("<html>spa</html>", deepLinkConn.inputStream.bufferedReader().readText())
+            assertEquals(listOf("/dashboard/settings", "/index.html"), frontend.requests.takeLast(2).map { it.path })
+            assertTrue(out.events.any { it is Forwarded && it.targetUrl == "${frontend.baseUrl}/index.html" && it.statusCode == 200 })
+
+            val assetConn = URI("http://localhost:$port/missing/app.js").toURL().openConnection() as HttpURLConnection
+            assetConn.requestMethod = "GET"
+            assetConn.setRequestProperty("Accept", "text/html")
+            assertEquals(404, assetConn.responseCode)
+            assertEquals("/missing/app.js", frontend.requests.last().path)
+
+            val postConn = URI("http://localhost:$port/dashboard/settings").toURL().openConnection() as HttpURLConnection
+            postConn.requestMethod = "POST"
+            postConn.doOutput = true
+            postConn.setRequestProperty("Accept", "text/html")
+            postConn.outputStream.use { it.write("body".toByteArray(Charsets.UTF_8)) }
+            assertEquals(404, postConn.responseCode)
+            assertEquals("POST", frontend.requests.last().method)
+            assertEquals("/dashboard/settings", frontend.requests.last().path)
+        } finally {
+            engine.stop()
+            frontend.stop()
+            System.clearProperty("interceptwave.allowForwardInTests")
+        }
     }
 
     @Test

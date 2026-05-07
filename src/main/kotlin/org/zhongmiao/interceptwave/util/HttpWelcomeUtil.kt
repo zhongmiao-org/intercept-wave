@@ -29,7 +29,7 @@ object HttpWelcomeUtil {
         }.joinToString(",\n    ")
 
         val routesJson = routes.joinToString(",\n    ") { route ->
-            """{"name": "${route.name}", "pathPrefix": "${route.pathPrefix}", "targetBaseUrl": "${route.targetBaseUrl}", "stripPrefix": ${route.stripPrefix}, "rewriteTargetPath": "${route.rewriteTargetPath}", "enableMock": ${route.enableMock}, "mockApis": ${route.mockApis.size}}"""
+            """{"name": "${route.name}", "pathPrefix": "${route.pathPrefix}", "targetBaseUrl": "${route.targetBaseUrl}", "stripPrefix": ${route.stripPrefix}, "rewriteTargetPath": "${route.rewriteTargetPath}", "spaFallbackPath": "${route.spaFallbackPath}", "enableMock": ${route.enableMock}, "mockApis": ${route.mockApis.size}}"""
         }
 
         return """

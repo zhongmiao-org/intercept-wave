@@ -25,6 +25,20 @@ class PathUtilRouteTest {
     }
 
     @Test
+    fun selectHttpRoute_respects_path_segment_boundaries() {
+        val config = ProxyConfig(
+            routes = mutableListOf(
+                HttpRoute(name = "fallback", pathPrefix = "/", targetBaseUrl = "http://localhost:4001", stripPrefix = false),
+                HttpRoute(name = "api", pathPrefix = "/api", targetBaseUrl = "http://localhost:4002", stripPrefix = true)
+            )
+        )
+
+        assertEquals("api", PathUtil.selectHttpRoute(config, "/api")!!.name)
+        assertEquals("api", PathUtil.selectHttpRoute(config, "/api/users")!!.name)
+        assertEquals("fallback", PathUtil.selectHttpRoute(config, "/apiary")!!.name)
+    }
+
+    @Test
     fun selectHttpRoute_prefers_earlier_route_when_prefix_length_is_equal() {
         val config = ProxyConfig(
             routes = mutableListOf(

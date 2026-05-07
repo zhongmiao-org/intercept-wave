@@ -377,6 +377,13 @@ class ProxyGroupTabPanel(
                 JBColor(0xE8F0FE, 0x26364D)
             )
         }
+        if (route.spaFallbackPath.isNotBlank()) {
+            routeMetaItems += createBadgeLabel(
+                message("config.http.route.spa.fallback.badge", route.spaFallbackPath),
+                JBColor(0x6F42C1, 0xC9A7FF),
+                JBColor(0xF1E8FF, 0x332947)
+            )
+        }
         val routeMeta = createMetaRow(*routeMetaItems.toTypedArray())
         val editRouteButton = JButton("", AllIcons.Actions.Edit).apply {
             UiKit.applyToolbarButtonStyle(this)

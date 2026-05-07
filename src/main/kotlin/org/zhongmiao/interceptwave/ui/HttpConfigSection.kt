@@ -49,6 +49,7 @@ class HttpConfigSection(
     private val routePrefixField = JBTextField()
     private val routeBaseUrlField = JBTextField()
     private val routeRewriteTargetPathField = JBTextField()
+    private val routeSpaFallbackPathField = JBTextField()
     private val routeStripPrefixCheckBox = JBCheckBox(message("config.group.stripprefix"))
     private val routeEnableMockCheckBox = JBCheckBox(message("config.http.route.enablemock"))
     private val routeMockHintLabel = JBLabel(message("config.http.mock.help"))
@@ -102,6 +103,7 @@ class HttpConfigSection(
         routePrefixField.toolTipText = message("config.http.route.prefix.tooltip")
         routeBaseUrlField.toolTipText = message("config.group.baseurl.tooltip")
         routeRewriteTargetPathField.toolTipText = message("config.http.route.rewrite.tooltip")
+        routeSpaFallbackPathField.toolTipText = message("config.http.route.spa.fallback.tooltip")
         routeStripPrefixCheckBox.toolTipText = message("config.http.route.stripprefix.tooltip")
         routeEnableMockCheckBox.toolTipText = message("config.http.route.enablemock.tooltip")
         routeMockHintLabel.toolTipText = message("config.http.mock.help")
@@ -221,6 +223,7 @@ class HttpConfigSection(
             row(message("config.group.prefix") + ":") { cell(routePrefixField).align(AlignX.FILL) }
             row(message("config.group.baseurl") + ":") { cell(routeBaseUrlField).align(AlignX.FILL) }
             row(message("config.http.route.rewrite") + ":") { cell(routeRewriteTargetPathField).align(AlignX.FILL) }
+            row(message("config.http.route.spa.fallback") + ":") { cell(routeSpaFallbackPathField).align(AlignX.FILL) }
             row {
                 cell(routeStripPrefixCheckBox)
                 cell(routeEnableMockCheckBox)
@@ -293,6 +296,7 @@ class HttpConfigSection(
         routePrefixField.document.onAnyChange { onRouteDetailChanged() }
         routeBaseUrlField.document.onAnyChange { onRouteDetailChanged() }
         routeRewriteTargetPathField.document.onAnyChange { onRouteDetailChanged() }
+        routeSpaFallbackPathField.document.onAnyChange { onRouteDetailChanged() }
         routeStripPrefixCheckBox.addActionListener { onRouteDetailChanged() }
         routeEnableMockCheckBox.addActionListener {
             onRouteDetailChanged()
@@ -344,6 +348,7 @@ class HttpConfigSection(
         route.pathPrefix = routePrefixField.text.trim().ifEmpty { "/" }
         route.targetBaseUrl = routeBaseUrlField.text.trim().ifEmpty { "http://localhost:8080" }
         route.rewriteTargetPath = routeRewriteTargetPathField.text.trim()
+        route.spaFallbackPath = routeSpaFallbackPathField.text.trim()
         route.stripPrefix = routeStripPrefixCheckBox.isSelected
         route.enableMock = routeEnableMockCheckBox.isSelected
         routeList.repaint()
@@ -358,6 +363,7 @@ class HttpConfigSection(
                 routePrefixField.text = ""
                 routeBaseUrlField.text = ""
                 routeRewriteTargetPathField.text = ""
+                routeSpaFallbackPathField.text = ""
                 routeStripPrefixCheckBox.isSelected = false
                 routeEnableMockCheckBox.isSelected = false
             } else {
@@ -365,6 +371,7 @@ class HttpConfigSection(
                 routePrefixField.text = route.pathPrefix
                 routeBaseUrlField.text = route.targetBaseUrl
                 routeRewriteTargetPathField.text = route.rewriteTargetPath
+                routeSpaFallbackPathField.text = route.spaFallbackPath
                 routeStripPrefixCheckBox.isSelected = route.stripPrefix
                 routeEnableMockCheckBox.isSelected = route.enableMock
             }
