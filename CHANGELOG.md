@@ -17,6 +17,10 @@
 - Kept persisted configuration schema versions pinned to the current config schema instead of deriving them from the plugin release version.
 - Tightened HTTP route prefix matching so `/api` no longer captures sibling paths such as `/apiary`.
 
+### 📚 Documentation
+
+- Added nginx-like local gateway migration recipes for frontend dev server and multi-backend routing setups.
+
 ### 🔧 CI/CD
 
 - Added a release-time test gate before creating tags, publishing to JetBrains Marketplace, or publishing GitHub Releases.

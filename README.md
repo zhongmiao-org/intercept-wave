@@ -207,16 +207,70 @@ Example multi-route setup:
 - Route 1: `pathPrefix="/"`, `enableMock=false`, `targetBaseUrl=http://localhost:4001`
 - Route 2: `pathPrefix="/api"`, `enableMock=true`, `targetBaseUrl=http://localhost:4002`
 
-Frontend dev server gateway example:
-- Route 1: `pathPrefix="/api"`, `stripPrefix=true`, `targetBaseUrl=http://localhost:9000`, `enableMock=true`
-- Route 2: `pathPrefix="/"`, `stripPrefix=false`, `targetBaseUrl=http://localhost:5173`, `spaFallbackPath="/index.html"`, `enableMock=false`
-- `/api/users` goes to the backend route, while `/`, `/assets/app.js`, and `/dashboard/settings` go to the frontend dev server route.
+#### Local Gateway / Nginx Migration
 
-Path rewrite examples for local development gateways:
+Intercept Wave can replace common local nginx reverse-proxy recipes during development. It is a local development gateway for IDE-driven debugging, mocking, and proxying; it is not a production nginx replacement.
+
+A typical frontend + backend nginx setup:
+
+```nginx
+server {
+  listen 8888;
+
+  location /api/ {
+    proxy_pass http://localhost:9000/;
+  }
+
+  location / {
+    proxy_pass http://localhost:5173/;
+    try_files $uri /index.html;
+  }
+}
+```
+
+Equivalent Intercept Wave HTTP routes:
+
+```json
+[
+  {
+    "name": "API",
+    "pathPrefix": "/api",
+    "targetBaseUrl": "http://localhost:9000",
+    "stripPrefix": true,
+    "rewriteTargetPath": "",
+    "spaFallbackPath": "",
+    "enableMock": true
+  },
+  {
+    "name": "Frontend",
+    "pathPrefix": "/",
+    "targetBaseUrl": "http://localhost:5173",
+    "stripPrefix": false,
+    "rewriteTargetPath": "",
+    "spaFallbackPath": "/index.html",
+    "enableMock": false
+  }
+]
+```
+
+This works for Vite, Next, Webpack, and similar dev servers: `/api/users` goes to the backend route, while `/`, `/assets/app.js`, and `/dashboard/settings` go to the frontend dev server route. When a browser refresh on `/dashboard/settings` returns an upstream 404, the frontend route can retry `/index.html` through `spaFallbackPath`.
+
+For multiple backend services, add one route per prefix and rely on longest-prefix matching:
+
+```json
+[
+  { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+  { "name": "Auth", "pathPrefix": "/auth", "targetBaseUrl": "http://localhost:9010", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+  { "name": "Admin API", "pathPrefix": "/admin-api", "targetBaseUrl": "http://localhost:9020", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+  { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+]
+```
+
+Path rewrite follows nginx-like local gateway semantics:
 - `pathPrefix="/api"`, `stripPrefix=true`: `/api/users` is matched and forwarded as `/users`
 - `pathPrefix="/backend"`, `stripPrefix=true`, `rewriteTargetPath="/v1"`: `/backend/users` is matched and forwarded as `/v1/users`
 
-These routes are intended for local development gateways and nginx-like migration recipes, not as a production nginx replacement.
+Static `dist/` serving is tracked by [#153](https://github.com/zhongmiao-org/intercept-wave/issues/153), and HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151). Cross-platform roadmap links: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs counterpart [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
 
 #### WebSocket Group Settings (Protocol = WS)
 
