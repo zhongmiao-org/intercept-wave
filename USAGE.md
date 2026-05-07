@@ -35,7 +35,10 @@ Click the "Configuration" button to open the configuration dialog.
   - **Path Prefix**: Such as `/api` or `/order-api`
   - **Target Base URL**: Such as `http://localhost:8080`
   - **Strip Prefix**: Whether to remove the route prefix before matching and forwarding
+  - **Rewrite Target Path**: Optional path base applied after strip-prefix, such as `/v1`
   - **Enable Mock**: Whether this route should check its own mock list first
+
+Route rewrite is useful when replacing a local nginx rule. For example, with `pathPrefix="/backend"`, `stripPrefix=true`, and `rewriteTargetPath="/v1"`, a request to `/backend/users?active=true` is matched and forwarded as `/v1/users?active=true`. This is local development gateway behavior, not production nginx replacement behavior.
 
 #### Mock API Settings
 1. Click "Add API"

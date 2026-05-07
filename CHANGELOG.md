@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### ✨ Added
+
+- Added HTTP route rewrite rules so route-local paths can be rewritten after prefix stripping for local nginx-like gateway setups.
+
 ### 🐛 Fixed
 
 - Kept persisted configuration schema versions pinned to the current config schema instead of deriving them from the plugin release version.
@@ -13,6 +17,7 @@
 ### 🔧 CI/CD
 
 - Added a release-time test gate before creating tags, publishing to JetBrains Marketplace, or publishing GitHub Releases.
+- Added WebStorm 2026.1 to plugin verification coverage while keeping the shared build baseline on 2023.1.
 
 ## [4.1.0] - 2026-04-30
 

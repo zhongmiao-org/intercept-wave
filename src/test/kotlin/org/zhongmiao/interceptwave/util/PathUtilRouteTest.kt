@@ -52,6 +52,61 @@ class PathUtilRouteTest {
     }
 
     @Test
+    fun computeHttpMatchPath_and_forwardPath_apply_rewrite_after_strip_prefix() {
+        val route = HttpRoute(
+            pathPrefix = "/backend",
+            targetBaseUrl = "http://localhost:4002",
+            stripPrefix = true,
+            rewriteTargetPath = "/v1"
+        )
+
+        assertEquals("/v1/users", PathUtil.computeHttpMatchPath(route, "/backend/users"))
+        assertEquals("/v1/users", PathUtil.computeHttpForwardPath(route, "/backend/users"))
+        assertEquals("/v1", PathUtil.computeHttpMatchPath(route, "/backend"))
+        assertEquals("/v1", PathUtil.computeHttpForwardPath(route, "/backend/"))
+    }
+
+    @Test
+    fun computeHttpPath_rewrite_handles_root_blank_and_relative_values() {
+        val rootRewrite = HttpRoute(
+            pathPrefix = "/api",
+            targetBaseUrl = "http://localhost:4002",
+            stripPrefix = true,
+            rewriteTargetPath = "/"
+        )
+        assertEquals("/users", PathUtil.computeHttpForwardPath(rootRewrite, "/api/users"))
+        assertEquals("/", PathUtil.computeHttpForwardPath(rootRewrite, "/api"))
+
+        val blankRewrite = HttpRoute(
+            pathPrefix = "/api",
+            targetBaseUrl = "http://localhost:4002",
+            stripPrefix = true,
+            rewriteTargetPath = "   "
+        )
+        assertEquals("/users", PathUtil.computeHttpForwardPath(blankRewrite, "/api/users"))
+
+        val relativeRewrite = HttpRoute(
+            pathPrefix = "/backend",
+            targetBaseUrl = "http://localhost:4002",
+            stripPrefix = true,
+            rewriteTargetPath = "v2/"
+        )
+        assertEquals("/v2/users", PathUtil.computeHttpForwardPath(relativeRewrite, "/backend/users"))
+    }
+
+    @Test
+    fun computeHttpPath_rewrite_uses_unstripped_path_when_strip_prefix_is_disabled() {
+        val route = HttpRoute(
+            pathPrefix = "/backend",
+            targetBaseUrl = "http://localhost:4002",
+            stripPrefix = false,
+            rewriteTargetPath = "/v1"
+        )
+
+        assertEquals("/v1/backend/users", PathUtil.computeHttpForwardPath(route, "/backend/users"))
+    }
+
+    @Test
     fun selectHttpRoute_falls_back_to_single_route_for_legacy_forwarding() {
         val config = ProxyConfig(
             routes = mutableListOf(

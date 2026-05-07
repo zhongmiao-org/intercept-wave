@@ -370,6 +370,13 @@ class ProxyGroupTabPanel(
                 JBColor(0xFFF4D6, 0x3A3222)
             )
         }
+        if (route.rewriteTargetPath.isNotBlank()) {
+            routeMetaItems += createBadgeLabel(
+                message("config.http.route.rewrite.badge", route.rewriteTargetPath),
+                JBColor(0x1A73E8, 0x8AB4F8),
+                JBColor(0xE8F0FE, 0x26364D)
+            )
+        }
         val routeMeta = createMetaRow(*routeMetaItems.toTypedArray())
         val editRouteButton = JButton("", AllIcons.Actions.Edit).apply {
             UiKit.applyToolbarButtonStyle(this)

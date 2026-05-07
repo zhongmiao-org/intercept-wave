@@ -358,6 +358,72 @@ class HttpServerEngineTest {
     }
 
     @Test
+    fun route_rewrite_applies_to_mock_matching() {
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "RewriteMock",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/backend",
+                    targetBaseUrl = "http://localhost:4002",
+                    stripPrefix = true,
+                    rewriteTargetPath = "/v1",
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/v1/users", mockData = "{\"rewrite\":true}", method = "GET", enabled = true)
+                    )
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/backend/users").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(200, conn.responseCode)
+        assertEquals("{\"rewrite\":true}", conn.inputStream.bufferedReader().readText())
+        assertTrue(out.events.any { it is MatchedPath && it.path == "/v1/users" })
+        assertTrue(out.events.any { it is MockMatched && it.path == "/v1/users" })
+
+        engine.stop()
+    }
+
+    @Test
+    fun route_rewrite_applies_to_forwarding_and_preserves_query_string() {
+        System.clearProperty("interceptwave.allowForwardInTests")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "RewriteForward",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/backend",
+                    targetBaseUrl = "http://localhost:4002",
+                    stripPrefix = true,
+                    rewriteTargetPath = "/v1",
+                    enableMock = false
+                )
+            )
+        )
+        val out = TestOutput()
+        val engine = HttpServerEngine(cfg, out)
+        assertTrue(engine.start())
+
+        val conn = URI("http://localhost:$port/backend/users?active=true&page=2").toURL().openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        assertEquals(502, conn.responseCode)
+        assertTrue(
+            out.events.any {
+                it is ForwardingTo && it.targetUrl == "http://localhost:4002/v1/users?active=true&page=2"
+            }
+        )
+
+        engine.stop()
+    }
+
+    @Test
     fun forwarding_allowed_but_unreachable_publishes_error_and_returns_502() {
         System.setProperty("interceptwave.allowForwardInTests", "true")
         val port = freePort()
