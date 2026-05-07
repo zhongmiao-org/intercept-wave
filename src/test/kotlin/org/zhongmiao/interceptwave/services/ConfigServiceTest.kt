@@ -59,15 +59,14 @@ class ConfigServiceTest {
     }
 
     @Test
-    fun saveRootConfig_appliesMajorMinorVersion() {
+    fun saveRootConfig_usesCurrentConfigVersion() {
         val dir = Files.createTempDirectory("iw-conf2").toFile()
-        // Provide plugin version via system property fallback
-        System.setProperty("intercept.wave.version", "3.7.9")
+        System.setProperty("intercept.wave.version", "4.1.0")
         val svc = ConfigService(fakeProject(dir))
         val custom = RootConfig(version = "1.0", proxyGroups = mutableListOf())
         svc.saveRootConfig(custom)
         val loaded = svc.getRootConfig()
-        assertEquals("3.7", loaded.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, loaded.version)
     }
 
     @Test
@@ -301,23 +300,14 @@ class ConfigServiceTest {
     }
 
     @Test
-    fun currentMajorMinor_uses_system_property_major_minor() {
-        val dir = Files.createTempDirectory("iw-conf-current-version").toFile()
+    fun ensureCurrentConfigVersion_ignores_plugin_version_override() {
+        val dir = Files.createTempDirectory("iw-conf-current-fallback").toFile()
         System.setProperty("intercept.wave.version", "8.9.7")
         val svc = ConfigService(fakeProject(dir))
+        val root = RootConfig(version = "9")
 
-        val actual = invokePrivate(svc, "currentMajorMinor", "1.0") as String
-        assertEquals("8.9", actual)
-    }
-
-    @Test
-    fun currentMajorMinor_falls_back_to_current_config_version_when_existing_is_not_major_minor() {
-        val dir = Files.createTempDirectory("iw-conf-current-fallback").toFile()
-        System.clearProperty("intercept.wave.version")
-        val svc = ConfigService(fakeProject(dir))
-
-        val actual = invokePrivate(svc, "currentMajorMinor", "9") as String
-        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, actual)
+        val actual = invokePrivate(svc, "ensureCurrentConfigVersion", root) as RootConfig
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, actual.version)
     }
 
     @Test
