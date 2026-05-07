@@ -145,10 +145,9 @@ class HttpServerEngine(
             }
 
             val responseBytes = mockApi.mockData.toByteArray(Charsets.UTF_8)
+            output.publish(MockMatched(config.id, config.name, mockApi.path, exchange.requestMethod, mockApi.statusCode))
             exchange.sendResponseHeaders(mockApi.statusCode, responseBytes.size.toLong())
             exchange.responseBody.use { it.write(responseBytes) }
-
-            output.publish(MockMatched(config.id, config.name, mockApi.path, exchange.requestMethod, mockApi.statusCode))
         } catch (e: Exception) {
             log.error("Error sending mock response", e)
             sendErrorResponse(exchange, 500, "Error sending mock response")
