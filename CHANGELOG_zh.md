@@ -17,6 +17,7 @@
 ### 🔧 CI/CD
 
 - 在创建 tag、发布到 JetBrains Marketplace、发布 GitHub Release 前增加 release 测试门禁。
+- 在保持共享构建基线为 2023.1 的同时，将 WebStorm 2026.1 加入插件验证覆盖范围。
 
 ## [4.1.0]
 

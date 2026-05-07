@@ -191,6 +191,7 @@ intellijPlatform {
             }
             create(IntelliJPlatformType.RubyMine, "2023.1.7")
             create(IntelliJPlatformType.WebStorm, "2023.1.6")
+            create(IntelliJPlatformType.WebStorm, "2026.1")
         }
     }
 }
