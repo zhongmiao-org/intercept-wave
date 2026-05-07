@@ -33,6 +33,7 @@ Intercept Wave is an IntelliJ IDEA plugin for local development that combines re
 **Smart Interception & Proxy**:
 - 🎯 Configure path prefixes (for example, `/api`) to precisely target specific request paths
 - 🧭 Configure multiple HTTP routes inside one HTTP group, each with its own prefix, upstream target, strip-prefix rule, and Mock switch
+- 🔁 Rewrite route-local paths to nginx-like upstream paths, such as `/backend/users` -> `/v1/users`
 - 🔄 **With Mock Config**: Returns preset mock data for offline development
 - 🌐 **Without Mock Config**: Acts as a proxy server, forwarding requests with complete HTTP headers to get real data
 - 🔀 Smart path matching with prefix stripping support
@@ -195,12 +196,19 @@ HTTP configuration groups provide additional HTTP-specific settings:
   - **Path Prefix**: Prefix used for longest-prefix matching, such as `/api` or `/`
   - **Target Base URL**: Upstream target for forwarding, such as `http://localhost:8080`
   - **Strip Prefix**: Whether the route prefix is removed before Mock matching and forwarding
+  - **Rewrite Target Path**: Optional path base applied after strip-prefix, such as `/v1`
   - **Enable Mock**: Whether this route first checks its own Mock API list before forwarding
-- **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix` and `Strip Prefix` rules. The current route's Mock list is edited directly on the right side of the config dialog.
+- **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix`, `Strip Prefix`, and optional `Rewrite Target Path` rules. The current route's Mock list is edited directly on the right side of the config dialog.
 
 Example multi-route setup:
 - Route 1: `pathPrefix="/"`, `enableMock=false`, `targetBaseUrl=http://localhost:4001`
 - Route 2: `pathPrefix="/api"`, `enableMock=true`, `targetBaseUrl=http://localhost:4002`
+
+Path rewrite examples for local development gateways:
+- `pathPrefix="/api"`, `stripPrefix=true`: `/api/users` is matched and forwarded as `/users`
+- `pathPrefix="/backend"`, `stripPrefix=true`, `rewriteTargetPath="/v1"`: `/backend/users` is matched and forwarded as `/v1/users`
+
+These routes are intended for local development gateways and nginx-like migration recipes, not as a production nginx replacement.
 
 #### WebSocket Group Settings (Protocol = WS)
 

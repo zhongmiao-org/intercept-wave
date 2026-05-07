@@ -48,6 +48,7 @@ class HttpConfigSection(
     private val routeNameField = JBTextField()
     private val routePrefixField = JBTextField()
     private val routeBaseUrlField = JBTextField()
+    private val routeRewriteTargetPathField = JBTextField()
     private val routeStripPrefixCheckBox = JBCheckBox(message("config.group.stripprefix"))
     private val routeEnableMockCheckBox = JBCheckBox(message("config.http.route.enablemock"))
     private val routeMockHintLabel = JBLabel(message("config.http.mock.help"))
@@ -100,6 +101,7 @@ class HttpConfigSection(
         cookieField.toolTipText = message("config.group.cookie.tooltip")
         routePrefixField.toolTipText = message("config.http.route.prefix.tooltip")
         routeBaseUrlField.toolTipText = message("config.group.baseurl.tooltip")
+        routeRewriteTargetPathField.toolTipText = message("config.http.route.rewrite.tooltip")
         routeStripPrefixCheckBox.toolTipText = message("config.http.route.stripprefix.tooltip")
         routeEnableMockCheckBox.toolTipText = message("config.http.route.enablemock.tooltip")
         routeMockHintLabel.toolTipText = message("config.http.mock.help")
@@ -218,6 +220,7 @@ class HttpConfigSection(
             row(message("config.http.route.name") + ":") { cell(routeNameField).align(AlignX.FILL) }
             row(message("config.group.prefix") + ":") { cell(routePrefixField).align(AlignX.FILL) }
             row(message("config.group.baseurl") + ":") { cell(routeBaseUrlField).align(AlignX.FILL) }
+            row(message("config.http.route.rewrite") + ":") { cell(routeRewriteTargetPathField).align(AlignX.FILL) }
             row {
                 cell(routeStripPrefixCheckBox)
                 cell(routeEnableMockCheckBox)
@@ -289,6 +292,7 @@ class HttpConfigSection(
         routeNameField.document.onAnyChange { onRouteDetailChanged() }
         routePrefixField.document.onAnyChange { onRouteDetailChanged() }
         routeBaseUrlField.document.onAnyChange { onRouteDetailChanged() }
+        routeRewriteTargetPathField.document.onAnyChange { onRouteDetailChanged() }
         routeStripPrefixCheckBox.addActionListener { onRouteDetailChanged() }
         routeEnableMockCheckBox.addActionListener {
             onRouteDetailChanged()
@@ -339,6 +343,7 @@ class HttpConfigSection(
         route.name = routeNameField.text.trim().ifEmpty { "API" }
         route.pathPrefix = routePrefixField.text.trim().ifEmpty { "/" }
         route.targetBaseUrl = routeBaseUrlField.text.trim().ifEmpty { "http://localhost:8080" }
+        route.rewriteTargetPath = routeRewriteTargetPathField.text.trim()
         route.stripPrefix = routeStripPrefixCheckBox.isSelected
         route.enableMock = routeEnableMockCheckBox.isSelected
         routeList.repaint()
@@ -352,12 +357,14 @@ class HttpConfigSection(
                 routeNameField.text = ""
                 routePrefixField.text = ""
                 routeBaseUrlField.text = ""
+                routeRewriteTargetPathField.text = ""
                 routeStripPrefixCheckBox.isSelected = false
                 routeEnableMockCheckBox.isSelected = false
             } else {
                 routeNameField.text = route.name
                 routePrefixField.text = route.pathPrefix
                 routeBaseUrlField.text = route.targetBaseUrl
+                routeRewriteTargetPathField.text = route.rewriteTargetPath
                 routeStripPrefixCheckBox.isSelected = route.stripPrefix
                 routeEnableMockCheckBox.isSelected = route.enableMock
             }

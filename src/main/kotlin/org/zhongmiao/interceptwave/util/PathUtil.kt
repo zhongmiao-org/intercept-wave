@@ -17,11 +17,11 @@ object PathUtil {
     }
 
     fun computeHttpMatchPath(route: HttpRoute, requestPath: String): String {
-        return computePathWithOptionalStrip(requestPath, normalizedPathPrefix(route.pathPrefix), route.stripPrefix)
+        return computeHttpRoutePath(route, requestPath)
     }
 
     fun computeHttpForwardPath(route: HttpRoute, requestPath: String): String {
-        return computePathWithOptionalStrip(requestPath, normalizedPathPrefix(route.pathPrefix), route.stripPrefix)
+        return computeHttpRoutePath(route, requestPath)
     }
 
     /**
@@ -49,5 +49,27 @@ object PathUtil {
     private fun computePathWithOptionalStrip(requestPath: String, prefix: String, stripPrefix: Boolean): String {
         if (!stripPrefix || prefix == "/") return requestPath.ifEmpty { "/" }
         return if (requestPath.startsWith(prefix)) requestPath.removePrefix(prefix).ifEmpty { "/" } else requestPath.ifEmpty { "/" }
+    }
+
+    private fun computeHttpRoutePath(route: HttpRoute, requestPath: String): String {
+        val strippedPath = computePathWithOptionalStrip(
+            requestPath,
+            normalizedPathPrefix(route.pathPrefix),
+            route.stripPrefix
+        )
+        return applyRewriteTargetPath(strippedPath, route.rewriteTargetPath)
+    }
+
+    private fun applyRewriteTargetPath(routeLocalPath: String, rewriteTargetPath: String): String {
+        val rewriteBase = normalizedRewriteTargetPath(rewriteTargetPath) ?: return routeLocalPath
+        if (rewriteBase == "/") return routeLocalPath
+        val suffix = routeLocalPath.trimStart('/')
+        return if (suffix.isEmpty()) rewriteBase else "$rewriteBase/$suffix"
+    }
+
+    private fun normalizedRewriteTargetPath(path: String): String? {
+        if (path.isBlank()) return null
+        val withLeadingSlash = if (path.startsWith("/")) path else "/$path"
+        return withLeadingSlash.trimEnd('/').ifEmpty { "/" }
     }
 }

@@ -75,6 +75,7 @@ class ProxyConfigTest {
         assertEquals("/api", config.routes[0].pathPrefix)
         assertEquals("http://localhost:8080", config.routes[0].targetBaseUrl)
         assertTrue(config.routes[0].stripPrefix)
+        assertEquals("", config.routes[0].rewriteTargetPath)
         assertTrue(config.routes[0].enableMock)
         assertTrue(config.stripPrefix)
         assertEquals("", config.globalCookie)
@@ -140,6 +141,7 @@ class ProxyConfigTest {
                     pathPrefix = "/test",
                     targetBaseUrl = "http://test.local",
                     stripPrefix = true,
+                    rewriteTargetPath = "/v1",
                     enableMock = true,
                     mockApis = mutableListOf(
                         MockApiConfig(
@@ -163,6 +165,7 @@ class ProxyConfigTest {
         assertEquals(1, decoded.routes.size)
         assertEquals("/test", decoded.routes[0].pathPrefix)
         assertEquals("http://test.local", decoded.routes[0].targetBaseUrl)
+        assertEquals("/v1", decoded.routes[0].rewriteTargetPath)
         assertEquals(config.stripPrefix, decoded.stripPrefix)
         assertEquals(config.globalCookie, decoded.globalCookie)
         assertEquals(config.enabled, decoded.enabled)

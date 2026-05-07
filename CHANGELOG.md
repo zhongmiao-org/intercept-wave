@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### ✨ Added
+
+- Added HTTP route rewrite rules so route-local paths can be rewritten after prefix stripping for local nginx-like gateway setups.
+
 ### 🐛 Fixed
 
 - Kept persisted configuration schema versions pinned to the current config schema instead of deriving them from the plugin release version.
