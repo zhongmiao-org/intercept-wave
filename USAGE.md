@@ -50,12 +50,14 @@ Frontend dev server proxy example: configure an API route with `pathPrefix="/api
    - **HTTP Method**: ALL, GET, POST, PUT, DELETE, PATCH
    - **Status Code**: The HTTP response status code, default `200`
    - **Delay (ms)**: Simulated network delay, default `0`
+   - **Response Template**: Optional built-in response shape for success, pagination, empty data, error, or auth expiration
    - **Mock Data**: The response payload in JSON format
    - **Enabled**: Whether this mock rule is active
    - **Use Global Cookie**: Whether the response should include the group-level cookie
 
-3. Click "Format JSON" to make the payload easier to read
-4. Click "OK" to save the configuration
+3. Click "Apply Template" to replace the editable Mock Data area with the selected template when useful
+4. Click "Format JSON" to make the payload easier to read
+5. Click "OK" to save the configuration
 
 ## Common Scenarios
 

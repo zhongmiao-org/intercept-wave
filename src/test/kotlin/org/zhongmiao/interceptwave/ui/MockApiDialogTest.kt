@@ -7,6 +7,7 @@ import com.intellij.ui.components.JBTextField
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import com.intellij.openapi.ui.ComboBox
 
 class MockApiDialogTest : BasePlatformTestCase() {
 
@@ -22,6 +23,19 @@ class MockApiDialogTest : BasePlatformTestCase() {
         field.isAccessible = true
         val area: JTextArea = field.get(instance) as JTextArea
         area.text = value
+    }
+
+    private fun getMockDataArea(instance: Any): JTextArea {
+        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField("mockDataArea")
+        field.isAccessible = true
+        return field.get(instance) as JTextArea
+    }
+
+    private fun selectTemplate(instance: Any, id: String) {
+        val field: java.lang.reflect.Field = instance.javaClass.getDeclaredField("templateComboBox")
+        field.isAccessible = true
+        val combo = field.get(instance) as ComboBox<*>
+        combo.selectedItem = MockResponseTemplates.byId(id)
     }
 
     fun testJsLikeInputNormalizedAndMinifiedOnSave() {
@@ -72,5 +86,51 @@ class MockApiDialogTest : BasePlatformTestCase() {
         } catch (_: IllegalArgumentException) {
             // expected
         }
+    }
+
+    fun testApplyingSuccessTemplatePopulatesEditableMockDataAndMinifiesOnSave() {
+        val dialog = MockApiDialog(project, null)
+        setPathField(dialog, "/success")
+        selectTemplate(dialog, "success")
+
+        dialog.applySelectedTemplate()
+        val editableText = getMockDataArea(dialog).text
+        assertTrue(editableText.contains("\"code\""))
+        assertTrue(editableText.contains("\"data\""))
+
+        val api = dialog.getMockApiConfig()
+        assertEquals("""{"code":0,"message":"success","data":{}}""", api.mockData)
+    }
+
+    fun testBuiltInTemplatesAreValidJsonAndSavedAsMinifiedMockData() {
+        listOf("pagination", "error", "auth-expired").forEach { id ->
+            val dialog = MockApiDialog(project, null)
+            setPathField(dialog, "/$id")
+            selectTemplate(dialog, id)
+
+            dialog.applySelectedTemplate()
+            val api = dialog.getMockApiConfig()
+
+            assertFalse(api.mockData.contains("\n"))
+            Json.parseToJsonElement(api.mockData)
+            assertEquals(200, api.statusCode)
+        }
+    }
+
+    fun testEditingExistingMockApiDoesNotOverwriteMockDataUntilTemplateIsApplied() {
+        val existing = MockApiConfig(
+            path = "/existing",
+            mockData = """{"custom":true}""",
+            method = "GET"
+        )
+        val dialog = MockApiDialog(project, existing)
+
+        assertEquals("""{"custom":true}""", getMockDataArea(dialog).text)
+        assertEquals("""{"custom":true}""", dialog.getMockApiConfig().mockData)
+
+        selectTemplate(dialog, "empty")
+        dialog.applySelectedTemplate()
+
+        assertEquals("""{"code":0,"message":"success","data":null}""", dialog.getMockApiConfig().mockData)
     }
 }

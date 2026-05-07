@@ -179,12 +179,14 @@ Each configuration group contains the following settings:
    - **HTTP Method**: ALL, GET, POST, PUT, DELETE, PATCH
    - **Status Code**: HTTP response status code (default: 200)
    - **Delay (ms)**: Simulate network delay (default: 0)
+   - **Response Template**: Optionally apply a built-in success, pagination, empty, error, or auth-expired JSON template
    - **Mock Data**: Response data in JSON format
    - **Enabled**: Whether to enable this mock configuration
    - **Use Global Cookie**: When enabled, the response includes the configured global cookie
 
-3. Click "Format JSON" to format the mock data for easier editing
-4. Click "OK" to save configuration
+3. Click "Apply Template" when you want to replace the editable Mock Data area with the selected template
+4. Click "Format JSON" to format the mock data for easier editing
+5. Click "OK" to save configuration
 
 #### HTTP Settings (Protocol = HTTP)
 

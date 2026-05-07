@@ -31,6 +31,7 @@ class MockApiDialog(
 
     private val pathField = JBTextField(existingApi?.path ?: "")
     private val methodComboBox = ComboBox(arrayOf("ALL", "GET", "POST", "PUT", "DELETE", "PATCH"))
+    private val templateComboBox = ComboBox(MockResponseTemplates.templates.toTypedArray())
     private val statusCodeField = JBTextField(existingApi?.statusCode?.toString() ?: "200")
     private val delayField = JBTextField(existingApi?.delay?.toString() ?: "0")
     private val useCookieCheckBox = JCheckBox(message("mockapi.usecookie"), existingApi?.useCookie ?: false)
@@ -45,6 +46,7 @@ class MockApiDialog(
 
     init {
         methodComboBox.preferredSize = Dimension(JBUI.scale(120), methodComboBox.preferredSize.height)
+        templateComboBox.preferredSize = Dimension(JBUI.scale(180), templateComboBox.preferredSize.height)
         statusCodeField.preferredSize = Dimension(JBUI.scale(90), statusCodeField.preferredSize.height)
         delayField.preferredSize = Dimension(JBUI.scale(90), delayField.preferredSize.height)
     }
@@ -67,6 +69,20 @@ class MockApiDialog(
 
         // 顶部基本信息（UI DSL，复用既有组件，保持监听/校验逻辑不变）
         pathField.toolTipText = message("mockapi.path.tooltip")
+        templateComboBox.toolTipText = message("mockapi.template.tooltip")
+        templateComboBox.renderer = object : DefaultListCellRenderer() {
+            override fun getListCellRendererComponent(
+                list: JList<*>?,
+                value: Any?,
+                index: Int,
+                isSelected: Boolean,
+                cellHasFocus: Boolean
+            ): java.awt.Component {
+                val component = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+                text = (value as? MockResponseTemplates.Template)?.let { message(it.messageKey) } ?: ""
+                return component
+            }
+        }
         statusCodeField.toolTipText = message("mockapi.statuscode.tooltip")
         delayField.toolTipText = message("mockapi.delay.tooltip")
         useCookieCheckBox.toolTipText = message("mockapi.usecookie.tooltip")
@@ -79,6 +95,14 @@ class MockApiDialog(
                 }
                 row(message("mockapi.path")) {
                     cell(pathField).align(AlignX.FILL)
+                }
+                row(message("mockapi.template")) {
+                    cell(templateComboBox)
+                    button(message("mockapi.template.apply")) { applySelectedTemplate() }
+                        .applyToComponent {
+                            icon = AllIcons.Actions.MenuOpen
+                            isFocusPainted = false
+                        }
                 }
                 row {
                     label(message("mockapi.method"))
@@ -159,6 +183,11 @@ class MockApiDialog(
     // 保存时压缩为无空格无换行的 JSON 串
     private fun minifyJson(text: String): String {
         return JsonNormalizeUtil.minifyJson(text)
+    }
+
+    internal fun applySelectedTemplate() {
+        val template = templateComboBox.selectedItem as? MockResponseTemplates.Template ?: return
+        mockDataArea.text = prettyJson(template.payload)
     }
 
     /**
