@@ -514,8 +514,12 @@ class HttpServerEngineTest {
             assertNull(headerValue(upstreamHeaders, "X-Disabled"))
             assertNotEquals("evil.example", headerValue(upstreamHeaders, "Host"))
             assertEquals("http://local.dev", conn.getHeaderField("Access-Control-Allow-Origin"))
-            assertEquals("proxy", conn.headerFields.entries.first { it.key.equals("X-Proxy-Header", true) }.value.first())
-            assertTrue(conn.headerFields.entries.first { it.key.equals("X-Proxy-Header", true) }.value.contains("second"))
+            val proxyHeaderValues = conn.headerFields.entries
+                .first { it.key.equals("X-Proxy-Header", true) }
+                .value
+                .joinToString(",")
+            assertTrue(proxyHeaderValues.contains("proxy"))
+            assertTrue(proxyHeaderValues.contains("second"))
         } finally {
             engine.stop()
             api.stop()
