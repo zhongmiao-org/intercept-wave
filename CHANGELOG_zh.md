@@ -17,6 +17,10 @@
 - 配置文件 schema 版本固定使用当前配置 schema 版本，不再从插件发布版本推导，避免发布小版本后写入不受支持的配置版本。
 - 收紧 HTTP 路由前缀匹配，避免 `/api` 误匹配 `/apiary` 这类同前缀路径。
 
+### 📚 文档
+
+- 新增 nginx-like 本地网关迁移说明，覆盖前端开发服务器和多后端路由配置。
+
 ### 🔧 CI/CD
 
 - 在创建 tag、发布到 JetBrains Marketplace、发布 GitHub Release 前增加 release 测试门禁。

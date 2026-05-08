@@ -43,6 +43,44 @@ Route rewrite is useful when replacing a local nginx rule. For example, with `pa
 
 Frontend dev server proxy example: configure an API route with `pathPrefix="/api"`, `stripPrefix=true`, `targetBaseUrl="http://localhost:9000"`, and a frontend route with `pathPrefix="/"`, `stripPrefix=false`, `targetBaseUrl="http://localhost:5173"`, `spaFallbackPath="/index.html"`, `enableMock=false`. Then `/api/users` goes to the backend, while `/`, `/assets/app.js`, and `/dashboard/settings` go to the frontend dev server.
 
+#### Nginx Migration Recipes
+
+Use one HTTP group as the local gateway port, then add routes that mirror nginx `location` blocks. This is intended for local development, not production traffic.
+
+Frontend dev server plus backend API:
+
+```json
+{
+  "name": "Gateway",
+  "port": 8888,
+  "protocol": "HTTP",
+  "routes": [
+    { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+    { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+  ]
+}
+```
+
+Multiple backend services with a frontend fallback:
+
+```json
+[
+  { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+  { "name": "Auth", "pathPrefix": "/auth", "targetBaseUrl": "http://localhost:9010", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+  { "name": "Admin API", "pathPrefix": "/admin-api", "targetBaseUrl": "http://localhost:9020", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
+  { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+]
+```
+
+Common issues:
+- **Port occupied**: change the group port or stop the process that already listens on it.
+- **SPA refresh returns 404**: keep the frontend route at `pathPrefix="/"`, set `enableMock=false`, and use `spaFallbackPath="/index.html"` for HTML navigation requests.
+- **Prefix or rewrite mismatch**: `stripPrefix` runs before `rewriteTargetPath`; Mock paths and forwarded paths use the rewritten route-local path.
+- **Unexpected CORS or headers**: the local gateway adds default CORS headers for development. Route-level header override recipes are tracked separately.
+- **Static dist and HTTPS**: static build serving is tracked by [#153](https://github.com/zhongmiao-org/intercept-wave/issues/153), and HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151).
+
+Related roadmap items: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
+
 #### Mock API Settings
 1. Click "Add API"
 2. Fill in the following fields:
