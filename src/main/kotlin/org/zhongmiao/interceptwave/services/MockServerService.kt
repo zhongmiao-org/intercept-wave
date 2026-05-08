@@ -52,7 +52,7 @@ class MockServerService(private val project: Project) {
                 return false
             }
             output.publish(ServerStarting(configId, proxyConfig.name, proxyConfig.port))
-            val engine = EngineFactory.create(proxyConfig, output)
+            val engine = EngineFactory.create(proxyConfig, output, project.basePath)
             val ok = engine.start()
             if (ok) {
                 engines[configId] = engine

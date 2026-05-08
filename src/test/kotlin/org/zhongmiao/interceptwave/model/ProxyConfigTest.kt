@@ -139,10 +139,13 @@ class ProxyConfigTest {
             routes = mutableListOf(
                 HttpRoute(
                     pathPrefix = "/test",
+                    targetType = HttpRouteTargetType.STATIC,
                     targetBaseUrl = "http://test.local",
+                    staticRoot = "frontend/dist",
                     stripPrefix = true,
                     rewriteTargetPath = "/v1",
                     spaFallbackPath = "/index.html",
+                    spaFallback = true,
                     enableMock = true,
                     mockApis = mutableListOf(
                         MockApiConfig(
@@ -165,9 +168,12 @@ class ProxyConfigTest {
         assertEquals(config.port, decoded.port)
         assertEquals(1, decoded.routes.size)
         assertEquals("/test", decoded.routes[0].pathPrefix)
+        assertEquals(HttpRouteTargetType.STATIC, decoded.routes[0].targetType)
         assertEquals("http://test.local", decoded.routes[0].targetBaseUrl)
+        assertEquals("frontend/dist", decoded.routes[0].staticRoot)
         assertEquals("/v1", decoded.routes[0].rewriteTargetPath)
         assertEquals("/index.html", decoded.routes[0].spaFallbackPath)
+        assertTrue(decoded.routes[0].spaFallback)
         assertEquals(config.stripPrefix, decoded.stripPrefix)
         assertEquals(config.globalCookie, decoded.globalCookie)
         assertEquals(config.enabled, decoded.enabled)

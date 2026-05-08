@@ -4,6 +4,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.zhongmiao.interceptwave.events.*
 import org.zhongmiao.interceptwave.model.HttpRoute
+import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import com.sun.net.httpserver.HttpServer
@@ -11,6 +12,7 @@ import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.URI
+import java.nio.file.Files
 
 class HttpServerEngineTest {
 
@@ -20,6 +22,16 @@ class HttpServerEngineTest {
     }
 
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
+
+    private fun createStaticProject(): Pair<java.io.File, java.io.File> {
+        val projectRoot = Files.createTempDirectory("iw-static-project").toFile()
+        val dist = java.io.File(projectRoot, "frontend/dist").apply { mkdirs() }
+        java.io.File(dist, "index.html").writeText("<html>static-spa</html>")
+        java.io.File(dist, "assets").mkdirs()
+        java.io.File(dist, "assets/index.js").writeText("console.log('static')")
+        java.io.File(dist, "assets/style.css").writeText("body{color:#123}")
+        return projectRoot to dist
+    }
 
     private data class UpstreamRequest(
         val method: String,
@@ -93,6 +105,9 @@ class HttpServerEngineTest {
         }
         return last ?: (throw AssertionError("GET $url failed after retries"))
     }
+
+    private fun connectionBody(conn: HttpURLConnection): String =
+        runCatching { conn.inputStream }.getOrElse { conn.errorStream }.bufferedReader().readText()
 
     @Test
     fun start_stop_and_welcome() {
@@ -452,6 +467,182 @@ class HttpServerEngineTest {
             engine.stop()
             frontend.stop()
             System.clearProperty("interceptwave.allowForwardInTests")
+        }
+    }
+
+    @Test
+    fun static_route_serves_frontend_assets_with_mime_types() {
+        val (projectRoot, _) = createStaticProject()
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "StaticAssets",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "Frontend Build",
+                    pathPrefix = "/",
+                    targetType = HttpRouteTargetType.STATIC,
+                    staticRoot = "frontend/dist",
+                    stripPrefix = false,
+                    enableMock = false
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput(), projectRoot.absolutePath)
+        assertTrue(engine.start())
+
+        try {
+            val jsConn = URI("http://localhost:$port/assets/index.js").toURL().openConnection() as HttpURLConnection
+            assertEquals(200, jsConn.responseCode)
+            assertTrue(jsConn.contentType.lowercase().startsWith("application/javascript"))
+            assertEquals("console.log('static')", connectionBody(jsConn))
+
+            val cssConn = URI("http://localhost:$port/assets/style.css").toURL().openConnection() as HttpURLConnection
+            assertEquals(200, cssConn.responseCode)
+            assertTrue(cssConn.contentType.lowercase().startsWith("text/css"))
+            assertEquals("body{color:#123}", connectionBody(cssConn))
+
+            val rootConn = URI("http://localhost:$port/").toURL().openConnection() as HttpURLConnection
+            assertEquals(200, rootConn.responseCode)
+            assertTrue(rootConn.contentType.lowercase().startsWith("text/html"))
+            assertEquals("<html>static-spa</html>", connectionBody(rootConn))
+        } finally {
+            engine.stop()
+            projectRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun static_route_spa_fallback_and_missing_file_behaviour() {
+        val (projectRoot, _) = createStaticProject()
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "StaticSpa",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/",
+                    targetType = HttpRouteTargetType.STATIC,
+                    staticRoot = "frontend/dist",
+                    stripPrefix = false,
+                    spaFallback = true,
+                    enableMock = false
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput(), projectRoot.absolutePath)
+        assertTrue(engine.start())
+
+        try {
+            val deepLink = URI("http://localhost:$port/dashboard").toURL().openConnection() as HttpURLConnection
+            deepLink.requestMethod = "GET"
+            deepLink.setRequestProperty("Accept", "text/html")
+            assertEquals(200, deepLink.responseCode)
+            assertEquals("<html>static-spa</html>", connectionBody(deepLink))
+
+            val missingAsset = URI("http://localhost:$port/assets/missing.js").toURL().openConnection() as HttpURLConnection
+            missingAsset.requestMethod = "GET"
+            missingAsset.setRequestProperty("Accept", "text/html")
+            assertEquals(404, missingAsset.responseCode)
+        } finally {
+            engine.stop()
+            projectRoot.deleteRecursively()
+        }
+
+        val (projectRootNoFallback, _) = createStaticProject()
+        val noFallbackPort = freePort()
+        val noFallbackCfg = ProxyConfig(
+            name = "StaticNoSpa",
+            port = noFallbackPort,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/",
+                    targetType = HttpRouteTargetType.STATIC,
+                    staticRoot = "frontend/dist",
+                    stripPrefix = false,
+                    spaFallback = false,
+                    enableMock = false
+                )
+            )
+        )
+        val noFallbackEngine = HttpServerEngine(noFallbackCfg, TestOutput(), projectRootNoFallback.absolutePath)
+        assertTrue(noFallbackEngine.start())
+
+        try {
+            val deepLink = URI("http://localhost:$noFallbackPort/dashboard").toURL().openConnection() as HttpURLConnection
+            deepLink.requestMethod = "GET"
+            deepLink.setRequestProperty("Accept", "text/html")
+            assertEquals(404, deepLink.responseCode)
+        } finally {
+            noFallbackEngine.stop()
+            projectRootNoFallback.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun static_route_blocks_traversal_and_supports_absolute_root() {
+        val (projectRoot, dist) = createStaticProject()
+        java.io.File(projectRoot, "secret.txt").writeText("secret")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "StaticTraversal",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/",
+                    targetType = HttpRouteTargetType.STATIC,
+                    staticRoot = dist.absolutePath,
+                    stripPrefix = false,
+                    enableMock = false
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput(), projectRoot.absolutePath)
+        assertTrue(engine.start())
+
+        try {
+            val direct = URI("http://localhost:$port/%2e%2e/secret.txt").toURL().openConnection() as HttpURLConnection
+            direct.requestMethod = "GET"
+            assertEquals(403, direct.responseCode)
+            assertFalse(connectionBody(direct).contains("secret"))
+        } finally {
+            engine.stop()
+            projectRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun static_route_still_prefers_enabled_mock_before_reading_files() {
+        val (projectRoot, _) = createStaticProject()
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "StaticMock",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/",
+                    targetType = HttpRouteTargetType.STATIC,
+                    staticRoot = "frontend/dist",
+                    stripPrefix = false,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/assets/index.js", method = "GET", mockData = "{\"mock\":true}", enabled = true)
+                    )
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput(), projectRoot.absolutePath)
+        assertTrue(engine.start())
+
+        try {
+            val conn = URI("http://localhost:$port/assets/index.js").toURL().openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            assertEquals(200, conn.responseCode)
+            assertTrue(conn.contentType.lowercase().startsWith("application/json"))
+            assertEquals("{\"mock\":true}", connectionBody(conn))
+        } finally {
+            engine.stop()
+            projectRoot.deleteRecursively()
         }
     }
 

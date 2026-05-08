@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.events.*
 import org.zhongmiao.interceptwave.model.HttpRoute
+import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import org.zhongmiao.interceptwave.util.Env
@@ -16,6 +17,10 @@ import org.zhongmiao.interceptwave.util.HttpForwardUtil
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.net.http.HttpResponse
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * Lightweight HTTP server engine per group.
@@ -24,6 +29,7 @@ import java.net.http.HttpResponse
 class HttpServerEngine(
     private val config: ProxyConfig,
     private val output: MockServerOutput,
+    private val projectBasePath: String? = null,
 ) : org.zhongmiao.interceptwave.services.ServerEngine {
     private val log = Logger.getInstance(HttpServerEngine::class.java)
 
@@ -98,6 +104,8 @@ class HttpServerEngine(
 
             if (route.enableMock && mockApi != null && mockApi.enabled) {
                 handleProxyMockResponse(exchange, mockApi)
+            } else if (route.targetType == HttpRouteTargetType.STATIC) {
+                handleStaticResponse(exchange, route)
             } else {
                 forwardToOriginalServerProxy(exchange, route)
             }
@@ -199,6 +207,52 @@ class HttpServerEngine(
         }
     }
 
+    private fun handleStaticResponse(exchange: HttpExchange, route: HttpRoute) {
+        try {
+            val root = resolveStaticRoot(route.staticRoot)
+            if (root == null || !Files.isDirectory(root)) {
+                sendErrorResponse(exchange, 502, "Static root is not configured or is not a directory")
+                return
+            }
+
+            val staticPath = PathUtil.computeHttpForwardPath(route, exchange.requestURI.path)
+            val resolved = resolveStaticFile(root, staticPath)
+            if (resolved == null) {
+                sendErrorResponse(exchange, 403, "Forbidden: static path escapes the configured root")
+                return
+            }
+
+            val file = when {
+                Files.isRegularFile(resolved) -> resolved
+                Files.isDirectory(resolved) && Files.isRegularFile(resolved.resolve("index.html")) -> resolved.resolve("index.html")
+                shouldServeStaticSpaFallback(exchange, route, staticPath) && Files.isRegularFile(root.resolve("index.html")) -> root.resolve("index.html")
+                else -> null
+            }
+
+            if (file == null) {
+                sendErrorResponse(exchange, 404, "Static file not found")
+                return
+            }
+
+            exchange.responseHeaders.set("Content-Type", contentTypeFor(file))
+            org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
+
+            if (exchange.requestMethod.equals("HEAD", true)) {
+                exchange.sendResponseHeaders(200, -1)
+                exchange.close()
+                return
+            }
+
+            val bytes = Files.readAllBytes(file)
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        } catch (e: Exception) {
+            log.error("Error serving static route", e)
+            output.publish(ErrorOccurred(config.id, config.name, "Static route error", e.message))
+            sendErrorResponse(exchange, 502, "Bad Gateway: Unable to serve static file")
+        }
+    }
+
     private fun sendErrorResponse(exchange: HttpExchange, statusCode: Int, message: String) {
         org.zhongmiao.interceptwave.util.HttpServerUtil.sendJsonError(exchange, statusCode, message)
     }
@@ -240,6 +294,13 @@ class HttpServerEngine(
         return lastSegment.contains('.') && !lastSegment.startsWith('.')
     }
 
+    private fun shouldServeStaticSpaFallback(exchange: HttpExchange, route: HttpRoute, staticPath: String): Boolean {
+        if (!route.spaFallback) return false
+        if (!isHtmlNavigation(exchange)) return false
+        if (isStaticAssetPath(staticPath)) return false
+        return exchange.requestMethod.equals("GET", true) || exchange.requestMethod.equals("HEAD", true)
+    }
+
     private fun normalizedSpaFallbackPath(path: String): String {
         val trimmed = path.trim().ifEmpty { "/" }
         return if (trimmed.startsWith("/")) trimmed else "/$trimmed"
@@ -247,5 +308,51 @@ class HttpServerEngine(
 
     private fun buildForwardTargetUrl(route: HttpRoute, path: String, query: String): String =
         route.targetBaseUrl.trimEnd('/') + path + query
+
+    private fun resolveStaticRoot(staticRoot: String): Path? {
+        val trimmed = staticRoot.trim()
+        if (trimmed.isEmpty()) return null
+        return try {
+            val configured = Paths.get(trimmed)
+            val base = projectBasePath?.takeIf { it.isNotBlank() }?.let { Paths.get(it) }
+                ?: Paths.get(System.getProperty("user.dir"))
+            val resolved = if (configured.isAbsolute) configured else base.resolve(configured)
+            resolved.toAbsolutePath().normalize()
+        } catch (_: InvalidPathException) {
+            null
+        }
+    }
+
+    private fun resolveStaticFile(root: Path, staticPath: String): Path? {
+        return try {
+            val relativeText = staticPath
+                .replace('\\', '/')
+                .trimStart('/')
+                .ifBlank { "index.html" }
+            val resolved = root.resolve(relativeText).normalize()
+            if (resolved.startsWith(root)) resolved else null
+        } catch (_: InvalidPathException) {
+            null
+        }
+    }
+
+    private fun contentTypeFor(file: Path): String {
+        val name = file.fileName.toString().substringBeforeLast('?', file.fileName.toString()).lowercase()
+        return when {
+            name.endsWith(".html") || name.endsWith(".htm") -> "text/html; charset=UTF-8"
+            name.endsWith(".js") || name.endsWith(".mjs") -> "application/javascript; charset=UTF-8"
+            name.endsWith(".css") -> "text/css; charset=UTF-8"
+            name.endsWith(".json") || name.endsWith(".map") -> "application/json; charset=UTF-8"
+            name.endsWith(".svg") -> "image/svg+xml"
+            name.endsWith(".png") -> "image/png"
+            name.endsWith(".jpg") || name.endsWith(".jpeg") -> "image/jpeg"
+            name.endsWith(".webp") -> "image/webp"
+            name.endsWith(".gif") -> "image/gif"
+            name.endsWith(".ico") -> "image/x-icon"
+            name.endsWith(".wasm") -> "application/wasm"
+            name.endsWith(".txt") -> "text/plain; charset=UTF-8"
+            else -> Files.probeContentType(file) ?: "application/octet-stream"
+        }
+    }
 
 }
