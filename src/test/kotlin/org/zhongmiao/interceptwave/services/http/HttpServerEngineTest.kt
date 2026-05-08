@@ -9,12 +9,19 @@ import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.MockApiConfig
 import org.zhongmiao.interceptwave.model.ProxyConfig
+import org.zhongmiao.interceptwave.util.LocalCertificateUtil
 import com.sun.net.httpserver.HttpServer
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.URI
 import java.nio.file.Files
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 class HttpServerEngineTest {
 
@@ -108,6 +115,30 @@ class HttpServerEngineTest {
         return last ?: (throw AssertionError("GET $url failed after retries"))
     }
 
+    private fun createLocalPkcs12(projectRoot: java.io.File, password: String = LocalCertificateUtil.DEFAULT_PASSWORD): java.io.File {
+        org.junit.Assume.assumeTrue("keytool is required for HTTPS listener tests", LocalCertificateUtil.findKeytool() != null)
+        val file = java.io.File(projectRoot, LocalCertificateUtil.DEFAULT_RELATIVE_PATH)
+        LocalCertificateUtil.generateLocalPkcs12(file.toPath(), password, overwrite = true)
+        return file
+    }
+
+    private fun openInsecureHttps(url: String): HttpsURLConnection {
+        val trustAll = arrayOf<X509TrustManager>(
+            object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+            }
+        )
+        val sslContext = SSLContext.getInstance("TLS").apply {
+            init(null, trustAll, SecureRandom())
+        }
+        return URI(url).toURL().openConnection().let { it as HttpsURLConnection }.apply {
+            sslSocketFactory = sslContext.socketFactory
+            hostnameVerifier = HostnameVerifier { _, _ -> true }
+        }
+    }
+
     private fun connectionBody(conn: HttpURLConnection): String =
         runCatching { conn.inputStream }.getOrElse { conn.errorStream }.bufferedReader().readText()
 
@@ -195,6 +226,98 @@ class HttpServerEngineTest {
         )
 
         engine.stop()
+    }
+
+    @Test
+    fun https_listener_serves_mock_proxy_and_static_routes() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+        val (projectRoot, _) = createStaticProject()
+        val api = startGatewayUpstream("api")
+        createLocalPkcs12(projectRoot)
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "HttpsGateway",
+            port = port,
+            httpsEnabled = true,
+            httpsKeystorePath = LocalCertificateUtil.DEFAULT_RELATIVE_PATH,
+            httpsKeystorePassword = LocalCertificateUtil.DEFAULT_PASSWORD,
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "Mock",
+                    pathPrefix = "/mock",
+                    targetBaseUrl = "http://localhost:8080",
+                    stripPrefix = true,
+                    enableMock = true,
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{\"https\":true}", method = "GET", enabled = true)
+                    )
+                ),
+                HttpRoute(
+                    name = "API",
+                    pathPrefix = "/api",
+                    targetBaseUrl = api.baseUrl,
+                    stripPrefix = true,
+                    enableMock = false
+                ),
+                HttpRoute(
+                    name = "Static",
+                    pathPrefix = "/",
+                    targetType = HttpRouteTargetType.STATIC,
+                    staticRoot = "frontend/dist",
+                    stripPrefix = false,
+                    enableMock = false
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput(), projectRoot.absolutePath)
+        assertTrue(engine.start())
+        assertEquals("https://localhost:$port", engine.getUrl())
+
+        try {
+            val mockConn = openInsecureHttps("https://localhost:$port/mock/user")
+            mockConn.requestMethod = "GET"
+            assertEquals(200, mockConn.responseCode)
+            assertEquals("{\"https\":true}", connectionBody(mockConn))
+
+            val proxyConn = openInsecureHttps("https://localhost:$port/api/users?active=true")
+            proxyConn.requestMethod = "GET"
+            assertEquals(200, proxyConn.responseCode)
+            assertTrue(connectionBody(proxyConn).contains("api:GET:/users:active=true"))
+
+            val staticConn = openInsecureHttps("https://localhost:$port/assets/index.js")
+            staticConn.requestMethod = "GET"
+            assertEquals(200, staticConn.responseCode)
+            assertEquals("console.log('static')", connectionBody(staticConn))
+        } finally {
+            engine.stop()
+            api.stop()
+            projectRoot.deleteRecursively()
+            System.clearProperty("interceptwave.allowForwardInTests")
+        }
+    }
+
+    @Test
+    fun https_listener_fails_with_invalid_keystore_configuration() {
+        val projectRoot = Files.createTempDirectory("iw-https-invalid").toFile()
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "BadHttps",
+            port = port,
+            httpsEnabled = true,
+            httpsKeystorePath = "certs/missing.p12",
+            httpsKeystorePassword = "changeit",
+            routes = mutableListOf(HttpRoute())
+        )
+        val engine = HttpServerEngine(cfg, TestOutput(), projectRoot.absolutePath)
+
+        try {
+            assertFalse(engine.start())
+            assertTrue(engine.lastError.orEmpty().contains("keystore", ignoreCase = true))
+            assertEquals("https://localhost:$port", engine.getUrl())
+        } finally {
+            engine.stop()
+            projectRoot.deleteRecursively()
+        }
     }
 
     @Test

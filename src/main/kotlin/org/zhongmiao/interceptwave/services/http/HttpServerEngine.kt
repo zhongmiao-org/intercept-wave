@@ -3,6 +3,9 @@ package org.zhongmiao.interceptwave.services.http
 import com.intellij.openapi.diagnostic.Logger
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import com.sun.net.httpserver.HttpsConfigurator
+import com.sun.net.httpserver.HttpsParameters
+import com.sun.net.httpserver.HttpsServer
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.events.*
 import org.zhongmiao.interceptwave.model.HttpRoute
@@ -15,6 +18,7 @@ import org.zhongmiao.interceptwave.util.HttpWelcomeUtil
 import org.zhongmiao.interceptwave.util.PathUtil
 import org.zhongmiao.interceptwave.util.HttpForwardUtil
 import org.zhongmiao.interceptwave.util.HeaderOverrideUtil
+import org.zhongmiao.interceptwave.util.HttpTlsUtil
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.net.http.HttpResponse
@@ -43,12 +47,12 @@ class HttpServerEngine(
 
     override fun isRunning(): Boolean = server != null
 
-    override fun getUrl(): String = "http://localhost:${config.port}"
+    override fun getUrl(): String = "${if (config.httpsEnabled) "https" else "http"}://localhost:${config.port}"
 
     override fun start(): Boolean {
         return try {
             val exec = Executors.newFixedThreadPool(10)
-            val s = HttpServer.create(InetSocketAddress(config.port), 0).apply {
+            val s = createServer().apply {
                 createContext("/") { exchange ->
                     handleProxyRequest(exchange)
                 }
@@ -62,6 +66,20 @@ class HttpServerEngine(
             lastError = t.message ?: t.toString()
             runCatching { stop() }
             false
+        }
+    }
+
+    private fun createServer(): HttpServer {
+        val address = InetSocketAddress(config.port)
+        if (!config.httpsEnabled) return HttpServer.create(address, 0)
+
+        val sslContext = HttpTlsUtil.buildSslContext(config, projectBasePath)
+        return HttpsServer.create(address, 0).apply {
+            httpsConfigurator = object : HttpsConfigurator(sslContext) {
+                override fun configure(params: HttpsParameters) {
+                    params.setSSLParameters(sslContext.defaultSSLParameters)
+                }
+            }
         }
     }
 

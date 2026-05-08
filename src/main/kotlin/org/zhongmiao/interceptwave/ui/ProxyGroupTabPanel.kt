@@ -146,7 +146,7 @@ class ProxyGroupTabPanel(
 
     private fun createStatusPanel(): JPanel {
         val cfg = configService.getProxyGroup(configId)
-        val protocol = cfg?.protocol ?: "HTTP"
+        val protocol = if (cfg?.protocol == "HTTP" && cfg.httpsEnabled) "HTTPS" else cfg?.protocol ?: "HTTP"
         groupMetaLabel.text = "$configName · $protocol · :$port"
         groupMetaLabel.font = groupMetaLabel.font.deriveFont(16f).deriveFont(java.awt.Font.BOLD)
         runtimeDotLabel.border = JBUI.Borders.emptyLeft(6)
@@ -187,11 +187,12 @@ class ProxyGroupTabPanel(
         return if (cfg.protocol == "WS") {
             createWsInfoPanel(cfg)
         } else {
-            createHttpInfoPanel(cfg.routes)
+            createHttpInfoPanel(cfg)
         }
     }
 
-    private fun createHttpInfoPanel(routes: List<HttpRoute>): JPanel {
+    private fun createHttpInfoPanel(cfg: org.zhongmiao.interceptwave.model.ProxyConfig): JPanel {
+        val routes = cfg.routes
         if (expandedRouteIds.isEmpty()) {
             routes.mapNotNull(HttpRoute::id).forEach(expandedRouteIds::add)
         }
@@ -201,7 +202,7 @@ class ProxyGroupTabPanel(
                 message("toolwindow.config.routes.empty.desc")
             )
         } else {
-            createRouteTreeList(routes)
+            createRouteTreeList(routes, cfg.httpsEnabled)
         }
 
         return panel {
@@ -311,7 +312,7 @@ class ProxyGroupTabPanel(
         }
     }
 
-    private fun createRouteTreeList(routes: List<HttpRoute>): JComponent {
+    private fun createRouteTreeList(routes: List<HttpRoute>, httpsEnabled: Boolean): JComponent {
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
@@ -320,7 +321,7 @@ class ProxyGroupTabPanel(
         fun render() {
             content.removeAll()
             routes.forEachIndexed { index, route ->
-                content.add(createRouteTreeCard(route, index, ::render))
+                content.add(createRouteTreeCard(route, index, httpsEnabled, ::render))
                 if (index < routes.lastIndex) {
                     content.add(Box.createVerticalStrut(JBUI.scale(8)))
                 }
@@ -336,7 +337,7 @@ class ProxyGroupTabPanel(
         }
     }
 
-    private fun createRouteTreeCard(route: HttpRoute, routeIndex: Int, rerender: () -> Unit): JComponent {
+    private fun createRouteTreeCard(route: HttpRoute, routeIndex: Int, httpsEnabled: Boolean, rerender: () -> Unit): JComponent {
         val expanded = expandedRouteIds.contains(route.id)
         val toggleButton = JButton().apply {
             icon = if (expanded) AllIcons.General.ArrowDown else AllIcons.General.ArrowRight
@@ -452,7 +453,7 @@ class ProxyGroupTabPanel(
                 body.add(emptyLabel)
             } else {
                 route.mockApis.forEachIndexed { mockIndex, api ->
-                    body.add(createMockChildRow(route, routeIndex, api, mockIndex))
+                    body.add(createMockChildRow(route, routeIndex, api, mockIndex, httpsEnabled))
                     if (mockIndex < route.mockApis.lastIndex) {
                         body.add(Box.createVerticalStrut(JBUI.scale(6)))
                     }
@@ -471,7 +472,7 @@ class ProxyGroupTabPanel(
         }
     }
 
-    private fun createMockChildRow(route: HttpRoute, routeIndex: Int, api: org.zhongmiao.interceptwave.model.MockApiConfig, mockIndex: Int): JComponent {
+    private fun createMockChildRow(route: HttpRoute, routeIndex: Int, api: org.zhongmiao.interceptwave.model.MockApiConfig, mockIndex: Int, httpsEnabled: Boolean): JComponent {
         val joinedPath = buildString {
             append(route.pathPrefix)
             if (route.pathPrefix.endsWith("/") && api.path.startsWith("/")) {
@@ -479,7 +480,8 @@ class ProxyGroupTabPanel(
             }
             append(api.path)
         }
-        val localUrl = "http://localhost:$port$joinedPath"
+        val scheme = if (httpsEnabled) "https" else "http"
+        val localUrl = "$scheme://localhost:$port$joinedPath"
         val forwardPath = PathUtil.computeHttpForwardPath(route, joinedPath)
         val targetUrl = if (route.targetType == HttpRouteTargetType.STATIC) {
             route.staticRoot.trimEnd('/') + forwardPath

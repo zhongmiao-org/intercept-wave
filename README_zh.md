@@ -191,6 +191,8 @@ unzip -t build/distributions/*.zip
 HTTP 配置组提供额外的 HTTP 专属字段：
 
 - **全局 Cookie**: 配置全局 Cookie 值（例如：`sessionId=abc123; userId=456`）
+- **HTTPS**: 可将该配置组本地监听从 `http://localhost:<port>` 切换为 `https://localhost:<port>`，证书使用 PKCS#12 keystore。
+- **生成本地证书**: 在项目内创建 `certs/intercept-wave-local.p12` 调试证书；插件不会自动安装到系统或浏览器信任链。
 - **路由列表**: 一个 HTTP 组内可维护多条 HTTP 路由。配置弹框现在采用“左侧选路由，右侧编辑当前路由”的结构。每条路由包含：
   - **路由名称**: 如 `API`、`Frontend`
   - **路径前缀**: 用于最长前缀匹配，如 `/api`、`/`
@@ -296,7 +298,26 @@ server {
 - `pathPrefix="/api"`，`stripPrefix=true`：`/api/users` 会按 `/users` 进行 Mock 匹配与转发
 - `pathPrefix="/backend"`，`stripPrefix=true`，`rewriteTargetPath="/v1"`：`/backend/users` 会按 `/v1/users` 进行 Mock 匹配与转发
 
-HTTPS 监听支持由 [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151) 跟进。跨平台 roadmap 链接：IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150)、VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39)、VS Code 文档对应 issue [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46)。
+本地 HTTPS origin 与 HTTP 复用同一套路由处理链路。启用 HTTP 配置组的 HTTPS 后，可以选择已有 `.p12`/`.pfx` 文件，也可以点击“生成本地证书”创建 `certs/intercept-wave-local.p12`，证书使用 `CN=localhost`，并包含 `localhost` 和 `127.0.0.1` 的 SAN。启用后，该端口只监听 `https://localhost:<port>`。
+
+等价的 CLI 证书生成命令：
+
+```bash
+mkdir -p certs
+keytool -genkeypair \
+  -alias intercept-wave-local \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 825 \
+  -storetype PKCS12 \
+  -keystore certs/intercept-wave-local.p12 \
+  -storepass changeit \
+  -keypass changeit \
+  -dname "CN=localhost, OU=Intercept Wave, O=Local Development, L=Local, ST=Local, C=US" \
+  -ext "SAN=dns:localhost,ip:127.0.0.1"
+```
+
+生成的 PKCS#12 包含私钥，仅用于本地调试。浏览器可能仍会提示自签证书不受信任，需要你按本机环境手动信任证书。跨平台 roadmap 链接：IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150)、VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39)、VS Code 文档对应 issue [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46)。
 
 #### WebSocket 组设置（协议类型 = WS）
 
@@ -452,6 +473,9 @@ fetch('http://localhost:8888/api/posts')
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "网关",
       "port": 8888,
+      "httpsEnabled": false,
+      "httpsKeystorePath": "",
+      "httpsKeystorePassword": "",
       "globalCookie": "sessionId=abc123",
       "enabled": true,
       "routes": [
@@ -556,6 +580,8 @@ Access-Control-Allow-Headers: Content-Type, Authorization
   "configGroup": "网关",
   "server": {
     "port": 8888,
+    "scheme": "http",
+    "httpsEnabled": false,
     "routes": 3
   },
   "mockApis": {
@@ -591,7 +617,7 @@ A: 请确认请求命中了正确的路由，Mock 路径填写无误，并且对
 A: 启动服务后，IntelliJ IDEA 底部的 Run 工具窗口会自动出现 "Intercept Wave Mock Server" 标签页，实时展示请求日志，包括时间戳、请求方法、路径，以及响应是来自 Mock 还是代理转发。
 
 ### Q: 支持 HTTPS 吗？
-A: HTTP 配置组当前提供本地 HTTP 入口；WS 配置组支持本地 `ws://`，并可通过 PKCS#12 证书启用本地 `wss://`。
+A: 支持。HTTP 配置组可通过 PKCS#12 keystore 将本地监听切换为 `https://localhost:<port>`；WS 配置组支持本地 `ws://`，并可通过 PKCS#12 证书启用本地 `wss://`。
 
 ### Q: 全局 Cookie 如何工作？
 A: 在配置组中设置全局 Cookie 后，再为需要的 Mock 接口勾选“使用全局 Cookie”，响应就会通过 `Set-Cookie` 响应头将该 Cookie 返回给客户端。
@@ -666,12 +692,12 @@ project/
 
 ## 开发计划
 
-- [ ] 支持 HTTPS/WSS
+- [x] 支持 HTTPS/WSS
 - [x] 支持 WebSocket Mock
 - [x] 请求日志查看器（已在 Run 工具窗口中实现）
 - [ ] 导入/导出配置
-- [ ] Mock 数据模板库
-- [ ] 支持自定义请求头
+- [x] Mock 数据模板库
+- [x] 支持自定义请求头
 
 ## 反馈与贡献
 

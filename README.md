@@ -193,6 +193,8 @@ Each configuration group contains the following settings:
 HTTP configuration groups provide additional HTTP-specific settings:
 
 - **Global Cookie**: Configure global cookie value (e.g., `sessionId=abc123; userId=456`)
+- **HTTPS**: Optionally switch the group's local listener from `http://localhost:<port>` to `https://localhost:<port>` with a PKCS#12 keystore
+- **Generate Local Certificate**: Create a project-local debug certificate at `certs/intercept-wave-local.p12`; the plugin does not install it into system or browser trust stores
 - **Routes**: Maintain multiple HTTP routes inside one group. The config dialog uses a left sidebar to choose the current route and a right-side editor for the selected route. Each route defines:
   - **Route Name**: Display name, such as `API` or `Frontend`
   - **Path Prefix**: Prefix used for longest-prefix matching, such as `/api` or `/`
@@ -298,7 +300,26 @@ Path rewrite follows nginx-like local gateway semantics:
 - `pathPrefix="/api"`, `stripPrefix=true`: `/api/users` is matched and forwarded as `/users`
 - `pathPrefix="/backend"`, `stripPrefix=true`, `rewriteTargetPath="/v1"`: `/backend/users` is matched and forwarded as `/v1/users`
 
-HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151). Cross-platform roadmap links: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs counterpart [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
+Local HTTPS origins use the same route pipeline as HTTP. Enable HTTPS on the HTTP group, choose an existing `.p12`/`.pfx` file, or click **Generate Local Certificate** to create `certs/intercept-wave-local.p12` with `CN=localhost` and SAN entries for `localhost` and `127.0.0.1`. When HTTPS is enabled, the configured port listens only as `https://localhost:<port>`.
+
+Equivalent CLI certificate generation:
+
+```bash
+mkdir -p certs
+keytool -genkeypair \
+  -alias intercept-wave-local \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 825 \
+  -storetype PKCS12 \
+  -keystore certs/intercept-wave-local.p12 \
+  -storepass changeit \
+  -keypass changeit \
+  -dname "CN=localhost, OU=Intercept Wave, O=Local Development, L=Local, ST=Local, C=US" \
+  -ext "SAN=dns:localhost,ip:127.0.0.1"
+```
+
+The generated PKCS#12 contains a private key and is intended only for local debugging. Browsers may still show a self-signed certificate warning until you manually trust the certificate on your machine. Cross-platform roadmap links: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs counterpart [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
 
 #### WebSocket Group Settings (Protocol = WS)
 
@@ -453,6 +474,9 @@ All configurations are saved in the `.intercept-wave` folder in the project root
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Gateway",
       "port": 8888,
+      "httpsEnabled": false,
+      "httpsKeystorePath": "",
+      "httpsKeystorePassword": "",
       "globalCookie": "sessionId=abc123",
       "enabled": true,
       "routes": [
@@ -557,6 +581,8 @@ Accessing the mock server root path (`http://localhost:8888/`) returns server st
   "configGroup": "Gateway",
   "server": {
     "port": 8888,
+    "scheme": "http",
+    "httpsEnabled": false,
     "routes": 3
   },
   "mockApis": {
@@ -592,7 +618,7 @@ A: Make sure the request matches the selected route, the mock path is correct, a
 A: After you start a service, the "Intercept Wave Mock Server" tab appears in the Run tool window at the bottom of IntelliJ IDEA and shows real-time logs for requests, including timestamps, methods, paths, and whether each response was mocked or proxied.
 
 ### Q: Does it support HTTPS?
-A: HTTP groups currently expose local HTTP endpoints. WebSocket groups support local `ws://` and optional local `wss://` with a PKCS#12 keystore.
+A: Yes. HTTP groups can switch the local listener to `https://localhost:<port>` with a PKCS#12 keystore. WebSocket groups support local `ws://` and optional local `wss://` with a PKCS#12 keystore.
 
 ### Q: How does the global cookie feature work?
 A: Set the cookie value in the group configuration, then enable "Use Global Cookie" for the relevant mock API. The response will return that cookie through the `Set-Cookie` header.
@@ -667,12 +693,12 @@ For a brief Gradle layout, see the previous section. For the full repository lay
 
 ## Development Roadmap
 
-- [ ] HTTPS/WSS support
+- [x] HTTPS/WSS support
 - [x] WebSocket mock support
 - [x] Request log viewer (available in Run tool window)
 - [ ] Import/export configuration
-- [ ] Mock data template library
-- [ ] Custom request headers support
+- [x] Mock data template library
+- [x] Custom request headers support
 
 ## Feedback & Contribution
 

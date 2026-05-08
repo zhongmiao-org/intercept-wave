@@ -32,6 +32,11 @@ data class ProxyConfig(
     // Mock服务的本地端口
     var port: Int = 8888,
 
+    // HTTP 组本地 HTTPS 监听支持
+    var httpsEnabled: Boolean = false,
+    var httpsKeystorePath: String = "",
+    var httpsKeystorePassword: String = "",
+
     // HTTP 路由规则列表（HTTP 组使用）
     var routes: MutableList<HttpRoute> = mutableListOf(HttpRoute()),
 

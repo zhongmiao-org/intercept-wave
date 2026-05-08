@@ -13,6 +13,7 @@
 - Added built-in Mock response templates for success, pagination, empty data, error, and auth-expired responses.
 - Added static frontend build serving for HTTP routes, including project-relative static roots, MIME handling, SPA fallback, and traversal protection.
 - Added route-level request and response header override rules with Chrome header import and JSON normalization.
+- Added HTTPS listener support for HTTP groups with PKCS#12 keystores and a local debugging certificate generator.
 
 ### 🐛 Fixed
 
@@ -23,6 +24,7 @@
 
 - Added nginx-like local gateway migration recipes for frontend dev server and multi-backend routing setups.
 - Documented route-level header overrides, Chrome header paste formats, and restricted transport header behavior.
+- Documented local HTTPS setup, generated PKCS#12 certificates, and browser trust caveats.
 
 ### 🔧 CI/CD
 

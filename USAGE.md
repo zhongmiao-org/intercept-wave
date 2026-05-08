@@ -31,6 +31,7 @@ Click the "Configuration" button to open the configuration dialog.
 
 #### HTTP Settings
 - **Global Cookie**: Optionally append a shared cookie to mock responses
+- **HTTPS**: Switch the group listener to `https://localhost:<port>` with a PKCS#12 keystore; use **Generate Local Certificate** if you do not already have a `.p12` file
 - **Routes**: Each HTTP group can contain multiple routes, and each route includes:
   - **Path Prefix**: Such as `/api` or `/order-api`
   - **Target Type**: `PROXY` for upstream forwarding, or `STATIC` for local frontend build files
@@ -59,6 +60,9 @@ Frontend dev server plus backend API:
   "name": "Gateway",
   "port": 8888,
   "protocol": "HTTP",
+  "httpsEnabled": false,
+  "httpsKeystorePath": "",
+  "httpsKeystorePassword": "",
   "routes": [
     { "name": "API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
     { "name": "Frontend", "pathPrefix": "/", "targetType": "PROXY", "targetBaseUrl": "http://localhost:5173", "staticRoot": "", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "spaFallback": false, "enableMock": false }
@@ -99,8 +103,16 @@ Common issues:
 - **SPA refresh returns 404**: keep the frontend route at `pathPrefix="/"`, set `enableMock=false`, and use `spaFallbackPath="/index.html"` for HTML navigation requests.
 - **Static build path does not work**: prefer project-relative `staticRoot` values such as `dist` or `frontend/dist`; absolute paths outside the project are local-machine specific.
 - **Prefix or rewrite mismatch**: `stripPrefix` runs before `rewriteTargetPath`; Mock paths and forwarded paths use the rewritten route-local path.
-- **Unexpected CORS or headers**: the local gateway adds default CORS headers for development. Route-level header override recipes are tracked separately.
-- **HTTPS**: HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151).
+- **Unexpected CORS or headers**: the local gateway adds default CORS headers for development. Use route-level request/response header overrides when a route needs custom CORS, cache, or auth headers.
+- **HTTPS certificate missing**: click **Generate Local Certificate** to create `certs/intercept-wave-local.p12`, or create one manually with `keytool`.
+- **Browser rejects HTTPS**: the generated certificate is self-signed and is not installed into system or browser trust stores automatically.
+
+Manual `keytool` equivalent:
+
+```bash
+mkdir -p certs
+keytool -genkeypair -alias intercept-wave-local -keyalg RSA -keysize 2048 -validity 825 -storetype PKCS12 -keystore certs/intercept-wave-local.p12 -storepass changeit -keypass changeit -dname "CN=localhost, OU=Intercept Wave, O=Local Development, L=Local, ST=Local, C=US" -ext "SAN=dns:localhost,ip:127.0.0.1"
+```
 
 Related roadmap items: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
 
@@ -194,6 +206,9 @@ All configuration is stored in the `.intercept-wave` directory under the project
       "port": 8888,
       "enabled": true,
       "protocol": "HTTP",
+      "httpsEnabled": false,
+      "httpsKeystorePath": "",
+      "httpsKeystorePassword": "",
       "globalCookie": "sessionId=abc123",
       "routes": [
         {
@@ -284,7 +299,7 @@ A: Make sure the request matches the correct route, the mock path is correct, an
 A: After you start a service, you can view real-time request logs in the Run tool window at the bottom of IntelliJ IDEA.
 
 ### Q: Does it support HTTPS?
-A: HTTP groups currently expose local HTTP endpoints. WS groups support local `ws://` and can expose local `wss://` with a PKCS#12 certificate.
+A: Yes. HTTP groups can switch the local listener to `https://localhost:<port>` with a PKCS#12 keystore, and WS groups can expose local `wss://` with a PKCS#12 certificate.
 
 ## Feedback and Contributions
 
