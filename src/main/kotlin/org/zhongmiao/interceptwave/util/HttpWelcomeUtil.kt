@@ -29,7 +29,7 @@ object HttpWelcomeUtil {
         }.joinToString(",\n    ")
 
         val routesJson = routes.joinToString(",\n    ") { route ->
-            """{"name": "${route.name}", "pathPrefix": "${route.pathPrefix}", "targetType": "${route.targetType}", "targetBaseUrl": "${route.targetBaseUrl}", "staticRoot": "${route.staticRoot}", "stripPrefix": ${route.stripPrefix}, "rewriteTargetPath": "${route.rewriteTargetPath}", "spaFallbackPath": "${route.spaFallbackPath}", "spaFallback": ${route.spaFallback}, "enableMock": ${route.enableMock}, "mockApis": ${route.mockApis.size}}"""
+            """{"name": "${route.name}", "pathPrefix": "${route.pathPrefix}", "targetType": "${route.targetType}", "targetBaseUrl": "${route.targetBaseUrl}", "staticRoot": "${route.staticRoot}", "stripPrefix": ${route.stripPrefix}, "rewriteTargetPath": "${route.rewriteTargetPath}", "spaFallbackPath": "${route.spaFallbackPath}", "spaFallback": ${route.spaFallback}, "enableMock": ${route.enableMock}, "requestHeaders": ${route.requestHeaders.count { it.enabled }}, "responseHeaders": ${route.responseHeaders.count { it.enabled }}, "mockApis": ${route.mockApis.size}}"""
         }
 
         return """

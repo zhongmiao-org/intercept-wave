@@ -146,6 +146,13 @@ class ProxyConfigTest {
                     rewriteTargetPath = "/v1",
                     spaFallbackPath = "/index.html",
                     spaFallback = true,
+                    requestHeaders = mutableListOf(
+                        HeaderOverrideRule("X-Trace", "abc", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("X-Remove", "", HeaderOverrideOperation.REMOVE, false)
+                    ),
+                    responseHeaders = mutableListOf(
+                        HeaderOverrideRule("Cache-Control", "no-store", HeaderOverrideOperation.SET, true)
+                    ),
                     enableMock = true,
                     mockApis = mutableListOf(
                         MockApiConfig(
@@ -174,6 +181,13 @@ class ProxyConfigTest {
         assertEquals("/v1", decoded.routes[0].rewriteTargetPath)
         assertEquals("/index.html", decoded.routes[0].spaFallbackPath)
         assertTrue(decoded.routes[0].spaFallback)
+        assertEquals(2, decoded.routes[0].requestHeaders.size)
+        assertEquals("X-Trace", decoded.routes[0].requestHeaders[0].name)
+        assertEquals(HeaderOverrideOperation.SET, decoded.routes[0].requestHeaders[0].operation)
+        assertEquals(HeaderOverrideOperation.REMOVE, decoded.routes[0].requestHeaders[1].operation)
+        assertFalse(decoded.routes[0].requestHeaders[1].enabled)
+        assertEquals(1, decoded.routes[0].responseHeaders.size)
+        assertEquals("Cache-Control", decoded.routes[0].responseHeaders[0].name)
         assertEquals(config.stripPrefix, decoded.stripPrefix)
         assertEquals(config.globalCookie, decoded.globalCookie)
         assertEquals(config.enabled, decoded.enabled)

@@ -240,6 +240,23 @@ Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
+### Header Overrides
+
+Use route-level header overrides when you need local CORS/cache behavior, temporary auth headers, or copied production-like headers during debugging:
+
+```json
+"requestHeaders": [
+  {"name": "Authorization", "value": "Bearer local-token", "operation": "SET", "enabled": true},
+  {"name": "X-Debug", "value": "1", "operation": "ADD", "enabled": true}
+],
+"responseHeaders": [
+  {"name": "Access-Control-Allow-Origin", "value": "*", "operation": "SET", "enabled": true},
+  {"name": "Cache-Control", "value": "no-store", "operation": "SET", "enabled": true}
+]
+```
+
+The **Import / Paste Headers** dialog accepts Chrome raw headers (`Name: Value` lines after `HTTP/1.1 200 OK` or `POST /path HTTP/1.1`), Chrome formatted headers with alternating name/value lines, JSON objects such as `{"Header":"value"}`, and JSON rule arrays. All imports are normalized to a JSON rule array before they are applied. Restricted transport headers are skipped at runtime while remaining visible in config.
+
 ### Proxy Mode
 
 When no mock rule matches, the request is forwarded to the upstream server while preserving as much original request data as possible:

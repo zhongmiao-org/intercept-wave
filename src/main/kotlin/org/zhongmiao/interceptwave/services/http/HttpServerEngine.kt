@@ -14,6 +14,7 @@ import java.net.InetSocketAddress
 import org.zhongmiao.interceptwave.util.HttpWelcomeUtil
 import org.zhongmiao.interceptwave.util.PathUtil
 import org.zhongmiao.interceptwave.util.HttpForwardUtil
+import org.zhongmiao.interceptwave.util.HeaderOverrideUtil
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.net.http.HttpResponse
@@ -103,7 +104,7 @@ class HttpServerEngine(
             output.publish(MatchedPath(config.id, config.name, matchPath))
 
             if (route.enableMock && mockApi != null && mockApi.enabled) {
-                handleProxyMockResponse(exchange, mockApi)
+                handleProxyMockResponse(exchange, route, mockApi)
             } else if (route.targetType == HttpRouteTargetType.STATIC) {
                 handleStaticResponse(exchange, route)
             } else {
@@ -135,7 +136,7 @@ class HttpServerEngine(
     private fun findMatchingMockApiInRoute(route: HttpRoute, requestPath: String, method: String): MockApiConfig? =
         org.zhongmiao.interceptwave.util.PathPatternUtil.findMatchingMockApiInRoute(requestPath, method, route)
 
-    private fun handleProxyMockResponse(exchange: HttpExchange, mockApi: MockApiConfig) {
+    private fun handleProxyMockResponse(exchange: HttpExchange, route: HttpRoute, mockApi: MockApiConfig) {
         try {
             if (mockApi.delay > 0) Thread.sleep(mockApi.delay)
 
@@ -145,6 +146,7 @@ class HttpServerEngine(
 
             exchange.responseHeaders.set("Content-Type", "application/json; charset=UTF-8")
             org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
+            HeaderOverrideUtil.applyResponseRules(exchange.responseHeaders, route.responseHeaders)
 
             if (org.zhongmiao.interceptwave.util.HttpServerUtil.isPreflight(exchange)) {
                 exchange.sendResponseHeaders(200, -1)
@@ -177,7 +179,7 @@ class HttpServerEngine(
             }
 
             val client = HttpForwardUtil.createClient()
-            val request = HttpForwardUtil.buildRequest(targetUrl, exchange)
+            val request = HttpForwardUtil.buildRequest(targetUrl, exchange, route.requestHeaders)
             val response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray())
             var responseTargetUrl = targetUrl
             val finalResponse = if (shouldRetrySpaFallback(exchange, route, requestPath, response)) {
@@ -185,7 +187,7 @@ class HttpServerEngine(
                 val fallbackUrl = buildForwardTargetUrl(route, fallbackPath, "")
                 output.publish(ForwardingTo(config.id, config.name, fallbackUrl))
                 responseTargetUrl = fallbackUrl
-                client.send(HttpForwardUtil.buildRequest(fallbackUrl, exchange), HttpResponse.BodyHandlers.ofByteArray())
+                client.send(HttpForwardUtil.buildRequest(fallbackUrl, exchange, route.requestHeaders), HttpResponse.BodyHandlers.ofByteArray())
             } else {
                 response
             }
@@ -194,6 +196,7 @@ class HttpServerEngine(
                 finalResponse.headers().map(), exchange.responseHeaders
             )
             org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
+            HeaderOverrideUtil.applyResponseRules(exchange.responseHeaders, route.responseHeaders)
 
             val respBytes = finalResponse.body()
             exchange.sendResponseHeaders(finalResponse.statusCode(), respBytes.size.toLong())
@@ -236,6 +239,7 @@ class HttpServerEngine(
 
             exchange.responseHeaders.set("Content-Type", contentTypeFor(file))
             org.zhongmiao.interceptwave.util.HttpServerUtil.applyCors(exchange.responseHeaders)
+            HeaderOverrideUtil.applyResponseRules(exchange.responseHeaders, route.responseHeaders)
 
             if (exchange.requestMethod.equals("HEAD", true)) {
                 exchange.sendResponseHeaders(200, -1)

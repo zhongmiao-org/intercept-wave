@@ -70,6 +70,21 @@ enum class HttpRouteTargetType {
 }
 
 @Serializable
+enum class HeaderOverrideOperation {
+    ADD,
+    SET,
+    REMOVE
+}
+
+@Serializable
+data class HeaderOverrideRule(
+    var name: String = "",
+    var value: String = "",
+    var operation: HeaderOverrideOperation = HeaderOverrideOperation.SET,
+    var enabled: Boolean = true
+)
+
+@Serializable
 data class HttpRoute(
     var id: String = UUID.randomUUID().toString(),
     var name: String = "API",
@@ -81,6 +96,8 @@ data class HttpRoute(
     var rewriteTargetPath: String = "",
     var spaFallbackPath: String = "",
     var spaFallback: Boolean = false,
+    var requestHeaders: MutableList<HeaderOverrideRule> = mutableListOf(),
+    var responseHeaders: MutableList<HeaderOverrideRule> = mutableListOf(),
     var enableMock: Boolean = true,
     var mockApis: MutableList<MockApiConfig> = mutableListOf()
 )

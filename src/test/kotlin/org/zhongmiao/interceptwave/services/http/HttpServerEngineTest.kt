@@ -3,6 +3,8 @@ package org.zhongmiao.interceptwave.services.http
 import org.junit.Assert.*
 import org.junit.Test
 import org.zhongmiao.interceptwave.events.*
+import org.zhongmiao.interceptwave.model.HeaderOverrideOperation
+import org.zhongmiao.interceptwave.model.HeaderOverrideRule
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.MockApiConfig
@@ -109,6 +111,9 @@ class HttpServerEngineTest {
     private fun connectionBody(conn: HttpURLConnection): String =
         runCatching { conn.inputStream }.getOrElse { conn.errorStream }.bufferedReader().readText()
 
+    private fun headerValue(headers: Map<String, List<String>>, name: String): String? =
+        headers.entries.firstOrNull { it.key.equals(name, true) }?.value?.firstOrNull()
+
     @Test
     fun start_stop_and_welcome() {
         val port = freePort()
@@ -190,6 +195,49 @@ class HttpServerEngineTest {
         )
 
         engine.stop()
+    }
+
+    @Test
+    fun response_header_overrides_apply_to_mock_response() {
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "MockHeaders",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    pathPrefix = "/api",
+                    targetBaseUrl = "http://localhost:8080",
+                    stripPrefix = true,
+                    enableMock = true,
+                    responseHeaders = mutableListOf(
+                        HeaderOverrideRule("Access-Control-Allow-Origin", "http://local.dev", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("X-Mock-Header", "mock", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("Content-Type", "", HeaderOverrideOperation.REMOVE, true),
+                        HeaderOverrideRule("X-Disabled", "ignored", HeaderOverrideOperation.SET, false),
+                        HeaderOverrideRule("Content-Length", "1", HeaderOverrideOperation.SET, true)
+                    ),
+                    mockApis = mutableListOf(
+                        MockApiConfig(path = "/user", mockData = "{\"ok\":true}", method = "GET", enabled = true)
+                    )
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput())
+        assertTrue(engine.start())
+
+        try {
+            val conn = URI("http://localhost:$port/api/user").toURL().openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            assertEquals(200, conn.responseCode)
+            assertEquals("http://local.dev", conn.getHeaderField("Access-Control-Allow-Origin"))
+            assertEquals("mock", conn.getHeaderField("X-Mock-Header"))
+            assertNull(conn.getHeaderField("X-Disabled"))
+            assertNull(conn.contentType)
+            assertNotEquals("1", conn.getHeaderField("Content-Length"))
+            assertEquals("{\"ok\":true}", connectionBody(conn))
+        } finally {
+            engine.stop()
+        }
     }
 
     @Test
@@ -418,6 +466,64 @@ class HttpServerEngineTest {
     }
 
     @Test
+    fun header_overrides_apply_to_forwarded_request_and_proxy_response() {
+        System.setProperty("interceptwave.allowForwardInTests", "true")
+        val api = startGatewayUpstream("api")
+        val port = freePort()
+        val cfg = ProxyConfig(
+            name = "ForwardHeaders",
+            port = port,
+            routes = mutableListOf(
+                HttpRoute(
+                    name = "API",
+                    pathPrefix = "/api",
+                    targetBaseUrl = api.baseUrl,
+                    stripPrefix = true,
+                    enableMock = false,
+                    requestHeaders = mutableListOf(
+                        HeaderOverrideRule("X-Trace", "override", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("X-Trace", "second", HeaderOverrideOperation.ADD, true),
+                        HeaderOverrideRule("X-Remove", "", HeaderOverrideOperation.REMOVE, true),
+                        HeaderOverrideRule("X-Disabled", "ignored", HeaderOverrideOperation.SET, false),
+                        HeaderOverrideRule("Host", "evil.example", HeaderOverrideOperation.SET, true)
+                    ),
+                    responseHeaders = mutableListOf(
+                        HeaderOverrideRule("Access-Control-Allow-Origin", "http://local.dev", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("X-Proxy-Header", "proxy", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("X-Proxy-Header", "second", HeaderOverrideOperation.ADD, true)
+                    )
+                )
+            )
+        )
+        val engine = HttpServerEngine(cfg, TestOutput())
+        assertTrue(engine.start())
+
+        try {
+            val conn = URI("http://localhost:$port/api/users?active=true").toURL().openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("X-Trace", "original")
+            conn.setRequestProperty("X-Remove", "delete-me")
+            conn.outputStream.use { it.write("payload".toByteArray(Charsets.UTF_8)) }
+
+            assertEquals(200, conn.responseCode)
+            assertTrue(connectionBody(conn).contains("api:POST:/users:active=true:payload"))
+            val upstreamHeaders = api.requests.last().headers
+            assertEquals(listOf("override", "second"), upstreamHeaders.entries.first { it.key.equals("X-Trace", true) }.value)
+            assertNull(headerValue(upstreamHeaders, "X-Remove"))
+            assertNull(headerValue(upstreamHeaders, "X-Disabled"))
+            assertNotEquals("evil.example", headerValue(upstreamHeaders, "Host"))
+            assertEquals("http://local.dev", conn.getHeaderField("Access-Control-Allow-Origin"))
+            assertEquals("proxy", conn.headerFields.entries.first { it.key.equals("X-Proxy-Header", true) }.value.first())
+            assertTrue(conn.headerFields.entries.first { it.key.equals("X-Proxy-Header", true) }.value.contains("second"))
+        } finally {
+            engine.stop()
+            api.stop()
+            System.clearProperty("interceptwave.allowForwardInTests")
+        }
+    }
+
+    @Test
     fun spa_fallback_retries_html_navigation_404_only() {
         System.setProperty("interceptwave.allowForwardInTests", "true")
         val frontend = startGatewayUpstream("frontend")
@@ -484,7 +590,11 @@ class HttpServerEngineTest {
                     targetType = HttpRouteTargetType.STATIC,
                     staticRoot = "frontend/dist",
                     stripPrefix = false,
-                    enableMock = false
+                    enableMock = false,
+                    responseHeaders = mutableListOf(
+                        HeaderOverrideRule("X-Static-Header", "static", HeaderOverrideOperation.SET, true),
+                        HeaderOverrideRule("Access-Control-Allow-Origin", "http://static.local", HeaderOverrideOperation.SET, true)
+                    )
                 )
             )
         )
@@ -495,6 +605,8 @@ class HttpServerEngineTest {
             val jsConn = URI("http://localhost:$port/assets/index.js").toURL().openConnection() as HttpURLConnection
             assertEquals(200, jsConn.responseCode)
             assertTrue(jsConn.contentType.lowercase().startsWith("application/javascript"))
+            assertEquals("static", jsConn.getHeaderField("X-Static-Header"))
+            assertEquals("http://static.local", jsConn.getHeaderField("Access-Control-Allow-Origin"))
             assertEquals("console.log('static')", connectionBody(jsConn))
 
             val cssConn = URI("http://localhost:$port/assets/style.css").toURL().openConnection() as HttpURLConnection
