@@ -11,6 +11,7 @@
 - Added HTTP route rewrite rules so route-local paths can be rewritten after prefix stripping for local nginx-like gateway setups.
 - Added frontend dev server proxy support with root-route forwarding and route-level SPA fallback paths for local gateway deep links.
 - Added built-in Mock response templates for success, pagination, empty data, error, and auth-expired responses.
+- Added static frontend build serving for HTTP routes, including project-relative static roots, MIME handling, SPA fallback, and traversal protection.
 
 ### 🐛 Fixed
 

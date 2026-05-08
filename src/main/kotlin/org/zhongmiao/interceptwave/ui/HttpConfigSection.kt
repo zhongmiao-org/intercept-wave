@@ -1,6 +1,10 @@
 package org.zhongmiao.interceptwave.ui
 
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
@@ -15,16 +19,21 @@ import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
 import org.zhongmiao.interceptwave.model.HttpRoute
+import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.ProxyConfig
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Component
 import java.awt.Font
 import java.awt.FlowLayout
+import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.UUID
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
+import javax.swing.JComboBox
 import javax.swing.DefaultListModel
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -47,9 +56,14 @@ class HttpConfigSection(
     private val cookieField = JBTextField(config.globalCookie)
     private val routeNameField = JBTextField()
     private val routePrefixField = JBTextField()
+    private val routeTargetTypeComboBox = JComboBox(HttpRouteTargetType.values())
     private val routeBaseUrlField = JBTextField()
+    private val routeStaticRootField = TextFieldWithBrowseButton()
+    private val routeStaticRootHintLabel = JBLabel()
     private val routeRewriteTargetPathField = JBTextField()
     private val routeSpaFallbackPathField = JBTextField()
+    private val routeStaticSpaFallbackCheckBox = JBCheckBox(message("config.http.route.static.spa.fallback"))
+    private val routeTargetCard = JPanel(CardLayout())
     private val routeStripPrefixCheckBox = JBCheckBox(message("config.group.stripprefix"))
     private val routeEnableMockCheckBox = JBCheckBox(message("config.http.route.enablemock"))
     private val routeMockHintLabel = JBLabel(message("config.http.mock.help"))
@@ -101,9 +115,13 @@ class HttpConfigSection(
     fun panel(): JBPanel<JBPanel<*>> {
         cookieField.toolTipText = message("config.group.cookie.tooltip")
         routePrefixField.toolTipText = message("config.http.route.prefix.tooltip")
+        routeTargetTypeComboBox.toolTipText = message("config.http.route.targettype.tooltip")
         routeBaseUrlField.toolTipText = message("config.group.baseurl.tooltip")
+        routeStaticRootField.textField.toolTipText = message("config.http.route.static.root.tooltip")
+        routeStaticRootHintLabel.toolTipText = message("config.http.route.static.root.hint")
         routeRewriteTargetPathField.toolTipText = message("config.http.route.rewrite.tooltip")
         routeSpaFallbackPathField.toolTipText = message("config.http.route.spa.fallback.tooltip")
+        routeStaticSpaFallbackCheckBox.toolTipText = message("config.http.route.static.spa.fallback.tooltip")
         routeStripPrefixCheckBox.toolTipText = message("config.http.route.stripprefix.tooltip")
         routeEnableMockCheckBox.toolTipText = message("config.http.route.enablemock.tooltip")
         routeMockHintLabel.toolTipText = message("config.http.mock.help")
@@ -218,12 +236,16 @@ class HttpConfigSection(
     }
 
     private fun createRouteDetailPanel(): JComponent {
+        routeTargetCard.removeAll()
+        routeTargetCard.add(createProxyTargetPanel(), HttpRouteTargetType.PROXY.name)
+        routeTargetCard.add(createStaticTargetPanel(), HttpRouteTargetType.STATIC.name)
+
         val detailsForm = panel {
             row(message("config.http.route.name") + ":") { cell(routeNameField).align(AlignX.FILL) }
             row(message("config.group.prefix") + ":") { cell(routePrefixField).align(AlignX.FILL) }
-            row(message("config.group.baseurl") + ":") { cell(routeBaseUrlField).align(AlignX.FILL) }
+            row(message("config.http.route.targettype") + ":") { cell(routeTargetTypeComboBox) }
+            row { cell(routeTargetCard).align(AlignX.FILL) }
             row(message("config.http.route.rewrite") + ":") { cell(routeRewriteTargetPathField).align(AlignX.FILL) }
-            row(message("config.http.route.spa.fallback") + ":") { cell(routeSpaFallbackPathField).align(AlignX.FILL) }
             row {
                 cell(routeStripPrefixCheckBox)
                 cell(routeEnableMockCheckBox)
@@ -271,6 +293,20 @@ class HttpConfigSection(
         }
     }
 
+    private fun createProxyTargetPanel(): JComponent = panel {
+        row(message("config.group.baseurl") + ":") { cell(routeBaseUrlField).align(AlignX.FILL) }
+        row(message("config.http.route.spa.fallback") + ":") { cell(routeSpaFallbackPathField).align(AlignX.FILL) }
+    }
+
+    private fun createStaticTargetPanel(): JComponent = panel {
+        row(message("config.http.route.static.root") + ":") { cell(routeStaticRootField).align(AlignX.FILL) }
+        row {
+            UiKit.applySecondaryText(routeStaticRootHintLabel)
+            cell(routeStaticRootHintLabel).align(AlignX.FILL)
+        }
+        row { cell(routeStaticSpaFallbackCheckBox) }
+    }
+
     private fun createSectionCard(title: String, content: JComponent): JComponent {
         val titleLabel = JBLabel(title).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
@@ -294,9 +330,13 @@ class HttpConfigSection(
         cookieField.document.onAnyChange(onChanged)
         routeNameField.document.onAnyChange { onRouteDetailChanged() }
         routePrefixField.document.onAnyChange { onRouteDetailChanged() }
+        routeTargetTypeComboBox.addActionListener { onRouteDetailChanged() }
         routeBaseUrlField.document.onAnyChange { onRouteDetailChanged() }
+        routeStaticRootField.textField.document.onAnyChange { onRouteDetailChanged() }
+        routeStaticRootField.addActionListener { chooseStaticRoot() }
         routeRewriteTargetPathField.document.onAnyChange { onRouteDetailChanged() }
         routeSpaFallbackPathField.document.onAnyChange { onRouteDetailChanged() }
+        routeStaticSpaFallbackCheckBox.addActionListener { onRouteDetailChanged() }
         routeStripPrefixCheckBox.addActionListener { onRouteDetailChanged() }
         routeEnableMockCheckBox.addActionListener {
             onRouteDetailChanged()
@@ -337,6 +377,7 @@ class HttpConfigSection(
         commitCurrentRoute()
         reloadRouteList()
         restoreSelection()
+        updateTargetTypeUi()
         updateMockAreaState()
         onChanged()
     }
@@ -346,9 +387,12 @@ class HttpConfigSection(
         val route = workingRoutes[selectedRouteIndex]
         route.name = routeNameField.text.trim().ifEmpty { "API" }
         route.pathPrefix = routePrefixField.text.trim().ifEmpty { "/" }
+        route.targetType = selectedTargetType()
         route.targetBaseUrl = routeBaseUrlField.text.trim().ifEmpty { "http://localhost:8080" }
+        route.staticRoot = routeStaticRootField.text.trim()
         route.rewriteTargetPath = routeRewriteTargetPathField.text.trim()
         route.spaFallbackPath = routeSpaFallbackPathField.text.trim()
+        route.spaFallback = routeStaticSpaFallbackCheckBox.isSelected
         route.stripPrefix = routeStripPrefixCheckBox.isSelected
         route.enableMock = routeEnableMockCheckBox.isSelected
         routeList.repaint()
@@ -361,25 +405,101 @@ class HttpConfigSection(
             if (route == null) {
                 routeNameField.text = ""
                 routePrefixField.text = ""
+                routeTargetTypeComboBox.selectedItem = HttpRouteTargetType.PROXY
                 routeBaseUrlField.text = ""
+                routeStaticRootField.text = ""
                 routeRewriteTargetPathField.text = ""
                 routeSpaFallbackPathField.text = ""
+                routeStaticSpaFallbackCheckBox.isSelected = false
                 routeStripPrefixCheckBox.isSelected = false
                 routeEnableMockCheckBox.isSelected = false
             } else {
                 routeNameField.text = route.name
                 routePrefixField.text = route.pathPrefix
+                routeTargetTypeComboBox.selectedItem = route.targetType
                 routeBaseUrlField.text = route.targetBaseUrl
+                routeStaticRootField.text = route.staticRoot
                 routeRewriteTargetPathField.text = route.rewriteTargetPath
                 routeSpaFallbackPathField.text = route.spaFallbackPath
+                routeStaticSpaFallbackCheckBox.isSelected = route.spaFallback
                 routeStripPrefixCheckBox.isSelected = route.stripPrefix
                 routeEnableMockCheckBox.isSelected = route.enableMock
             }
         } finally {
             syncingRouteDetails = false
         }
+        updateTargetTypeUi()
         updateMockTable()
     }
+
+    private fun updateTargetTypeUi() {
+        val targetType = selectedTargetType()
+        (routeTargetCard.layout as CardLayout).show(routeTargetCard, targetType.name)
+        updateStaticRootHint()
+        routeTargetCard.revalidate()
+        routeTargetCard.repaint()
+    }
+
+    private fun selectedTargetType(): HttpRouteTargetType =
+        routeTargetTypeComboBox.selectedItem as? HttpRouteTargetType ?: HttpRouteTargetType.PROXY
+
+    private fun chooseStaticRoot() {
+        val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
+            .withTitle(message("config.http.route.static.root.choose.title"))
+            .withDescription(message("config.http.route.static.root.choose.desc"))
+        val current = resolveStaticRootForUi(routeStaticRootField.text.trim())
+        val selected = FileChooser.chooseFile(descriptor, project, current) ?: return
+        routeStaticRootField.text = toStoredStaticRoot(selected.path)
+        onRouteDetailChanged()
+    }
+
+    private fun resolveStaticRootForUi(value: String): com.intellij.openapi.vfs.VirtualFile? {
+        val path = runCatching {
+            val candidate = if (value.isBlank()) {
+                projectRootPath()
+            } else {
+                val configured = Paths.get(value)
+                if (configured.isAbsolute) configured else projectRootPath()?.resolve(configured)
+            }
+            candidate?.toAbsolutePath()?.normalize()?.toFile()
+        }.getOrNull() ?: projectRootPath()?.toFile()
+        return path?.let { LocalFileSystem.getInstance().findFileByIoFile(it) }
+    }
+
+    private fun toStoredStaticRoot(selectedPath: String): String {
+        val selected = runCatching { Paths.get(selectedPath).toAbsolutePath().normalize() }.getOrNull()
+            ?: return selectedPath
+        val projectRoot = projectRootPath() ?: return selected.toString()
+        return if (selected.startsWith(projectRoot)) {
+            val relative = projectRoot.relativize(selected).toString().replace(File.separatorChar, '/')
+            relative.ifBlank { "." }
+        } else {
+            selected.toString()
+        }
+    }
+
+    private fun updateStaticRootHint() {
+        val value = routeStaticRootField.text.trim()
+        routeStaticRootHintLabel.text = when {
+            selectedTargetType() != HttpRouteTargetType.STATIC -> ""
+            value.isBlank() -> message("config.http.route.static.root.empty")
+            isProjectExternalPath(value) -> message("config.http.route.static.root.external.warning")
+            else -> message("config.http.route.static.root.hint")
+        }
+    }
+
+    private fun isProjectExternalPath(value: String): Boolean {
+        val projectRoot = projectRootPath() ?: return false
+        val selected = runCatching {
+            val configured = Paths.get(value)
+            val resolved = if (configured.isAbsolute) configured else projectRoot.resolve(configured)
+            resolved.toAbsolutePath().normalize()
+        }.getOrNull() ?: return false
+        return !selected.startsWith(projectRoot)
+    }
+
+    private fun projectRootPath(): Path? =
+        project.basePath?.takeIf { it.isNotBlank() }?.let { Paths.get(it).toAbsolutePath().normalize() }
 
     private fun reloadRouteList() {
         routeListModel.removeAllElements()
@@ -625,7 +745,7 @@ class HttpConfigSection(
             val route = value ?: return this
             titleLabel.text = route.name
             titleLabel.font = titleLabel.font.deriveFont(Font.BOLD)
-            subtitleLabel.text = "${route.pathPrefix} -> ${route.targetBaseUrl}"
+            subtitleLabel.text = "${route.pathPrefix} -> ${routeTargetSummary(route)}"
             subtitleLabel.foreground = if (isSelected) {
                 JBColor(0x1E4F91, 0xDCE8FF)
             } else {
@@ -651,4 +771,11 @@ class HttpConfigSection(
             return this
         }
     }
+
+    private fun routeTargetSummary(route: HttpRoute): String =
+        if (route.targetType == HttpRouteTargetType.STATIC) {
+            route.staticRoot.ifBlank { message("toolwindow.notset") }
+        } else {
+            route.targetBaseUrl
+        }
 }

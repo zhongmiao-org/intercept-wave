@@ -33,15 +33,20 @@ Click the "Configuration" button to open the configuration dialog.
 - **Global Cookie**: Optionally append a shared cookie to mock responses
 - **Routes**: Each HTTP group can contain multiple routes, and each route includes:
   - **Path Prefix**: Such as `/api` or `/order-api`
+  - **Target Type**: `PROXY` for upstream forwarding, or `STATIC` for local frontend build files
   - **Target Base URL**: Such as `http://localhost:8080`
+  - **Static Root**: Project-relative build output directory, such as `dist` or `frontend/dist`
   - **Strip Prefix**: Whether to remove the route prefix before matching and forwarding
   - **Rewrite Target Path**: Optional path base applied after strip-prefix, such as `/v1`
   - **SPA Fallback Path**: Optional fallback path for HTML navigation 404s, such as `/index.html`
+  - **Static SPA Fallback**: Whether a static route returns `index.html` for missing HTML navigation paths
   - **Enable Mock**: Whether this route should check its own mock list first
 
 Route rewrite is useful when replacing a local nginx rule. For example, with `pathPrefix="/backend"`, `stripPrefix=true`, and `rewriteTargetPath="/v1"`, a request to `/backend/users?active=true` is matched and forwarded as `/v1/users?active=true`. This is local development gateway behavior, not production nginx replacement behavior.
 
 Frontend dev server proxy example: configure an API route with `pathPrefix="/api"`, `stripPrefix=true`, `targetBaseUrl="http://localhost:9000"`, and a frontend route with `pathPrefix="/"`, `stripPrefix=false`, `targetBaseUrl="http://localhost:5173"`, `spaFallbackPath="/index.html"`, `enableMock=false`. Then `/api/users` goes to the backend, while `/`, `/assets/app.js`, and `/dashboard/settings` go to the frontend dev server.
+
+Static frontend build example: configure a frontend route with `pathPrefix="/"`, `targetType="STATIC"`, `staticRoot="frontend/dist"`, `stripPrefix=false`, `spaFallback=true`, and `enableMock=false`. Then `/assets/index.js` and `/assets/style.css` are served from the build output, while `/dashboard` can return `index.html` for SPA navigation.
 
 #### Nginx Migration Recipes
 
@@ -55,9 +60,26 @@ Frontend dev server plus backend API:
   "port": 8888,
   "protocol": "HTTP",
   "routes": [
-    { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-    { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+    { "name": "API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+    { "name": "Frontend", "pathPrefix": "/", "targetType": "PROXY", "targetBaseUrl": "http://localhost:5173", "staticRoot": "", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "spaFallback": false, "enableMock": false }
   ]
+}
+```
+
+Static build route:
+
+```json
+{
+  "name": "Frontend Build",
+  "pathPrefix": "/",
+  "targetType": "STATIC",
+  "targetBaseUrl": "",
+  "staticRoot": "frontend/dist",
+  "stripPrefix": false,
+  "rewriteTargetPath": "",
+  "spaFallbackPath": "",
+  "spaFallback": true,
+  "enableMock": false
 }
 ```
 
@@ -65,19 +87,20 @@ Multiple backend services with a frontend fallback:
 
 ```json
 [
-  { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Auth", "pathPrefix": "/auth", "targetBaseUrl": "http://localhost:9010", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Admin API", "pathPrefix": "/admin-api", "targetBaseUrl": "http://localhost:9020", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+  { "name": "API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Auth", "pathPrefix": "/auth", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9010", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Admin API", "pathPrefix": "/admin-api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9020", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Frontend Build", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false }
 ]
 ```
 
 Common issues:
 - **Port occupied**: change the group port or stop the process that already listens on it.
 - **SPA refresh returns 404**: keep the frontend route at `pathPrefix="/"`, set `enableMock=false`, and use `spaFallbackPath="/index.html"` for HTML navigation requests.
+- **Static build path does not work**: prefer project-relative `staticRoot` values such as `dist` or `frontend/dist`; absolute paths outside the project are local-machine specific.
 - **Prefix or rewrite mismatch**: `stripPrefix` runs before `rewriteTargetPath`; Mock paths and forwarded paths use the rewritten route-local path.
 - **Unexpected CORS or headers**: the local gateway adds default CORS headers for development. Route-level header override recipes are tracked separately.
-- **Static dist and HTTPS**: static build serving is tracked by [#153](https://github.com/zhongmiao-org/intercept-wave/issues/153), and HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151).
+- **HTTPS**: HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151).
 
 Related roadmap items: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
 
@@ -176,10 +199,13 @@ All configuration is stored in the `.intercept-wave` directory under the project
         {
           "name": "API",
           "pathPrefix": "/api",
+          "targetType": "PROXY",
           "targetBaseUrl": "http://localhost:8080",
+          "staticRoot": "",
           "stripPrefix": true,
           "rewriteTargetPath": "",
           "spaFallbackPath": "",
+          "spaFallback": false,
           "enableMock": true,
           "mockApis": [
             {

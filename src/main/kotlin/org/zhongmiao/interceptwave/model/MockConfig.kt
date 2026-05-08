@@ -64,14 +64,23 @@ data class ProxyConfig(
 )
 
 @Serializable
+enum class HttpRouteTargetType {
+    PROXY,
+    STATIC
+}
+
+@Serializable
 data class HttpRoute(
     var id: String = UUID.randomUUID().toString(),
     var name: String = "API",
     var pathPrefix: String = "/api",
+    var targetType: HttpRouteTargetType = HttpRouteTargetType.PROXY,
     var targetBaseUrl: String = "http://localhost:8080",
+    var staticRoot: String = "",
     var stripPrefix: Boolean = true,
     var rewriteTargetPath: String = "",
     var spaFallbackPath: String = "",
+    var spaFallback: Boolean = false,
     var enableMock: Boolean = true,
     var mockApis: MutableList<MockApiConfig> = mutableListOf()
 )

@@ -194,10 +194,13 @@ HTTP 配置组提供额外的 HTTP 专属字段：
 - **路由列表**: 一个 HTTP 组内可维护多条 HTTP 路由。配置弹框现在采用“左侧选路由，右侧编辑当前路由”的结构。每条路由包含：
   - **路由名称**: 如 `API`、`Frontend`
   - **路径前缀**: 用于最长前缀匹配，如 `/api`、`/`
+  - **目标类型**: `PROXY` 转发到上游服务，`STATIC` 服务本地前端构建产物
   - **目标地址**: 转发上游地址，如 `http://localhost:8080`
+  - **静态根目录**: 静态路由使用的本地构建产物目录，如 `dist` 或 `frontend/dist`
   - **剥离前缀**: 是否在 Mock 匹配和转发前先移除当前路由前缀
   - **重写目标路径**: 可选，剥离前缀后追加的目标路径基底，如 `/v1`
   - **SPA 兜底路径**: 可选，前端路由深链刷新返回 404 时重试的 HTML 入口路径，如 `/index.html`
+  - **静态 SPA 兜底**: 静态路由遇到缺失的 HTML 导航路径时，是否返回 `index.html`
   - **启用 Mock**: 是否优先命中该路由自己的 Mock 接口列表
 - **Mock 接口列表**: 每条路由都维护自己的 Mock 列表，路径解释遵循该路由的 `路径前缀 + 剥离前缀 + 可选重写目标路径` 规则；当前路由的 Mock 列表会直接在右侧编辑区展示。
 
@@ -233,19 +236,25 @@ server {
   {
     "name": "API",
     "pathPrefix": "/api",
+    "targetType": "PROXY",
     "targetBaseUrl": "http://localhost:9000",
+    "staticRoot": "",
     "stripPrefix": true,
     "rewriteTargetPath": "",
     "spaFallbackPath": "",
+    "spaFallback": false,
     "enableMock": true
   },
   {
     "name": "Frontend",
     "pathPrefix": "/",
+    "targetType": "PROXY",
     "targetBaseUrl": "http://localhost:5173",
+    "staticRoot": "",
     "stripPrefix": false,
     "rewriteTargetPath": "",
     "spaFallbackPath": "/index.html",
+    "spaFallback": false,
     "enableMock": false
   }
 ]
@@ -257,18 +266,37 @@ server {
 
 ```json
 [
-  { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Auth", "pathPrefix": "/auth", "targetBaseUrl": "http://localhost:9010", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Admin API", "pathPrefix": "/admin-api", "targetBaseUrl": "http://localhost:9020", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+  { "name": "API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Auth", "pathPrefix": "/auth", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9010", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Admin API", "pathPrefix": "/admin-api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9020", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Frontend", "pathPrefix": "/", "targetType": "PROXY", "targetBaseUrl": "http://localhost:5173", "staticRoot": "", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "spaFallback": false, "enableMock": false }
 ]
 ```
+
+如果要直接服务项目内的前端构建产物，可将前端路由切换为 `STATIC`：
+
+```json
+{
+  "name": "Frontend Build",
+  "pathPrefix": "/",
+  "targetType": "STATIC",
+  "targetBaseUrl": "",
+  "staticRoot": "frontend/dist",
+  "stripPrefix": false,
+  "rewriteTargetPath": "",
+  "spaFallbackPath": "",
+  "spaFallback": true,
+  "enableMock": false
+}
+```
+
+由于 `.intercept-wave/config.json` 是项目级配置，相对 `staticRoot` 会按项目根目录解析。目录选择器会把项目内目录保存为相对路径，方便团队共享；项目外绝对路径也允许，但只适用于本机。静态路由不会服务配置的静态根目录之外的文件。
 
 路径重写遵循 nginx-like 本地网关语义：
 - `pathPrefix="/api"`，`stripPrefix=true`：`/api/users` 会按 `/users` 进行 Mock 匹配与转发
 - `pathPrefix="/backend"`，`stripPrefix=true`，`rewriteTargetPath="/v1"`：`/backend/users` 会按 `/v1/users` 进行 Mock 匹配与转发
 
-静态 `dist/` 文件服务由 [#153](https://github.com/zhongmiao-org/intercept-wave/issues/153) 跟进，HTTPS 监听支持由 [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151) 跟进。跨平台 roadmap 链接：IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150)、VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39)、VS Code 文档对应 issue [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46)。
+HTTPS 监听支持由 [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151) 跟进。跨平台 roadmap 链接：IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150)、VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39)、VS Code 文档对应 issue [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46)。
 
 #### WebSocket 组设置（协议类型 = WS）
 
@@ -516,8 +544,8 @@ Access-Control-Allow-Headers: Content-Type, Authorization
     "enabled": 2
   },
   "routes": [
-    {"name": "用户 API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true, "mockApis": 1},
-    {"name": "前端", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false, "mockApis": 0}
+    {"name": "用户 API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true, "mockApis": 1},
+    {"name": "前端构建", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false, "mockApis": 0}
   ],
   "examples": [
     {"route": "用户 API", "method": "GET", "url": "http://localhost:8888/api/user/info"}

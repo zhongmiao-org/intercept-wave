@@ -196,10 +196,13 @@ HTTP configuration groups provide additional HTTP-specific settings:
 - **Routes**: Maintain multiple HTTP routes inside one group. The config dialog uses a left sidebar to choose the current route and a right-side editor for the selected route. Each route defines:
   - **Route Name**: Display name, such as `API` or `Frontend`
   - **Path Prefix**: Prefix used for longest-prefix matching, such as `/api` or `/`
+  - **Target Type**: `PROXY` forwards to an upstream service; `STATIC` serves local frontend build files
   - **Target Base URL**: Upstream target for forwarding, such as `http://localhost:8080`
+  - **Static Root**: Local build output directory for static routes, such as `dist` or `frontend/dist`
   - **Strip Prefix**: Whether the route prefix is removed before Mock matching and forwarding
   - **Rewrite Target Path**: Optional path base applied after strip-prefix, such as `/v1`
   - **SPA Fallback Path**: Optional HTML navigation fallback path, such as `/index.html`, retried when a frontend route returns 404 for a deep link
+  - **Static SPA Fallback**: Whether a static route returns `index.html` for missing HTML navigation paths
   - **Enable Mock**: Whether this route first checks its own Mock API list before forwarding
 - **Mock APIs**: Each route owns its own Mock API list. The configured paths are interpreted using that route's `Path Prefix`, `Strip Prefix`, and optional `Rewrite Target Path` rules. The current route's Mock list is edited directly on the right side of the config dialog.
 
@@ -235,19 +238,25 @@ Equivalent Intercept Wave HTTP routes:
   {
     "name": "API",
     "pathPrefix": "/api",
+    "targetType": "PROXY",
     "targetBaseUrl": "http://localhost:9000",
+    "staticRoot": "",
     "stripPrefix": true,
     "rewriteTargetPath": "",
     "spaFallbackPath": "",
+    "spaFallback": false,
     "enableMock": true
   },
   {
     "name": "Frontend",
     "pathPrefix": "/",
+    "targetType": "PROXY",
     "targetBaseUrl": "http://localhost:5173",
+    "staticRoot": "",
     "stripPrefix": false,
     "rewriteTargetPath": "",
     "spaFallbackPath": "/index.html",
+    "spaFallback": false,
     "enableMock": false
   }
 ]
@@ -259,18 +268,37 @@ For multiple backend services, add one route per prefix and rely on longest-pref
 
 ```json
 [
-  { "name": "API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Auth", "pathPrefix": "/auth", "targetBaseUrl": "http://localhost:9010", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Admin API", "pathPrefix": "/admin-api", "targetBaseUrl": "http://localhost:9020", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true },
-  { "name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false }
+  { "name": "API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Auth", "pathPrefix": "/auth", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9010", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Admin API", "pathPrefix": "/admin-api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9020", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true },
+  { "name": "Frontend", "pathPrefix": "/", "targetType": "PROXY", "targetBaseUrl": "http://localhost:5173", "staticRoot": "", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "spaFallback": false, "enableMock": false }
 ]
 ```
+
+To serve a built frontend directly from the project, switch the frontend route to `STATIC`:
+
+```json
+{
+  "name": "Frontend Build",
+  "pathPrefix": "/",
+  "targetType": "STATIC",
+  "targetBaseUrl": "",
+  "staticRoot": "frontend/dist",
+  "stripPrefix": false,
+  "rewriteTargetPath": "",
+  "spaFallbackPath": "",
+  "spaFallback": true,
+  "enableMock": false
+}
+```
+
+Relative `staticRoot` values are resolved from the project root because `.intercept-wave/config.json` is project-scoped. The folder picker stores project-internal folders as relative paths for sharing; absolute paths outside the project are allowed but are local-machine specific. Static routes never serve files outside the configured static root.
 
 Path rewrite follows nginx-like local gateway semantics:
 - `pathPrefix="/api"`, `stripPrefix=true`: `/api/users` is matched and forwarded as `/users`
 - `pathPrefix="/backend"`, `stripPrefix=true`, `rewriteTargetPath="/v1"`: `/backend/users` is matched and forwarded as `/v1/users`
 
-Static `dist/` serving is tracked by [#153](https://github.com/zhongmiao-org/intercept-wave/issues/153), and HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151). Cross-platform roadmap links: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs counterpart [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
+HTTPS listener support is tracked by [#151](https://github.com/zhongmiao-org/intercept-wave/issues/151). Cross-platform roadmap links: IntelliJ [#150](https://github.com/zhongmiao-org/intercept-wave/issues/150), VS Code [#39](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/39), and VS Code docs counterpart [#46](https://github.com/zhongmiao-org/intercept-wave-vscode/issues/46).
 
 #### WebSocket Group Settings (Protocol = WS)
 
@@ -517,8 +545,8 @@ Accessing the mock server root path (`http://localhost:8888/`) returns server st
     "enabled": 2
   },
   "routes": [
-    {"name": "User API", "pathPrefix": "/api", "targetBaseUrl": "http://localhost:9000", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "enableMock": true, "mockApis": 1},
-    {"name": "Frontend", "pathPrefix": "/", "targetBaseUrl": "http://localhost:5173", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "/index.html", "enableMock": false, "mockApis": 0}
+    {"name": "User API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true, "mockApis": 1},
+    {"name": "Frontend Build", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false, "mockApis": 0}
   ],
   "examples": [
     {"route": "User API", "method": "GET", "url": "http://localhost:8888/api/user/info"}

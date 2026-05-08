@@ -22,6 +22,7 @@ import org.zhongmiao.interceptwave.events.WebSocketConnected
 import org.zhongmiao.interceptwave.events.WebSocketConnecting
 import org.zhongmiao.interceptwave.events.WebSocketError
 import org.zhongmiao.interceptwave.model.HttpRoute
+import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.WsPushRule
 import org.zhongmiao.interceptwave.services.ConfigService
 import org.zhongmiao.interceptwave.services.ConsoleService
@@ -353,7 +354,7 @@ class ProxyGroupTabPanel(
         val routeTitle = JBLabel(route.name).apply {
             font = font.deriveFont(java.awt.Font.BOLD)
         }
-        val routePath = JBLabel("${route.pathPrefix} -> ${route.targetBaseUrl}").apply {
+        val routePath = JBLabel("${route.pathPrefix} -> ${routeTargetSummary(route)}").apply {
             UiKit.applyMutedText(this)
         }
         val routeMetaItems = mutableListOf<JComponent>(
@@ -370,6 +371,13 @@ class ProxyGroupTabPanel(
                 JBColor(0xFFF4D6, 0x3A3222)
             )
         }
+        if (route.targetType == HttpRouteTargetType.STATIC) {
+            routeMetaItems += createBadgeLabel(
+                message("config.http.route.targettype.static"),
+                JBColor(0x0B8043, 0x81C995),
+                JBColor(0xE6F4EA, 0x233428)
+            )
+        }
         if (route.rewriteTargetPath.isNotBlank()) {
             routeMetaItems += createBadgeLabel(
                 message("config.http.route.rewrite.badge", route.rewriteTargetPath),
@@ -380,6 +388,13 @@ class ProxyGroupTabPanel(
         if (route.spaFallbackPath.isNotBlank()) {
             routeMetaItems += createBadgeLabel(
                 message("config.http.route.spa.fallback.badge", route.spaFallbackPath),
+                JBColor(0x6F42C1, 0xC9A7FF),
+                JBColor(0xF1E8FF, 0x332947)
+            )
+        }
+        if (route.targetType == HttpRouteTargetType.STATIC && route.spaFallback) {
+            routeMetaItems += createBadgeLabel(
+                message("config.http.route.static.spa.fallback.badge"),
                 JBColor(0x6F42C1, 0xC9A7FF),
                 JBColor(0xF1E8FF, 0x332947)
             )
@@ -458,7 +473,11 @@ class ProxyGroupTabPanel(
         }
         val localUrl = "http://localhost:$port$joinedPath"
         val forwardPath = PathUtil.computeHttpForwardPath(route, joinedPath)
-        val targetUrl = route.targetBaseUrl.trimEnd('/') + forwardPath
+        val targetUrl = if (route.targetType == HttpRouteTargetType.STATIC) {
+            route.staticRoot.trimEnd('/') + forwardPath
+        } else {
+            route.targetBaseUrl.trimEnd('/') + forwardPath
+        }
         val titleArea = JTextArea().apply {
             text = "Mock Path  $joinedPath"
             isEditable = false
@@ -560,6 +579,13 @@ class ProxyGroupTabPanel(
             )
         }
     }
+
+    private fun routeTargetSummary(route: HttpRoute): String =
+        if (route.targetType == HttpRouteTargetType.STATIC) {
+            route.staticRoot.ifBlank { message("toolwindow.notset") }
+        } else {
+            route.targetBaseUrl
+        }
 
     private fun createMetaRow(vararg items: JComponent): JComponent =
         JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
