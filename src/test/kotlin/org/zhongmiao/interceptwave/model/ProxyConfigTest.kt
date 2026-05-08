@@ -71,6 +71,9 @@ class ProxyConfigTest {
         assertNotNull(config.id)
         assertEquals("默认配置", config.name)
         assertEquals(8888, config.port)
+        assertFalse(config.httpsEnabled)
+        assertEquals("", config.httpsKeystorePath)
+        assertEquals("", config.httpsKeystorePassword)
         assertEquals(1, config.routes.size)
         assertEquals("/api", config.routes[0].pathPrefix)
         assertEquals("http://localhost:8080", config.routes[0].targetBaseUrl)
@@ -136,6 +139,9 @@ class ProxyConfigTest {
             id = "test-id-123",
             name = "Test Config",
             port = 8765,
+            httpsEnabled = true,
+            httpsKeystorePath = "certs/intercept-wave-local.p12",
+            httpsKeystorePassword = "changeit",
             routes = mutableListOf(
                 HttpRoute(
                     pathPrefix = "/test",
@@ -173,6 +179,9 @@ class ProxyConfigTest {
         assertEquals(config.id, decoded.id)
         assertEquals(config.name, decoded.name)
         assertEquals(config.port, decoded.port)
+        assertTrue(decoded.httpsEnabled)
+        assertEquals("certs/intercept-wave-local.p12", decoded.httpsKeystorePath)
+        assertEquals("changeit", decoded.httpsKeystorePassword)
         assertEquals(1, decoded.routes.size)
         assertEquals("/test", decoded.routes[0].pathPrefix)
         assertEquals(HttpRouteTargetType.STATIC, decoded.routes[0].targetType)

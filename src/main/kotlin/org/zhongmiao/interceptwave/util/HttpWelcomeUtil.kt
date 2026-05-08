@@ -8,6 +8,7 @@ import org.zhongmiao.interceptwave.model.ProxyConfig
  */
 object HttpWelcomeUtil {
     fun buildWelcomeJson(config: ProxyConfig): String {
+        val scheme = if (config.httpsEnabled) "https" else "http"
         val routes = config.routes.ifEmpty { mutableListOf() }
         val enabledApis = routes.flatMap { route -> route.mockApis.filter { it.enabled } }
         val enabledApiCount = enabledApis.size
@@ -19,10 +20,10 @@ object HttpWelcomeUtil {
                 val exampleUrl = if (route.stripPrefix) {
                     val prefix = if (route.pathPrefix.endsWith("/") && route.pathPrefix != "/") route.pathPrefix.dropLast(1) else route.pathPrefix
                     val path = if (api.path.startsWith("/")) api.path else "/${api.path}"
-                    "http://localhost:${config.port}" + if (prefix == "/") path else prefix + path
+                    "$scheme://localhost:${config.port}" + if (prefix == "/") path else prefix + path
                 } else {
                     val fullPath = if (api.path.startsWith("/")) api.path else "/${api.path}"
-                    "http://localhost:${config.port}" + fullPath
+                    "$scheme://localhost:${config.port}" + fullPath
                 }
                 """{"route": "${route.name}", "method": "$method", "url": "$exampleUrl"}"""
             }
@@ -39,6 +40,8 @@ object HttpWelcomeUtil {
               "configGroup": "${config.name}",
               "server": {
                 "port": ${config.port},
+                "scheme": "$scheme",
+                "httpsEnabled": ${config.httpsEnabled},
                 "routes": ${routes.size}
               },
               "mockApis": {
@@ -47,7 +50,7 @@ object HttpWelcomeUtil {
               },
               "usage": {
                 "description": "${message("welcome.usage.description")}",
-                "example": "GET http://localhost:${config.port}/your-api-path"
+                "example": "GET $scheme://localhost:${config.port}/your-api-path"
               },
               "routes": [
                 $routesJson
