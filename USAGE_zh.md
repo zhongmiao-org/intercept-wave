@@ -240,6 +240,23 @@ Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
+### Header 覆盖
+
+需要本地 CORS/缓存策略、临时鉴权头，或调试时复刻生产响应头时，可以使用路由级 header 覆盖：
+
+```json
+"requestHeaders": [
+  {"name": "Authorization", "value": "Bearer local-token", "operation": "SET", "enabled": true},
+  {"name": "X-Debug", "value": "1", "operation": "ADD", "enabled": true}
+],
+"responseHeaders": [
+  {"name": "Access-Control-Allow-Origin", "value": "*", "operation": "SET", "enabled": true},
+  {"name": "Cache-Control", "value": "no-store", "operation": "SET", "enabled": true}
+]
+```
+
+“导入 / 粘贴 Headers”弹框支持 Chrome 原始头（`HTTP/1.1 200 OK` 或 `POST /path HTTP/1.1` 后的 `Name: Value` 行）、Chrome 格式化 name/value 交替行、`{"Header":"value"}` 形式的 JSON 对象，以及 JSON 规则数组。所有导入内容都会先归一化为 JSON 规则数组再应用。受限传输头会保留在配置中，但运行时跳过。
+
 ### 代理模式
 
 未配置 Mock 的接口会自动转发到上游服务器，并尽量保留：

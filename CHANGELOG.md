@@ -12,6 +12,7 @@
 - Added frontend dev server proxy support with root-route forwarding and route-level SPA fallback paths for local gateway deep links.
 - Added built-in Mock response templates for success, pagination, empty data, error, and auth-expired responses.
 - Added static frontend build serving for HTTP routes, including project-relative static roots, MIME handling, SPA fallback, and traversal protection.
+- Added route-level request and response header override rules with Chrome header import and JSON normalization.
 
 ### 🐛 Fixed
 
@@ -21,6 +22,7 @@
 ### 📚 Documentation
 
 - Added nginx-like local gateway migration recipes for frontend dev server and multi-backend routing setups.
+- Documented route-level header overrides, Chrome header paste formats, and restricted transport header behavior.
 
 ### 🔧 CI/CD
 

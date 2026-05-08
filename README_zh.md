@@ -518,6 +518,25 @@ Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
+### 路由级 Header 覆盖
+
+每条 HTTP 路由都可以配置请求头和响应头覆盖规则。请求头规则会在转发上游前应用；响应头规则会在 Mock、代理、静态文件和默认 CORS 头之后应用。规则支持 `SET`、`ADD`、`REMOVE`：
+
+```json
+{
+  "requestHeaders": [
+    {"name": "Authorization", "value": "Bearer local-token", "operation": "SET", "enabled": true},
+    {"name": "X-Debug", "value": "1", "operation": "ADD", "enabled": true}
+  ],
+  "responseHeaders": [
+    {"name": "Access-Control-Allow-Origin", "value": "*", "operation": "SET", "enabled": true},
+    {"name": "Cache-Control", "value": "no-store", "operation": "SET", "enabled": true}
+  ]
+}
+```
+
+路由编辑器提供“导入 / 粘贴 Headers”，支持粘贴 Chrome DevTools 原始头、Chrome 格式化 name/value 头、JSON 对象或 JSON 规则数组；保存前会统一归一化为 JSON 规则。受限传输头会保存但运行时跳过：请求侧 `host`、`connection`、`content-length`、`date`、`expect`、`upgrade`、`trailer`、`te`；响应侧 `transfer-encoding`、`content-length`、`connection`。
+
 ### 代理模式
 
 未配置 Mock 的接口会自动转发到原始服务器，并保留：
@@ -544,8 +563,8 @@ Access-Control-Allow-Headers: Content-Type, Authorization
     "enabled": 2
   },
   "routes": [
-    {"name": "用户 API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true, "mockApis": 1},
-    {"name": "前端构建", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false, "mockApis": 0}
+    {"name": "用户 API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true, "requestHeaders": 1, "responseHeaders": 2, "mockApis": 1},
+    {"name": "前端构建", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false, "requestHeaders": 0, "responseHeaders": 1, "mockApis": 0}
   ],
   "examples": [
     {"route": "用户 API", "method": "GET", "url": "http://localhost:8888/api/user/info"}

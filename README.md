@@ -519,6 +519,25 @@ Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
+### Route-Level Header Overrides
+
+Each HTTP route can override request headers before proxy forwarding and response headers after mock, proxy, static file, and default CORS handling. Rules support `SET`, `ADD`, and `REMOVE`:
+
+```json
+{
+  "requestHeaders": [
+    {"name": "Authorization", "value": "Bearer local-token", "operation": "SET", "enabled": true},
+    {"name": "X-Debug", "value": "1", "operation": "ADD", "enabled": true}
+  ],
+  "responseHeaders": [
+    {"name": "Access-Control-Allow-Origin", "value": "*", "operation": "SET", "enabled": true},
+    {"name": "Cache-Control", "value": "no-store", "operation": "SET", "enabled": true}
+  ]
+}
+```
+
+The route editor also includes **Import / Paste Headers**. You can paste Chrome DevTools raw headers, Chrome formatted name/value headers, a JSON object, or a JSON rule array; Intercept Wave normalizes them to JSON rules before saving. Restricted transport headers are saved for visibility but skipped at runtime: request `host`, `connection`, `content-length`, `date`, `expect`, `upgrade`, `trailer`, `te`; response `transfer-encoding`, `content-length`, `connection`.
+
 ### Proxy Mode
 
 Unconfigured mock APIs will be automatically forwarded to the original server, preserving:
@@ -545,8 +564,8 @@ Accessing the mock server root path (`http://localhost:8888/`) returns server st
     "enabled": 2
   },
   "routes": [
-    {"name": "User API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true, "mockApis": 1},
-    {"name": "Frontend Build", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false, "mockApis": 0}
+    {"name": "User API", "pathPrefix": "/api", "targetType": "PROXY", "targetBaseUrl": "http://localhost:9000", "staticRoot": "", "stripPrefix": true, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": false, "enableMock": true, "requestHeaders": 1, "responseHeaders": 2, "mockApis": 1},
+    {"name": "Frontend Build", "pathPrefix": "/", "targetType": "STATIC", "targetBaseUrl": "", "staticRoot": "frontend/dist", "stripPrefix": false, "rewriteTargetPath": "", "spaFallbackPath": "", "spaFallback": true, "enableMock": false, "requestHeaders": 0, "responseHeaders": 1, "mockApis": 0}
   ],
   "examples": [
     {"route": "User API", "method": "GET", "url": "http://localhost:8888/api/user/info"}

@@ -399,6 +399,14 @@ class ProxyGroupTabPanel(
                 JBColor(0xF1E8FF, 0x332947)
             )
         }
+        val enabledHeaderRuleCount = route.requestHeaders.count { it.enabled } + route.responseHeaders.count { it.enabled }
+        if (enabledHeaderRuleCount > 0) {
+            routeMetaItems += createBadgeLabel(
+                message("config.http.headers.badge", enabledHeaderRuleCount),
+                JBColor(0x5F6368, 0xC7C9CC),
+                JBColor(0xF1F3F4, 0x2D3135)
+            )
+        }
         val routeMeta = createMetaRow(*routeMetaItems.toTypedArray())
         val editRouteButton = JButton("", AllIcons.Actions.Edit).apply {
             UiKit.applyToolbarButtonStyle(this)

@@ -7,6 +7,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.zhongmiao.interceptwave.model.HeaderOverrideOperation
+import org.zhongmiao.interceptwave.model.HeaderOverrideRule
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -75,5 +77,37 @@ class HttpForwardUtilTest {
         assertEquals(listOf("application/json"), copiedHeaders["Content-Type"])
         assertFalse(copiedHeaders.containsKey("Host"))
         assertTrue(request.bodyPublisher().isPresent)
+    }
+
+    @Test
+    fun buildRequest_applies_request_header_override_rules() {
+        val headers = Headers().apply {
+            add("X-Trace", "original")
+            add("X-Remove", "delete-me")
+            add("Host", "should-not-copy")
+        }
+        val exchange = FakeExchange(
+            method = "GET",
+            uri = URI("http://localhost:8888/api/users"),
+            headers = headers
+        )
+
+        val request = HttpForwardUtil.buildRequest(
+            "http://localhost:9001/users",
+            exchange,
+            listOf(
+                HeaderOverrideRule("X-Trace", "override", HeaderOverrideOperation.SET, enabled = true),
+                HeaderOverrideRule("X-Trace", "second", HeaderOverrideOperation.ADD, enabled = true),
+                HeaderOverrideRule("X-Remove", "", HeaderOverrideOperation.REMOVE, enabled = true),
+                HeaderOverrideRule("X-Disabled", "ignored", HeaderOverrideOperation.SET, enabled = false),
+                HeaderOverrideRule("Host", "evil.example", HeaderOverrideOperation.SET, enabled = true)
+            )
+        )
+
+        val copiedHeaders = request.headers().map()
+        assertEquals(listOf("override", "second"), copiedHeaders["X-Trace"])
+        assertFalse(copiedHeaders.containsKey("X-Remove"))
+        assertFalse(copiedHeaders.containsKey("X-Disabled"))
+        assertFalse(copiedHeaders.containsKey("Host"))
     }
 }

@@ -18,6 +18,8 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
 import org.zhongmiao.interceptwave.InterceptWaveBundle.message
+import org.zhongmiao.interceptwave.model.HeaderOverrideOperation
+import org.zhongmiao.interceptwave.model.HeaderOverrideRule
 import org.zhongmiao.interceptwave.model.HttpRoute
 import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import org.zhongmiao.interceptwave.model.ProxyConfig
@@ -67,6 +69,10 @@ class HttpConfigSection(
     private val routeStripPrefixCheckBox = JBCheckBox(message("config.group.stripprefix"))
     private val routeEnableMockCheckBox = JBCheckBox(message("config.http.route.enablemock"))
     private val routeMockHintLabel = JBLabel(message("config.http.mock.help"))
+    private val requestHeaderTableModel = createHeaderTableModel()
+    private val responseHeaderTableModel = createHeaderTableModel()
+    private val requestHeaderTable = JBTable(requestHeaderTableModel)
+    private val responseHeaderTable = JBTable(responseHeaderTableModel)
 
     private val routeListModel = DefaultListModel<HttpRoute>()
     private val routeList = JBList(routeListModel).apply {
@@ -110,6 +116,7 @@ class HttpConfigSection(
     private var selectedRouteIndex = -1
     private var syncingRouteDetails = false
     private var syncingMockTable = false
+    private var syncingHeaderTables = false
     private var pendingInitialMockIndex: Int? = initialMockIndex
 
     fun panel(): JBPanel<JBPanel<*>> {
@@ -131,6 +138,8 @@ class HttpConfigSection(
         UiKit.ensureVisibleRows(mockTable, UiKit.DEFAULT_VISIBLE_ROWS)
         UiKit.setEnabledColumnWidth(mockTable, 0)
         UiKit.installTableTooltips(mockTable)
+        configureHeaderTable(requestHeaderTable)
+        configureHeaderTable(responseHeaderTable)
 
         attachListeners()
         reloadRouteList()
@@ -289,9 +298,15 @@ class HttpConfigSection(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(createSectionCard(message("config.http.route.details.section"), detailsForm))
             add(Box.createVerticalStrut(JBUI.scale(12)))
+            add(createSectionCard(message("config.http.headers.request.section"), createHeaderPanel(requestHeaderTable, HeaderSide.REQUEST)))
+            add(Box.createVerticalStrut(JBUI.scale(12)))
+            add(createSectionCard(message("config.http.headers.response.section"), createHeaderPanel(responseHeaderTable, HeaderSide.RESPONSE)))
+            add(Box.createVerticalStrut(JBUI.scale(12)))
             add(createSectionCard(message("config.http.mock.section"), mockForm))
         }
     }
+
+    private enum class HeaderSide { REQUEST, RESPONSE }
 
     private fun createProxyTargetPanel(): JComponent = panel {
         row(message("config.group.baseurl") + ":") { cell(routeBaseUrlField).align(AlignX.FILL) }
@@ -360,6 +375,8 @@ class HttpConfigSection(
                 onChanged()
             }
         }
+        requestHeaderTableModel.addTableModelListener { syncHeaderRulesFromTable(HeaderSide.REQUEST) }
+        responseHeaderTableModel.addTableModelListener { syncHeaderRulesFromTable(HeaderSide.RESPONSE) }
     }
 
     private fun handleRouteSelectionChanged() {
@@ -398,6 +415,74 @@ class HttpConfigSection(
         routeList.repaint()
     }
 
+    private fun createHeaderTableModel(): DefaultTableModel =
+        object : DefaultTableModel(
+            arrayOf(
+                message("config.table.enabled"),
+                message("config.http.headers.operation"),
+                message("config.http.headers.name"),
+                message("config.http.headers.value")
+            ),
+            0
+        ) {
+            override fun getColumnClass(column: Int): Class<*> =
+                if (column == 0) Boolean::class.javaObjectType else String::class.java
+
+            override fun isCellEditable(row: Int, column: Int): Boolean = column == 0
+        }
+
+    private fun configureHeaderTable(table: JBTable) {
+        table.fillsViewportHeight = true
+        UiKit.applyCompactTableStyle(table)
+        UiKit.ensureVisibleRows(table, 4)
+        UiKit.setEnabledColumnWidth(table, 0)
+        UiKit.installTableTooltips(table)
+    }
+
+    private fun createHeaderPanel(table: JBTable, side: HeaderSide): JComponent {
+        val scroll = JBScrollPane(table).apply {
+            border = null
+            viewportBorder = null
+            preferredSize = JBUI.size(0, 110)
+        }
+        return panel {
+            row {
+                val hint = JBLabel(
+                    if (side == HeaderSide.REQUEST) {
+                        message("config.http.headers.request.help")
+                    } else {
+                        message("config.http.headers.response.help")
+                    }
+                )
+                UiKit.applySecondaryText(hint)
+                cell(hint).align(AlignX.FILL)
+            }
+            row { cell(scroll).align(AlignX.FILL) }
+            row {
+                button(message("config.http.headers.add")) { addHeaderRule(side) }
+                    .applyToComponent {
+                        icon = com.intellij.icons.AllIcons.General.Add
+                        UiKit.applyToolbarButtonStyle(this)
+                    }
+                button(message("config.http.headers.edit")) { editHeaderRule(side) }
+                    .applyToComponent {
+                        icon = com.intellij.icons.AllIcons.Actions.Edit
+                        UiKit.applyToolbarButtonStyle(this)
+                    }
+                button(message("config.http.headers.delete")) { deleteHeaderRule(side) }
+                    .applyToComponent {
+                        icon = com.intellij.icons.AllIcons.General.Remove
+                        UiKit.applyToolbarButtonStyle(this)
+                    }
+                button(message("config.http.headers.import")) { importHeaderRules(side) }
+                    .applyToComponent {
+                        icon = com.intellij.icons.AllIcons.Actions.MenuOpen
+                        UiKit.applyToolbarButtonStyle(this)
+                    }
+            }
+        }
+    }
+
     private fun updateRouteDetails() {
         syncingRouteDetails = true
         try {
@@ -430,6 +515,7 @@ class HttpConfigSection(
         }
         updateTargetTypeUi()
         updateMockTable()
+        updateHeaderTables()
     }
 
     private fun updateTargetTypeUi() {
@@ -527,6 +613,99 @@ class HttpConfigSection(
             mockTable.clearSelection()
         }
         updateMockActionButtons()
+    }
+
+    private fun updateHeaderTables() {
+        syncingHeaderTables = true
+        try {
+            fillHeaderTable(requestHeaderTableModel, currentRoute()?.requestHeaders.orEmpty())
+            fillHeaderTable(responseHeaderTableModel, currentRoute()?.responseHeaders.orEmpty())
+        } finally {
+            syncingHeaderTables = false
+        }
+    }
+
+    private fun fillHeaderTable(model: DefaultTableModel, rules: List<HeaderOverrideRule>) {
+        model.rowCount = 0
+        rules.forEach { rule ->
+            model.addRow(arrayOf<Any>(rule.enabled, rule.operation.name, rule.name, rule.value))
+        }
+    }
+
+    private fun syncHeaderRulesFromTable(side: HeaderSide) {
+        if (syncingRouteDetails || syncingHeaderTables) return
+        val route = currentRoute() ?: return
+        val model = if (side == HeaderSide.REQUEST) requestHeaderTableModel else responseHeaderTableModel
+        val rules = (0 until model.rowCount).map { row ->
+            HeaderOverrideRule(
+                enabled = model.getValueAt(row, 0) as? Boolean ?: true,
+                operation = runCatching { HeaderOverrideOperation.valueOf(model.getValueAt(row, 1).toString()) }.getOrDefault(HeaderOverrideOperation.SET),
+                name = model.getValueAt(row, 2).toString(),
+                value = model.getValueAt(row, 3).toString()
+            )
+        }.toMutableList()
+        if (side == HeaderSide.REQUEST) route.requestHeaders = rules else route.responseHeaders = rules
+        onChanged()
+    }
+
+    private fun addHeaderRule(side: HeaderSide) {
+        val dialog = HeaderOverrideRuleDialog(project, null, side == HeaderSide.REQUEST)
+        if (dialog.showAndGet()) {
+            val route = currentRoute() ?: return
+            if (side == HeaderSide.REQUEST) {
+                route.requestHeaders.add(dialog.rule())
+            } else {
+                route.responseHeaders.add(dialog.rule())
+            }
+            updateHeaderTables()
+            onChanged()
+        }
+    }
+
+    private fun editHeaderRule(side: HeaderSide) {
+        val route = currentRoute() ?: return
+        val table = if (side == HeaderSide.REQUEST) requestHeaderTable else responseHeaderTable
+        val row = table.selectedRow
+        val rules = if (side == HeaderSide.REQUEST) route.requestHeaders else route.responseHeaders
+        if (row !in rules.indices) {
+            JOptionPane.showMessageDialog(table, message("config.http.headers.select.first"), message("config.message.info"), JOptionPane.INFORMATION_MESSAGE)
+            return
+        }
+        val dialog = HeaderOverrideRuleDialog(project, rules[row], side == HeaderSide.REQUEST)
+        if (dialog.showAndGet()) {
+            rules[row] = dialog.rule()
+            updateHeaderTables()
+            onChanged()
+        }
+    }
+
+    private fun deleteHeaderRule(side: HeaderSide) {
+        val route = currentRoute() ?: return
+        val table = if (side == HeaderSide.REQUEST) requestHeaderTable else responseHeaderTable
+        val row = table.selectedRow
+        val rules = if (side == HeaderSide.REQUEST) route.requestHeaders else route.responseHeaders
+        if (row !in rules.indices) {
+            JOptionPane.showMessageDialog(table, message("config.http.headers.select.first"), message("config.message.info"), JOptionPane.INFORMATION_MESSAGE)
+            return
+        }
+        rules.removeAt(row)
+        updateHeaderTables()
+        onChanged()
+    }
+
+    private fun importHeaderRules(side: HeaderSide) {
+        val dialog = HeaderImportDialog(project, side == HeaderSide.REQUEST)
+        if (dialog.showAndGet()) {
+            val route = currentRoute() ?: return
+            val rules = dialog.rules()
+            if (side == HeaderSide.REQUEST) {
+                route.requestHeaders.addAll(rules)
+            } else {
+                route.responseHeaders.addAll(rules)
+            }
+            updateHeaderTables()
+            onChanged()
+        }
     }
 
     private fun updateMockAreaState() {
@@ -701,7 +880,11 @@ class HttpConfigSection(
     }
 
     private fun copyRoute(route: HttpRoute): HttpRoute =
-        route.copy(mockApis = route.mockApis.map { it.copy() }.toMutableList())
+        route.copy(
+            requestHeaders = route.requestHeaders.map { it.copy() }.toMutableList(),
+            responseHeaders = route.responseHeaders.map { it.copy() }.toMutableList(),
+            mockApis = route.mockApis.map { it.copy() }.toMutableList()
+        )
 
     private fun setComponentEnabled(component: Component, enabled: Boolean) {
         component.isEnabled = enabled
