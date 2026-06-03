@@ -26,6 +26,10 @@
 - Documented route-level header overrides, Chrome header paste formats, and restricted transport header behavior.
 - Documented local HTTPS setup, generated PKCS#12 certificates, and browser trust caveats.
 
+### 🎨 Changed
+
+- Updated plugin logo assets and replaced the IDE tool window icon with a transparent, single-color line icon that better matches JetBrains UI styling.
+
 ### 🔧 CI/CD
 
 - Added a release-time test gate before creating tags, publishing to JetBrains Marketplace, or publishing GitHub Releases.

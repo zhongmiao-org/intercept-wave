@@ -26,6 +26,10 @@
 - 补充路由级 Header 覆盖、Chrome 复制头格式和受限传输头运行时跳过策略说明。
 - 补充本地 HTTPS 配置、生成 PKCS#12 证书和浏览器信任注意事项。
 
+### 🎨 变更
+
+- 更新插件 Logo 资源，并将 IDE 工具窗口图标替换为透明背景、单色线稿风格，使其更贴近 JetBrains UI。
+
 ### 🔧 CI/CD
 
 - 在创建 tag、发布到 JetBrains Marketplace、发布 GitHub Release 前增加 release 测试门禁。
