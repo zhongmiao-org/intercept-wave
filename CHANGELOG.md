@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-06-03
+
 ### ✨ Added
 
 - Added HTTP route rewrite rules so route-local paths can be rewritten after prefix stripping for local nginx-like gateway setups.
