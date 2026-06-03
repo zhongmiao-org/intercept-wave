@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="src/main/resources/META-INF/pluginIcon.svg" alt="Intercept Wave Logo" width="128" height="128">
+  <img src="src/main/resources/META-INF/pluginLogo.svg" alt="Intercept Wave Logo" width="160" height="160">
 
   # Intercept Wave for IntelliJ IDEA
 
