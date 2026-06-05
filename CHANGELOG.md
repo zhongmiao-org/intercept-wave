@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- Avoided the deprecated IntelliJ file chooser descriptor factory call in the HTTPS keystore picker while preserving 2023.1+ IDE compatibility.
+
 ## [5.0.0] - 2026-06-03
 
 ### ✨ Added
