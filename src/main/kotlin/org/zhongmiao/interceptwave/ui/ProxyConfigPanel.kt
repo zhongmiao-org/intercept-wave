@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.ui
 
 import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -211,7 +212,7 @@ class ProxyConfigPanel(
     }
 
     private fun chooseHttpsKeystore() {
-        val descriptor = FileChooserDescriptorFactory.createSingleFileDescriptor()
+        val descriptor = createSingleHttpsKeystoreDescriptor()
             .withTitle(message("config.http.https.keystore.choose.title"))
             .withDescription(message("config.http.https.keystore.choose.desc"))
         val current = resolvePathForUi(httpsKeystorePathField.text.trim())
@@ -219,6 +220,23 @@ class ProxyConfigPanel(
         httpsKeystorePathField.text = toStoredPath(selected.path)
         updateHttpsUi()
         onChanged()
+    }
+
+    private fun createSingleHttpsKeystoreDescriptor(): FileChooserDescriptor {
+        // Avoid direct calls to 2026-deprecated factory methods while keeping sinceBuild=231 compatibility.
+        val descriptorFromNewFactory = runCatching {
+            FileChooserDescriptorFactory::class.java
+                .getMethod("singleFile")
+                .invoke(null) as FileChooserDescriptor
+        }.getOrNull()
+        if (descriptorFromNewFactory != null) {
+            return descriptorFromNewFactory
+        }
+
+        val booleanType = java.lang.Boolean.TYPE
+        return FileChooserDescriptor::class.java
+            .getConstructor(booleanType, booleanType, booleanType, booleanType, booleanType, booleanType)
+            .newInstance(true, false, false, false, false, false) as FileChooserDescriptor
     }
 
     private fun generateLocalCertificate() {
