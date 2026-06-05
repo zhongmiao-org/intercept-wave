@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 🐛 修复
+
+- HTTPS keystore 选择器不再直接调用已废弃的 IntelliJ 文件选择 descriptor 工厂方法，同时保留对 2023.1+ IDE 的兼容。
+
 ## [5.0.0]
 
 ### ✨ 新增
