@@ -27,7 +27,7 @@ import java.util.UUID
 class ConfigService(private val project: Project) {
 
     companion object {
-        const val CURRENT_CONFIG_VERSION = "4.0"
+        const val CURRENT_CONFIG_VERSION = "5.0"
     }
 
     @Serializable
@@ -380,7 +380,7 @@ class ConfigService(private val project: Project) {
 
     /**
      * 按配置 version 逐步滚动升级到当前版本。
-     * 例如：2.0 -> 3.0 -> 4.0
+     * 例如：2.0 -> 3.0 -> 4.0 -> 5.0
      */
     private fun migrateToLatest(root: RootConfig, rootJson: JsonObject?): Pair<Boolean, RootConfig> {
         var changed = false
@@ -395,6 +395,10 @@ class ConfigService(private val project: Project) {
                 "3" -> {
                     changed = true
                     migrateV3ToV4(current, rootJson)
+                }
+                "4" -> {
+                    changed = true
+                    migrateV4ToV5(current, rootJson)
                 }
                 else -> {
                     val normalized = ensureCurrentConfigVersion(current)
@@ -423,6 +427,17 @@ class ConfigService(private val project: Project) {
         thisLogger().info("Migrating config from v3.0 to v4.0")
         val withRoutes = ensureHttpRoutes(root.copy(version = "4.0"), rootJson).second
         return withRoutes.copy(version = "4.0")
+    }
+
+    /**
+     * v4.0 -> v5.0:
+     * 5.0 为 HTTP 路由和配置组新增 rewrite、SPA fallback、静态文件、Header 覆盖与 HTTPS 字段。
+     * 字段本身都有安全默认值；迁移负责推进 schema 版本并强制回写，让旧配置文件显式带上这些默认字段。
+     */
+    private fun migrateV4ToV5(root: RootConfig, rootJson: JsonObject?): RootConfig {
+        thisLogger().info("Migrating config from v4.0 to v5.0")
+        val withRoutes = ensureHttpRoutes(root.copy(version = "5.0"), rootJson).second
+        return withRoutes.copy(version = "5.0")
     }
 
     private fun notifyMigrationCompleted() {
