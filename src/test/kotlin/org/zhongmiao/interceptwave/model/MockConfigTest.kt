@@ -72,9 +72,9 @@ class MockConfigTest {
     @Test
     fun rootConfig_defaults() {
         val root = RootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals("5.0", root.version)
         assertTrue(root.proxyGroups.isEmpty())
         val s = json.encodeToString(root)
-        assertTrue(s.contains("\"version\":\"4.0\""))
+        assertTrue(s.contains("\"version\":\"5.0\""))
     }
 }

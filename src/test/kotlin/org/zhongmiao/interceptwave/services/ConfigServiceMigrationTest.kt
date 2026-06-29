@@ -1,6 +1,7 @@
 package org.zhongmiao.interceptwave.services
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.zhongmiao.interceptwave.model.HttpRouteTargetType
 import java.io.File
 
 class ConfigServiceMigrationTest : BasePlatformTestCase() {
@@ -45,7 +46,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
 
         // Migration creates RootConfig with one proxy group and one HTTP route
         assertTrue(root.proxyGroups.isNotEmpty())
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         val group = root.proxyGroups.first()
         assertEquals(18888, group.port)
         assertTrue(group.stripPrefix)
@@ -86,7 +87,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(v2WithoutRoutes)
 
         val root = ConfigService(project).getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         val group = root.proxyGroups.single()
         assertEquals(1, group.routes.size)
         assertEquals("/api", group.routes[0].pathPrefix)
@@ -113,7 +114,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         assertTrue(reloaded.version != "1.2")
     }
 
-    fun `test load version 2 root_config_rolls through to 4_0`() {
+    fun `test load version 2 root_config_rolls through to 5_0`() {
         val v2Root = """
             {
               "version": "2.0",
@@ -137,12 +138,73 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(v2Root)
 
         val root = ConfigService(project).getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         val group = root.proxyGroups.single()
         assertEquals(1, group.routes.size)
         assertEquals("/api", group.routes.single().pathPrefix)
         assertEquals("http://localhost:18082", group.routes.single().targetBaseUrl)
         assertEquals("/user", group.routes.single().mockApis.single().path)
+    }
+
+    fun `test load version 4 config_materializes_5_0_defaults`() {
+        val v4Root = """
+            {
+              "version": "4.0",
+              "proxyGroups": [
+                {
+                  "id": "http-v4",
+                  "name": "Legacy V4 HTTP",
+                  "protocol": "HTTP",
+                  "port": 18893,
+                  "routes": [
+                    {
+                      "id": "route-v4",
+                      "name": "API",
+                      "pathPrefix": "/api",
+                      "targetBaseUrl": "http://localhost:18084",
+                      "stripPrefix": true,
+                      "enableMock": true,
+                      "mockApis": []
+                    }
+                  ],
+                  "stripPrefix": true,
+                  "globalCookie": "",
+                  "enabled": true
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val configFile = File(configDir, "config.json")
+        configFile.writeText(v4Root)
+
+        val root = ConfigService(project).getRootConfig()
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
+        val group = root.proxyGroups.single()
+        assertFalse(group.httpsEnabled)
+        assertEquals("", group.httpsKeystorePath)
+        assertEquals("", group.httpsKeystorePassword)
+
+        val route = group.routes.single()
+        assertEquals(HttpRouteTargetType.PROXY, route.targetType)
+        assertEquals("", route.staticRoot)
+        assertEquals("", route.rewriteTargetPath)
+        assertEquals("", route.spaFallbackPath)
+        assertFalse(route.spaFallback)
+        assertTrue(route.requestHeaders.isEmpty())
+        assertTrue(route.responseHeaders.isEmpty())
+
+        val saved = configFile.readText()
+        assertTrue(saved.contains("\"version\": \"5.0\""))
+        assertTrue(saved.contains("\"httpsEnabled\": false"))
+        assertTrue(saved.contains("\"httpsKeystorePath\": \"\""))
+        assertTrue(saved.contains("\"targetType\": \"PROXY\""))
+        assertTrue(saved.contains("\"staticRoot\": \"\""))
+        assertTrue(saved.contains("\"rewriteTargetPath\": \"\""))
+        assertTrue(saved.contains("\"spaFallbackPath\": \"\""))
+        assertTrue(saved.contains("\"spaFallback\": false"))
+        assertTrue(saved.contains("\"requestHeaders\": []"))
+        assertTrue(saved.contains("\"responseHeaders\": []"))
     }
 
     fun `test load version 3 legacy group_with_blank_prefix_becomes_root_route`() {
@@ -169,7 +231,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(v3Root)
 
         val root = ConfigService(project).getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         val route = root.proxyGroups.single().routes.single()
         assertEquals("/", route.pathPrefix)
         assertEquals("http://localhost:18083", route.targetBaseUrl)
@@ -199,7 +261,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(malformedLegacy)
 
         val root = ConfigService(project).getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         val route = root.proxyGroups.single().routes.single()
         assertEquals("/api", route.pathPrefix)
         assertEquals("http://localhost:8080", route.targetBaseUrl)
@@ -254,7 +316,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(v31Root)
 
         val root = ConfigService(project).getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         assertEquals(3, root.proxyGroups.size)
 
         val user = root.proxyGroups[0].routes.single()
@@ -316,7 +378,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         File(configDir, "config.json").writeText(v2Root)
 
         val root = ConfigService(project).getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         assertEquals(2, root.proxyGroups.size)
 
         val businessGroup = root.proxyGroups[0]
@@ -361,7 +423,7 @@ class ConfigServiceMigrationTest : BasePlatformTestCase() {
         ConfigService(project).getRootConfig()
 
         val saved = configFile.readText()
-        assertTrue(saved.contains(""""version": "4.0""""))
+        assertTrue(saved.contains(""""version": "5.0""""))
         assertTrue(saved.contains(""""routes": ["""))
         assertTrue(saved.contains(""""pathPrefix": "/api""""))
         assertTrue(saved.contains(""""targetBaseUrl": "http://localhost:9000""""))

@@ -79,9 +79,9 @@ Intercept Wave supports JetBrains IDEs based on the IntelliJ Platform 2023.1 and
 The plugin verification matrix covers 2023.1 baseline releases for CLion, DataGrip, DataSpell, GoLand, IntelliJ IDEA Community, IntelliJ IDEA Ultimate, PhpStorm, PyCharm Community, PyCharm Professional, Rider, RubyMine, and WebStorm.
 <!-- Plugin description end -->
 
-### What's New in v4.0
+### Configuration Updates
 
-- Config version now aligns with the plugin major.minor (e.g., 4.0). Existing legacy configs load seamlessly and are saved with `"version": "4.0"` automatically.
+- Config schema upgrades run automatically. Existing legacy configs load seamlessly and are saved with the current schema version (`"version": "5.0"`).
 - Mock JSON normalization and minification: `mockData` accepts single quotes, comments, unquoted keys, and trailing commas, then saves the result as compact JSON. Use "Format JSON" to pretty-print it while editing.
 
 ## Installation
@@ -468,7 +468,7 @@ All configurations are saved in the `.intercept-wave` folder in the project root
 
 ```json
 {
-  "version": "4.0",
+  "version": "5.0",
   "proxyGroups": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",

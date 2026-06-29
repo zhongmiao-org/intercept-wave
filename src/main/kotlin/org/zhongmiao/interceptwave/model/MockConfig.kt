@@ -9,7 +9,7 @@ import java.util.UUID
 @Serializable
 data class RootConfig(
     // 配置版本号
-    var version: String = "4.0",
+    var version: String = "5.0",
 
     // 代理配置组列表
     var proxyGroups: MutableList<ProxyConfig> = mutableListOf()

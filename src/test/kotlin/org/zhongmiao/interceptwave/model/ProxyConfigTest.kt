@@ -17,14 +17,14 @@ class ProxyConfigTest {
     fun `test RootConfig default values`() {
         val rootConfig = RootConfig()
 
-        assertEquals("4.0", rootConfig.version)
+        assertEquals("5.0", rootConfig.version)
         assertTrue(rootConfig.proxyGroups.isEmpty())
     }
 
     @Test
     fun `test RootConfig with proxy groups`() {
         val rootConfig = RootConfig(
-            version = "4.0",
+            version = "5.0",
             proxyGroups = mutableListOf(
                 ProxyConfig(
                     name = "User Service",
@@ -37,7 +37,7 @@ class ProxyConfigTest {
             )
         )
 
-        assertEquals("4.0", rootConfig.version)
+        assertEquals("5.0", rootConfig.version)
         assertEquals(2, rootConfig.proxyGroups.size)
         assertEquals("User Service", rootConfig.proxyGroups[0].name)
         assertEquals("Order Service", rootConfig.proxyGroups[1].name)
@@ -46,7 +46,7 @@ class ProxyConfigTest {
     @Test
     fun `test RootConfig serialization`() {
         val rootConfig = RootConfig(
-            version = "4.0",
+            version = "5.0",
             proxyGroups = mutableListOf(
                 ProxyConfig(
                     name = "Test Service",
@@ -339,8 +339,8 @@ class ProxyConfigTest {
 
     @Test
     fun `test RootConfig version validation`() {
-        val rootConfig = RootConfig(version = "4.0")
-        assertEquals("4.0", rootConfig.version)
+        val rootConfig = RootConfig(version = "5.0")
+        assertEquals("5.0", rootConfig.version)
 
         rootConfig.version = "3.0"
         assertEquals("3.0", rootConfig.version)

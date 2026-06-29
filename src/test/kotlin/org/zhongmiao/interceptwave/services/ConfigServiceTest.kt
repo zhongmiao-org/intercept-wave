@@ -257,7 +257,7 @@ class ConfigServiceTest {
 
         val svc = ConfigService(fakeProject(dir))
         val root = svc.getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         assertNotNull(root.proxyGroups)
     }
 
@@ -294,7 +294,7 @@ class ConfigServiceTest {
 
         val svc = ConfigService(fakeProject(dir))
         val root = svc.getRootConfig()
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         assertEquals(1, root.proxyGroups.size)
         assertEquals("keep-me", root.proxyGroups.single().id)
     }
@@ -571,9 +571,9 @@ class ConfigServiceTest {
     fun migrateToLatest_normalizes_unknown_version_when_major_minor_matches_current() {
         val dir = Files.createTempDirectory("iw-conf18").toFile()
         val svc = ConfigService(fakeProject(dir))
-        System.setProperty("intercept.wave.version", "4.0.2")
+        System.setProperty("intercept.wave.version", "5.0.2")
         val root = RootConfig(
-            version = "4.9.1",
+            version = "5.9.1",
             proxyGroups = mutableListOf(
                 ProxyConfig(id = "keep", routes = mutableListOf(HttpRoute(pathPrefix = "/api", targetBaseUrl = "http://localhost:4002")))
             )
@@ -584,7 +584,7 @@ class ConfigServiceTest {
         val migrated = result::class.java.getMethod("component2").invoke(result) as RootConfig
 
         assertTrue(changed)
-        assertEquals("4.0", migrated.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, migrated.version)
         assertEquals("keep", migrated.proxyGroups.single().id)
     }
 
@@ -703,7 +703,7 @@ class ConfigServiceTest {
 
         val root = ConfigService(fakeProject(dir)).getRootConfig()
 
-        assertEquals("4.0", root.version)
+        assertEquals(ConfigService.CURRENT_CONFIG_VERSION, root.version)
         assertEquals(5, root.proxyGroups.size)
         assertEquals(3, root.proxyGroups.count { it.protocol == "HTTP" })
         assertEquals(2, root.proxyGroups.count { it.protocol == "WS" })

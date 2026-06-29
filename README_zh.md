@@ -77,9 +77,9 @@ Intercept Wave 支持基于 IntelliJ Platform 2023.1 及更新版本的 JetBrain
 
 插件验证矩阵覆盖以下产品的 2023.1 基线版本：CLion、DataGrip、DataSpell、GoLand、IntelliJ IDEA Community、IntelliJ IDEA Ultimate、PhpStorm、PyCharm Community、PyCharm Professional、Rider、RubyMine 和 WebStorm。
 
-### v4.0 更新
+### 配置更新
 
-- 配置中的 `version` 与插件主次版本保持一致（例如 4.0）。现有旧配置可直接使用，保存时会自动写入 `"version": "4.0"`。
+- 配置 schema 会自动升级。现有旧配置可直接使用，保存时会自动写入当前 schema 版本（`"version": "5.0"`）。
 - Mock JSON 自动规范化与最小化：支持单引号、注释、未加引号的键、尾逗号等宽松写法，保存时会自动压缩为紧凑 JSON；编辑时可使用“格式化 JSON”按钮美化显示。
 
 ## 安装
@@ -467,7 +467,7 @@ fetch('http://localhost:8888/api/posts')
 
 ```json
 {
-  "version": "4.0",
+  "version": "5.0",
   "proxyGroups": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",

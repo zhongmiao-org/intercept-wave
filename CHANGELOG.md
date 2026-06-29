@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- Added the missing v4.0 -> v5.0 configuration migration so 5.0 HTTP route and group defaults are materialized into existing config files.
+
 ## [5.0.1] - 2026-06-05
 
 ### 🐛 Fixed
@@ -451,7 +455,10 @@
 - Support for custom Mock data responses
 - Provided visual configuration interface
 
-[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/zhongmiao-org/intercept-wave/compare/v5.0.1...HEAD
+[5.0.1]: https://github.com/zhongmiao-org/intercept-wave/compare/v5.0.0...v5.0.1
+[5.0.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v4.1.0...v5.0.0
+[4.1.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.1.0...v4.0.0
 [3.1.0]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.2...v3.1.0
 [3.0.2]: https://github.com/zhongmiao-org/intercept-wave/compare/v3.0.1...v3.0.2
