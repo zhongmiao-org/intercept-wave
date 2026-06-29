@@ -93,8 +93,8 @@ dependencies {
     testImplementation(libs.opentest4j)
 
     // JUnit 5 (Jupiter) for UI tests
-    testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.1")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.1")
 
     // JUnit Vintage Engine to run JUnit 4 tests on JUnit Platform
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
