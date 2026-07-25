@@ -178,7 +178,7 @@ intellijPlatform {
     pluginVerification {
         ides {
             create(IntelliJPlatformType.CLion, "2023.1.7")
-            create(IntelliJPlatformType.DataGrip, "2023.1.1")
+            create(IntelliJPlatformType.DataGrip, "2023.2.3")
             create(IntelliJPlatformType.DataSpell, "2023.1.6")
             create(IntelliJPlatformType.GoLand, "2023.1.6")
             create(IntelliJPlatformType.IntellijIdeaCommunity, "2023.1.7")
