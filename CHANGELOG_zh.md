@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 🔄 变更
+
+- 将最低支持的 JetBrains IDE 基线提升至 IntelliJ Platform `2023.3`，并改为使用 current 和 recommended IDE 目标验证插件。
+
 ### 🐛 修复
 
 - 补齐 v4.0 -> v5.0 配置迁移，确保 5.0 新增的 HTTP 路由和配置组默认字段会写入已有配置文件。

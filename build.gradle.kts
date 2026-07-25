@@ -1,6 +1,5 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -177,20 +176,8 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            create(IntelliJPlatformType.CLion, "2023.1.7")
-            create(IntelliJPlatformType.DataSpell, "2023.1.6")
-            create(IntelliJPlatformType.GoLand, "2023.1.6")
-            create(IntelliJPlatformType.IntellijIdeaCommunity, "2023.1.7")
-            create(IntelliJPlatformType.IntellijIdeaUltimate, "2023.1.7")
-            create(IntelliJPlatformType.PhpStorm, "2023.1.6")
-            create(IntelliJPlatformType.PyCharmCommunity, "2023.1.6")
-            create(IntelliJPlatformType.PyCharmProfessional, "2023.1.6")
-            create(IntelliJPlatformType.Rider, "2023.1.7") {
-                useInstaller = false
-            }
-            create(IntelliJPlatformType.RubyMine, "2023.1.7")
-            create(IntelliJPlatformType.WebStorm, "2023.1.6")
-            create(IntelliJPlatformType.WebStorm, "2026.1")
+            current()
+            recommended()
         }
     }
 }
