@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 🔄 Changed
+
+- Raised the minimum supported JetBrains IDE baseline to IntelliJ Platform `2023.3` and now verify the plugin against the current and recommended IDE targets.
+
 ### 🐛 Fixed
 
 - Added the missing v4.0 -> v5.0 configuration migration so 5.0 HTTP route and group defaults are materialized into existing config files.

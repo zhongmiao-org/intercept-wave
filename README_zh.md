@@ -73,9 +73,9 @@ Intercept Wave 提供以下核心功能：
 
 ## 兼容性
 
-Intercept Wave 支持基于 IntelliJ Platform 2023.1 及更新版本的 JetBrains IDE。插件以 2023.1 平台作为兼容基线构建，并输出 Java 17 字节码，以兼容 2023.x IDE 运行时。
+Intercept Wave 支持基于 IntelliJ Platform 2023.3 及更新版本的 JetBrains IDE。插件以 2023.3 平台作为兼容基线构建，并输出 Java 17 字节码，以兼容 2023.x IDE 运行时。
 
-插件验证矩阵覆盖以下产品的 2023.1 基线版本：CLion、DataGrip、DataSpell、GoLand、IntelliJ IDEA Community、IntelliJ IDEA Ultimate、PhpStorm、PyCharm Community、PyCharm Professional、Rider、RubyMine 和 WebStorm。
+插件验证矩阵使用 IntelliJ Platform Gradle Plugin 提供的 current 和 recommended IDE 目标。
 
 ### 配置更新
 

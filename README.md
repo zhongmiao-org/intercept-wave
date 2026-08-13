@@ -74,9 +74,9 @@ Intercept Wave provides the following core functionalities:
 
 ## Compatibility
 
-Intercept Wave supports JetBrains IDEs based on the IntelliJ Platform 2023.1 and newer. The plugin is built against the 2023.1 platform baseline and emits Java 17 bytecode for compatibility with 2023.x IDE runtimes.
+Intercept Wave supports JetBrains IDEs based on the IntelliJ Platform 2023.3 and newer. The plugin is built against the 2023.3 platform baseline and emits Java 17 bytecode for compatibility with 2023.x IDE runtimes.
 
-The plugin verification matrix covers 2023.1 baseline releases for CLion, DataGrip, DataSpell, GoLand, IntelliJ IDEA Community, IntelliJ IDEA Ultimate, PhpStorm, PyCharm Community, PyCharm Professional, Rider, RubyMine, and WebStorm.
+The plugin verification matrix uses the IntelliJ Platform Gradle Plugin's current and recommended IDE targets.
 <!-- Plugin description end -->
 
 ### Configuration Updates
